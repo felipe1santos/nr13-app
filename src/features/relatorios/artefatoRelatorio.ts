@@ -92,6 +92,15 @@ export async function publicarArtefato(bytes: Uint8Array, paginas: number): Prom
 }
 
 /** O arquivo: cofre local primeiro (offline, egress zero), bucket depois. */
+/**
+ * Identidade do arquivo: o mesmo path com o mesmo SHA é o mesmo PDF. O VisualizadorPdf baixa
+ * por ESTA chave — os chamadores montam o artefato no render, e depender do objeto fazia
+ * cada re-render do pai baixar o PDF de novo (egress).
+ */
+export function chaveDoArtefato(a: Pick<PdfArtefato, 'pdfRef' | 'sha256'> | null | undefined): string {
+  return `${a?.pdfRef?.path ?? ''}#${a?.sha256 ?? ''}`;
+}
+
 export async function baixarArtefato(a: Pick<PdfArtefato, 'pdfRef'>): Promise<Blob | null> {
   if (!a?.pdfRef?.path) return null;
   return baixarFoto(a.pdfRef);

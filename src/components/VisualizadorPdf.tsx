@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { baixarArtefato, type PdfArtefato } from '../features/relatorios/artefatoRelatorio';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { baixarArtefato, chaveDoArtefato, type PdfArtefato } from '../features/relatorios/artefatoRelatorio';
 
 /**
  * Mostra o PDF ARQUIVADO de um documento finalizado.
@@ -54,11 +54,23 @@ export default function VisualizadorPdf({
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
   const [estado, setEstado] = useState<'carregando' | 'pronto' | 'falhou'>('carregando');
   const urlRef = useRef<string | null>(null);
+  // CUSTO: os chamadores montam `artefato` no render (objeto novo a cada render) e passam
+  // `onErro` inline. Com eles nas deps, todo toast/estado do pai BAIXAVA O PDF DE NOVO
+  // (egress do bucket). O efeito depende só da IDENTIDADE do arquivo (path + sha256).
+  const chave = chaveDoArtefato(artefato);
+  const artefatoRef = useRef(artefato);
+  const onErroRef = useRef(onErro);
+  // Layout effect roda antes do efeito do download: as refs já têm o valor do render atual.
+  useLayoutEffect(() => {
+    artefatoRef.current = artefato;
+    onErroRef.current = onErro;
+  });
 
   useEffect(() => {
     let vivo = true;
+    const onErro = onErroRef.current;
     setEstado('carregando');
-    void baixarArtefato(artefato)
+    void baixarArtefato(artefatoRef.current)
       .then(async (blob) => {
         if (!vivo) return;
         if (!blob) {
@@ -89,7 +101,7 @@ export default function VisualizadorPdf({
         urlRef.current = null;
       }
     };
-  }, [artefato, onErro]);
+  }, [chave]);
 
   if (estado === 'carregando') {
     return <div className="vpdf-aviso">Abrindo o documento...</div>;

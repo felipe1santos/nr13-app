@@ -16,6 +16,7 @@
 // nunca teve trial antes (trial_fim null — impede reciclar conta expirada).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { cronAutorizado, enviarComReserva, type ClienteMarcas } from './lembretes.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -28,6 +29,8 @@ const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 // Secret opcional (Dashboard → Edge Functions → Secrets). Sem ele, os e-mails de
 // boas-vindas/lembrete/vencido são silenciosamente pulados — o fluxo não quebra.
 const RESEND_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
+// Opcional: com ele, `enviar_lembretes` exige o header x-cron-segredo (ver lembretes.ts).
+const CRON_SEGREDO = Deno.env.get('TRIAL_CRON_SEGREDO') ?? '';
 
 const TRIAL_HORAS = 48;
 const REMETENTE = 'NR13 Sistema <acesso@auth.nr13sistema.com.br>';
@@ -217,7 +220,11 @@ Deno.serve(async (req) => {
 
     if (action === 'enviar_lembretes') {
       // Chamada pelo pg_cron de hora em hora (trial_emails_setup.sql). Idempotente:
-      // cada e-mail é marcado no perfil e nunca repete. Sem RESEND_API_KEY, no-op.
+      // cada perfil é RESERVADO antes do envio (lembretes.ts) — chamadas simultâneas não
+      // duplicam e-mail. Sem RESEND_API_KEY, no-op.
+      if (!cronAutorizado(CRON_SEGREDO, req.headers.get('x-cron-segredo'))) {
+        return json({ erro: 'Não autorizado' }, 401);
+      }
       if (!RESEND_KEY) return json({ ok: false, motivo: 'RESEND_API_KEY não configurada' });
 
       const agora = new Date();
@@ -242,24 +249,24 @@ Deno.serve(async (req) => {
         .is('email_lembrete_em', null)
         .gt('trial_fim', agora.toISOString())
         .lt('trial_fim', em6h.toISOString());
-      for (const p of terminando ?? []) {
-        if (!p.email) continue;
-        const ok = await enviarEmail(
-          p.email,
-          'Seu teste termina em breve — NR13 Sistema',
-          moldura(
-            'Seu período de teste está acabando',
-            `<p>Seu acesso de teste termina em <b>${dataBR(p.trial_fim)}</b> (horário de Brasília).</p>` +
-              '<p>Para continuar usando o NR13 Sistema sem perder o que você viu, contrate agora:</p>' +
-              botaoAssinar(url),
-            logoUrl,
+      lembretes = await enviarComReserva(
+        admin as unknown as ClienteMarcas,
+        terminando ?? [],
+        'email_lembrete_em',
+        (p) =>
+          enviarEmail(
+            p.email ?? '',
+            'Seu teste termina em breve — NR13 Sistema',
+            moldura(
+              'Seu período de teste está acabando',
+              `<p>Seu acesso de teste termina em <b>${dataBR(p.trial_fim)}</b> (horário de Brasília).</p>` +
+                '<p>Para continuar usando o NR13 Sistema sem perder o que você viu, contrate agora:</p>' +
+                botaoAssinar(url),
+              logoUrl,
+            ),
           ),
-        );
-        if (ok) {
-          await admin.from('profiles').update({ email_lembrete_em: agora.toISOString() }).eq('id', p.id);
-          lembretes++;
-        }
-      }
+        agora.toISOString(),
+      );
 
       // Vencido: terminou nos últimos 7 dias (não ressuscita trial antigo).
       const { data: expirados } = await admin
@@ -269,25 +276,25 @@ Deno.serve(async (req) => {
         .is('email_vencido_em', null)
         .lt('trial_fim', agora.toISOString())
         .gt('trial_fim', ha7dias.toISOString());
-      for (const p of expirados ?? []) {
-        if (!p.email) continue;
-        const ok = await enviarEmail(
-          p.email,
-          'Seu período de teste terminou — NR13 Sistema',
-          moldura(
-            'Seu período de teste terminou',
-            '<p>As 48 horas de teste do NR13 Sistema chegaram ao fim.</p>' +
-              '<p>Gostou? Assine para liberar o acesso completo, incluindo download e impressão ' +
-              'de relatórios e prontuários.</p>' +
-              botaoAssinar(url),
-            logoUrl,
+      vencidos = await enviarComReserva(
+        admin as unknown as ClienteMarcas,
+        expirados ?? [],
+        'email_vencido_em',
+        (p) =>
+          enviarEmail(
+            p.email ?? '',
+            'Seu período de teste terminou — NR13 Sistema',
+            moldura(
+              'Seu período de teste terminou',
+              '<p>As 48 horas de teste do NR13 Sistema chegaram ao fim.</p>' +
+                '<p>Gostou? Assine para liberar o acesso completo, incluindo download e impressão ' +
+                'de relatórios e prontuários.</p>' +
+                botaoAssinar(url),
+              logoUrl,
+            ),
           ),
-        );
-        if (ok) {
-          await admin.from('profiles').update({ email_vencido_em: agora.toISOString() }).eq('id', p.id);
-          vencidos++;
-        }
-      }
+        agora.toISOString(),
+      );
 
       return json({ ok: true, lembretes, vencidos });
     }

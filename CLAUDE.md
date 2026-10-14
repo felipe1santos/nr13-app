@@ -1,5 +1,12 @@
 # CLAUDE.md — Sistema NR-13 (estrutura fixa do sistema)
 
+> **REGRA Nº 1 (custo): nenhuma chamada paga sem passar pela guarda; nunca em loop.**
+> No navegador, toda API cobrada por uso passa por `chamarPago` (`src/services/guardaCusto.ts`);
+> na Edge, envio em lote reserva a linha antes de enviar e tem teto por execução. Efeito que
+> baixa ou chama API depende de primitivos, nunca de objeto montado no render. Segredo de
+> servidor nunca em `VITE_*`. `src/__tests__/regraDeCusto.test.ts` quebra o build se isso
+> for violado. Regras: `docs/REGRAS-DE-CUSTO.md`; auditoria: `docs/AUDITORIA-CUSTO.md`.
+
 Este arquivo é a **fonte de verdade** do sistema. Toda implementação, folha de relatório/prontuário,
 formulário de inspeção e regra de injeção de dados DEVE respeitar o que está aqui. A ordem dos
 documentos no relatório DEVE seguir a seção "Organização do Relatório".
