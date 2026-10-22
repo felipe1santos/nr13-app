@@ -7,6 +7,7 @@ import { UNIDADE_TH_LEGADA } from './formularios/unidadeTh';
 import { ITENS_VISUAL_EXTERNO } from './formularios/FormularioVisualExterno';
 import { ITENS_VISUAL_INTERNO } from './formularios/FormularioVisualInterno';
 import { itensDoExame } from '../caldeira/itensVisuaisCaldeira';
+import { ehCaldeira, tipoDaTag } from '../equipamento/perfilEquipamento';
 import {
   PERGUNTA_NC,
   SIGNIFICADO_NC,
@@ -544,16 +545,16 @@ function ViewAcumulacao({ dados }: { dados: DadosAcumulacao }) {
   );
 }
 
-export default function VisualizadorFormulario({ formulario, dados }: Props) {
+export default function VisualizadorFormulario({ formulario, dados, tag }: Props) {
   if (!dados) return <p style={{ padding: 20, color: '#6b7280' }}>Nenhum dado registrado para este formulário.</p>;
 
   switch (formulario) {
     case 'checklist':
       return <ViewChecklist dados={dados as DadosChecklist} />;
     case 'visual_externo':
-      return <ViewVisual dados={dados as DadosVisual} titulo="Inspeção Visual Externa" itens={[...itensDoExame('externo', dados as DadosVisual, false, ITENS_VE)]} />;
+      return <ViewVisual dados={dados as DadosVisual} titulo="Inspeção Visual Externa" itens={[...itensDoExame('externo', dados as DadosVisual, ehCaldeira(tipoDaTag(tag)), ITENS_VE)]} />;
     case 'visual_interno':
-      return <ViewVisual dados={dados as DadosVisual} titulo="Inspeção Visual Interna" itens={[...itensDoExame('interno', dados as DadosVisual, false, ITENS_VI)]} />;
+      return <ViewVisual dados={dados as DadosVisual} titulo="Inspeção Visual Interna" itens={[...itensDoExame('interno', dados as DadosVisual, ehCaldeira(tipoDaTag(tag)), ITENS_VI)]} />;
     case 'ultrassom':
       return <ViewUltrassom dados={dados as DadosUltrassom} />;
     case 'th':

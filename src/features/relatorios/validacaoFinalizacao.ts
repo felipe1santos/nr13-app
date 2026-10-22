@@ -75,6 +75,11 @@ export interface EntradaValidacao {
    * subitem da NR-13 o aviso do certificado da PSV cita. Ausente = vaso.
    */
   tipoEquipamento?: string | null;
+  /**
+   * O documento sai pelo gerador de CALDEIRA (`ehRelatorioCompletoDeCaldeira`)?
+   * Só ele desenha o campo da justificativa da acumulação. Ausente = deduz do tipo.
+   */
+  relatorioDeCaldeira?: boolean;
 }
 
 /**
@@ -227,10 +232,10 @@ export function validarParaFinalizar(e: EntradaValidacao): ResultadoValidacao {
   // Mesmas folhas que acendem a seção no gerador (`FOLHAS_CALDEIRA.relatorioInspecao`):
   // rascunho de caldeira anterior ao relatório próprio traz INSPECOES/CONCLUSAO.
   const relatorioInspecaoCaldeira =
-    e.tipoEquipamento === 'caldeira' &&
+    (e.relatorioDeCaldeira ?? (e.tipoEquipamento === 'caldeira' || tem(e.documentos, 'CALD-RELATORIO-INSPECAO.html'))) &&
     (!e.documentos?.length ||
       ['CALD-RELATORIO-INSPECAO.html', 'INSPECOES.html', 'CONCLUSAO.html'].some((f) => tem(e.documentos, f)));
-  if (relatorioInspecaoCaldeira || tem(e.documentos, 'CALD-RELATORIO-INSPECAO.html')) {
+  if (relatorioInspecaoCaldeira) {
     const bruto = bloco<Partial<DadosAcumulacao>>(e.dadosContainer, 'acumulacao');
     // Mesma regra do modelo (`acumulacaoFeita`): o dado preenchido, escolhida ou não a folha.
     const feito = !!bruto && acumulacaoPreenchida(bruto);
@@ -254,7 +259,7 @@ export function validarParaFinalizar(e: EntradaValidacao): ResultadoValidacao {
     if (!tem(e.documentos, arquivo)) continue;
     const v = bloco<Record<string, unknown>>(e.dadosContainer, chave);
     // 22/10/2026 · as perguntas do CATÁLOGO do registro (caldeira ou a de sempre).
-    const itens = itensDoExame(chave === 'visual_externo' ? 'externo' : 'interno', v, false, itensPadrao);
+    const itens = itensDoExame(chave === 'visual_externo' ? 'externo' : 'interno', v, e.tipoEquipamento === 'caldeira', itensPadrao);
     const onde = `Inspeção · Visual ${chave === 'visual_externo' ? 'externo' : 'interno'}`;
 
     // ── 18/09/2026 · a pergunta de não conformidade ─────────────────────────

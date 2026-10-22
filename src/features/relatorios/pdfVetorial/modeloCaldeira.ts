@@ -135,7 +135,7 @@ function maisRecentes(lista: DadosCalibracao[]): DadosCalibracao[] {
 }
 
 function linhasDispositivo(
-  tag: string,
+  oficiais: DadosCalibracao[],
   tipos: string[],
   nome: string,
   idBase: string,
@@ -145,7 +145,7 @@ function linhasDispositivo(
 ): LinhaDispositivo[] {
   let cals: DadosCalibracao[];
   try {
-    cals = maisRecentes(listarCalibracoes(tag).filter((c) => ehOficial(c) && tipos.includes(c.tipo)));
+    cals = maisRecentes(oficiais.filter((c) => tipos.includes(c.tipo)));
   } catch {
     cals = [];
   }
@@ -293,17 +293,24 @@ export function montarModeloCaldeira(
     const g = dados[grupo];
     return !!g && typeof g === 'object' && Object.values(g).some((v) => typeof v === 'string' && v.trim() !== '' && v.trim() !== '---');
   };
+  // Uma leitura da lista por modelo, filtrada por tipo em cada linha.
+  let oficiais: DadosCalibracao[];
+  try {
+    oficiais = listarCalibracoes(tag).filter((c) => ehOficial(c));
+  } catch {
+    oficiais = [];
+  }
   const dispositivos = [
-    ...linhasDispositivo(tag, ['manometro'], 'Indicador de pressão', 'pi', dataRef, preenchido('indicadorPressao') ? 1 : 0),
+    ...linhasDispositivo(oficiais, ['manometro'], 'Indicador de pressão', 'pi', dataRef, preenchido('indicadorPressao') ? 1 : 0),
     ...linhasDispositivo(
-      tag,
+      oficiais,
       ['psv'],
       'Dispositivo de segurança (PSV)',
       'psv',
       dataRef,
       (preenchido('alivio1') ? 1 : 0) + (preenchido('alivio2') ? 1 : 0),
     ),
-    ...linhasDispositivo(tag, ['pressostato'], 'Pressostato', 'ps', dataRef),
+    ...linhasDispositivo(oficiais, ['pressostato'], 'Pressostato', 'ps', dataRef),
   ];
 
   return {

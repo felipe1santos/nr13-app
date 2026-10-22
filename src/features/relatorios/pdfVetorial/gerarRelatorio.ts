@@ -244,7 +244,12 @@ function emitir(
     folhasAcumulacao(doc, m, true);
     if (registrar) {
       registrar.set('Ensaio de acumulação', antes + 1);
-      if (m.acumulacao.fotos.length > 0) registrar.set('Registro fotográfico — ensaio de acumulação', antes + 2);
+      // A folha de dados é elástica e pode passar de uma página: conta as de fotos do fim.
+      if (m.acumulacao.fotos.length > 0)
+        registrar.set(
+          'Registro fotográfico — ensaio de acumulação',
+          Math.max(antes + 2, doc.pdf.getNumberOfPages() - folhasDeFotos(m.acumulacao.fotos, true) + 1),
+        );
     }
   }
   // 8.4 · Fase 5.2 — o Relatório de Imagens, pelo MESMO desenho do avulso
@@ -379,7 +384,7 @@ async function contarPaginasAnexadas(opcoes: OpcoesVetorial): Promise<number> {
  * na composição — o documento avulso de um ensaio (só a folha do ensaio) segue
  * no caminho de sempre.
  */
-function ehRelatorioCompletoDeCaldeira(tag: string, documentos?: string[]): boolean {
+export function ehRelatorioCompletoDeCaldeira(tag: string, documentos?: string[]): boolean {
   let info: { tipo?: unknown; subtipo?: unknown } | null;
   try {
     info = ler<{ tipo?: unknown; subtipo?: unknown }>(`nr13_info_${tag}`);
@@ -396,7 +401,9 @@ function ehRelatorioCompletoDeCaldeira(tag: string, documentos?: string[]): bool
     'CAPA.HTML',
     'SUMARIO.HTML',
     'CALD-PRONTUARIO.HTML',
+    'CALD-ACESSORIOS.HTML',
     'CALD-RELATORIO-INSPECAO.HTML',
+    'CALD-CALCULOS.HTML',
     'PRONTUARIO.HTML',
     'INSPECOES.HTML',
     'CONCLUSAO.HTML',

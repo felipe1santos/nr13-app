@@ -81,7 +81,13 @@ export const LAUDO_PADRAO = 'Equipamento aprovado no ensaio de acumulação.';
 /** ASME Seção I, PG-67.2: acumulação de no máximo 6% acima da PMTA. */
 export const FATOR_LIMITE_ACUMULACAO = 1.06;
 
-export function dadosPadraoAcumulacao(hojeIso = new Date().toISOString().slice(0, 10)): DadosAcumulacao {
+/** AAAA-MM-DD no fuso do APARELHO (toISOString daria o dia UTC: depois das 21h no Brasil, amanhã). */
+function hojeLocal(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function dadosPadraoAcumulacao(hojeIso = hojeLocal()): DadosAcumulacao {
   return {
     contratante: '',
     endereco: '',
@@ -275,6 +281,16 @@ export function verificarAcumulacao(d: DadosAcumulacao, ctx: ContextoAcumulacao)
       campo: 'justificativaNc',
       nivel: 'erro',
       texto: 'Foi marcada não conformidade: descreva a justificativa.',
+    });
+  }
+
+  // O laudo padrão diz "aprovado": com o resultado REPROVADO o documento sairia
+  // contraditório. Bloqueia até o laudo ser reescrito.
+  if (d.resultado === 'reprovado' && texto(d.laudo) === LAUDO_PADRAO) {
+    avisos.push({
+      campo: 'laudo',
+      nivel: 'erro',
+      texto: 'Resultado REPROVADO com o laudo padrão de aprovação: reescreva o laudo.',
     });
   }
 

@@ -94,6 +94,13 @@ export const PREFIXOS_DA_EMISSAO: readonly string[] = [
   'inspecao.resultado-',
   'proximas.',
   'ri.acumulacao.',
+  // Folha 3 da caldeira: nº rastreável, laudo, calibração e marcações de cada exame.
+  'ri.ensaio-',
+  'ri.disp-',
+  'ri.ve.',
+  'ri.vi.',
+  'ri.th.',
+  'ri.prontuario-',
 ];
 
 function ehDaEmissao(id: string): boolean {

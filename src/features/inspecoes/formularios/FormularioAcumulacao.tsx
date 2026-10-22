@@ -290,6 +290,7 @@ export default function FormularioAcumulacao({ tag, containerId }: { tag: string
       <div className="formulario-secao">
         <h3>Laudo</h3>
         <textarea rows={3} style={ESTILO_TEXTAREA} value={dados.laudo} onChange={(e) => set('laudo', e.target.value)} />
+        <Aviso avisos={avisos} campo="laudo" />
       </div>
 
       <ResultadoEnsaio valor={dados.resultado} onChange={(v) => set('resultado', v)} />

@@ -81,7 +81,7 @@ import { avisarBloqueioDocumentos, documentosBloqueados } from '../services/tria
 import { mascararData } from '../services/mascaras';
 import { exportarPdf, gerarPdfBytes } from '../features/relatorios/pdfService';
 import { modeloDaEmpresa, motorDoRelatorio } from '../features/relatorios/modeloDocumento';
-import { gerarPreviaRelatorio, gerarRelatorioVetorial } from '../features/relatorios/pdfVetorial/gerarRelatorio';
+import { ehRelatorioCompletoDeCaldeira, gerarPreviaRelatorio, gerarRelatorioVetorial } from '../features/relatorios/pdfVetorial/gerarRelatorio';
 import { publicarArtefato, artefatoDe } from '../features/relatorios/artefatoRelatorio';
 import { anexarArt } from '../features/relatorios/anexoArt';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
@@ -1130,6 +1130,7 @@ function RelatoriosLegado() {
         overrides,
         pmtaMpa: pmtaDoDocumentoMpa(tag),
         tipoEquipamento: tipoDaTag(tag),
+        relatorioDeCaldeira: ehRelatorioCompletoDeCaldeira(tag, documentos),
       }),
     );
   }

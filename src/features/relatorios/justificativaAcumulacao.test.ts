@@ -42,3 +42,20 @@ describe('PDF da ART', () => {
     expect(validarArt({ nome: 'art.pdf', tamanho: 6, mimeType: 'application/pdf' }, docx).ok).toBe(false);
   });
 });
+
+describe('alinhada ao gerador', () => {
+  it('caldeira que sai pelo caminho de vaso (relatorioDeCaldeira=false) não é travada por um campo que não existe', () => {
+    const r = validarParaFinalizar({ meta, documentos: ['CAPA.html', 'INSPECOES.html'], laudo: { apto: true }, dadosContainer: {}, overrides: {}, tipoEquipamento: 'caldeira', relatorioDeCaldeira: false });
+    expect(campos(r)).not.toContain('ri.acumulacao.justificativa');
+  });
+});
+
+describe('laudo × resultado do ensaio de acumulação', async () => {
+  const { verificarAcumulacao, dadosPadraoAcumulacao, LAUDO_PADRAO } = await import('../inspecoes/acumulacao');
+  it('REPROVADO com o laudo padrão de aprovação é erro; laudo reescrito passa', () => {
+    const d = { ...dadosPadraoAcumulacao('2026-10-22'), resultado: 'reprovado' as const };
+    expect(d.laudo).toBe(LAUDO_PADRAO);
+    expect(verificarAcumulacao(d, { pmtaMpa: null }).some((a) => a.campo === 'laudo' && a.nivel === 'erro')).toBe(true);
+    expect(verificarAcumulacao({ ...d, laudo: 'Válvulas insuficientes.' }, { pmtaMpa: null }).some((a) => a.campo === 'laudo')).toBe(false);
+  });
+});
