@@ -73,7 +73,7 @@ export const FOLHA_DA_SECAO = {
   // Fase 6.2 · o LIVRO DE REGISTRO DE SEGURANÇA (seção 12). A folha do livro é
   // escolhida no assistente; o TERMO DE ABERTURA (com a capa do livro) é
   // auto-injetado por `montarListaComTermoAbertura` quando o livro da TAG
-  // ainda não tem entrada nenhuma (NR-13 13.4.1.9). Até aqui as três eram
+  // ainda não tem entrada nenhuma (registro de segurança, NR-13 13.4.1.8 / 13.5.1.7). Até aqui as três eram
   // ignoradas em silêncio pelo vetorial: nenhuma chave desta tabela as casava.
   livro: ['LIVRO-REGISTRO.HTML'],
   termoAbertura: ['TERMO-ABERTURA.HTML', 'CAPA-LIVRO-REGISTRO.HTML'],

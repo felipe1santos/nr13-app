@@ -66,7 +66,7 @@ export default function ModalTermos() {
           <ol>
             <li>
               O sistema é uma <b>ferramenta de apoio</b> à elaboração de documentação NR-13. Ele
-              <b> não substitui</b> o julgamento técnico do Profissional Habilitado (PH) responsável.
+              <b> não substitui</b> o julgamento técnico do Profissional Legalmente Habilitado (PLH) responsável.
             </li>
             <li>
               <b>Todos os cálculos, resultados e documentos gerados devem ser revisados e validados
@@ -77,7 +77,7 @@ export default function ModalTermos() {
             <li>
               Não nos responsabilizamos por resultados decorrentes de <b>inserção incorreta de
               dados</b>, uso indevido da ferramenta, nem por <b>eventuais bugs ou inconsistências</b>
-              — que devem ser identificados na análise prévia do profissional habilitado antes da
+              — que devem ser identificados na análise prévia do profissional legalmente habilitado (PLH) antes da
               emissão de qualquer documento.
             </li>
             <li>

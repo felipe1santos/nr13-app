@@ -934,7 +934,7 @@ export const GUIAS: Guia[] = [
     observacoes: [
       'Rascunho e registro trancado são coisas diferentes: só o trancado conta como registro oficial do livro.',
       'Trancar é definitivo. O que se pode fazer depois é acrescentar um registro novo ao fim, ou lançar uma retificação.',
-      'A NR-13 (item 13.4.1.9) exige esse registro; é por isso que a tela existe.',
+      'A NR-13 (subitens 13.4.1.8 para caldeiras e 13.5.1.7 para vasos de pressão) exige esse registro; é por isso que a tela existe.',
     ],
     rota: '/livro-registro',
     rotaRotulo: 'Ir para Registros de Segurança',

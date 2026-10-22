@@ -89,7 +89,7 @@ export const TITULOS_ROTA: { prefixo: string; titulo: string; sub: string }[] = 
     titulo: 'Registros de Segurança',
     sub: 'O histórico de cada equipamento, exigido pela NR-13',
   },
-  { prefixo: '/funcionarios', titulo: 'Funcionários', sub: 'Profissionais habilitados e equipe' },
+  { prefixo: '/funcionarios', titulo: 'Funcionários', sub: 'Profissionais legalmente habilitados (PLH) e equipe' },
   { prefixo: '/empresas', titulo: 'Clientes', sub: 'Empresas clientes cadastradas' },
   { prefixo: '/minha-empresa', titulo: 'Meus dados', sub: 'Dados da empresa executante' },
   { prefixo: '/info', titulo: 'Info', sub: 'Central de ajuda: guias, fluxo do sistema e dúvidas frequentes' },

@@ -138,7 +138,7 @@
             <div class="termo-empresa-divisor"></div>
 
             <div class="section-title">Termo de Abertura</div>
-            <div class="subsection-text">NR-13, item 13.4.1.9 — Portaria nº 1.082, de 18 de dezembro de 2018</div>
+            <div class="subsection-text" id="termo-subitem">NR-13, subitem 13.5.1.7 (caldeira: 13.4.1.8) — Portaria MTP nº 1.846/2022, alterada pela Portaria MTP nº 4.219/2022</div>
 
             <div class="termo-box">
                 <div class="termo-texto" id="termo-texto" contenteditable="true" spellcheck="false">--</div>
@@ -348,7 +348,10 @@
 
                 document.getElementById('termo-texto').textContent =
                     `Este livro contém ${totalFolhas} (${numeroPorExtenso(totalFolhas)}) folhas numeradas tipograficamente de 01 a ${String(totalFolhas).padStart(2, '0')} e servirá como Livro de Registro de Segurança do Vaso de Pressão${tipoNaFrase}${fabricanteVaso ? ', fabricado por ' + fabricanteVaso : ''}, TAG ${tag}, Número de Série: ${serieVaso}, da Empresa ${nomeEmpresaVaso}, sob o CNPJ: ${cnpjVaso}, ${enderecoVasoTexto}. ` +
-                    `Em atendimento ao item 13.4.1.9 da Norma Regulamentadora Nº 13, Portaria Nº 1.082, de 18 de dezembro de 2018.`;
+                    `Em atendimento ao subitem ${info.tipo === 'caldeira' ? '13.4.1.8' : '13.5.1.7'} da Norma Regulamentadora nº 13 (Portaria MTP nº 1.846/2022, alterada pela Portaria MTP nº 4.219/2022).`;
+                // NR-13 2022: o subitem do registro de segurança depende do tipo (caldeira 13.4.1.8; vaso 13.5.1.7).
+                const elSubitem = document.getElementById('termo-subitem');
+                if (elSubitem) elSubitem.textContent = `NR-13, subitem ${info.tipo === 'caldeira' ? '13.4.1.8' : '13.5.1.7'} — Portaria MTP nº 1.846/2022, alterada pela Portaria MTP nº 4.219/2022`;
 
                 setVal('ident-empresa', nomeEmpresaVaso);
                 setVal('ident-endereco', enderecoVasoTexto);

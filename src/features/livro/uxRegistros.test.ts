@@ -48,7 +48,8 @@ describe('a seção se chama "Registros de Segurança"', () => {
     // "Livro de Registro de Segurança" é como a NR-13 chama a peça, e é o que
     // a fiscalização procura. Renomear o documento junto com a seção seria
     // trocar o nome de um registro legal por conta de uma rodada de UX.
-    expect(pagina).toContain('NR-13 · 13.4.1.9 · Livro de Registro de Segurança');
+    // 22/10/2026 · NR-13 2022: registro de segurança é 13.4.1.8 (caldeira) / 13.5.1.7 (vaso).
+    expect(pagina).toContain('NR-13 · {NR13_ITENS.registroCaldeira} / {NR13_ITENS.registroVaso} · Livro de Registro de Segurança');
     expect(pagina).toContain('Capa do Livro de Registro');
   });
 });
@@ -179,7 +180,7 @@ describe('a tela do equipamento tem UMA barra de ferramentas', () => {
     expect(barra).toContain('className="breadcrumb-chevron"');
     // O chip da TAG saiu da trilha na 3ª rodada: a TAG é o `<h2>` logo abaixo,
     // e repeti-la 6px acima gastava a linha que o eyebrow da norma ocupa.
-    expect(barra).toContain('NR-13 · 13.4.1.9 · Livro de Registro de Segurança');
+    expect(barra).toContain('NR-13 · {NR13_ITENS.registroCaldeira} / {NR13_ITENS.registroVaso} · Livro de Registro de Segurança');
   });
 
   it('"Novo registro" é a única primária da barra', () => {
@@ -591,8 +592,10 @@ describe('o termo é editável', () => {
 
   it('a sugestão é a redação da FOLHA, não uma paráfrase', () => {
     // Divergir aqui mostraria uma prévia que não é o documento.
-    expect(termoTs).toContain('conforme item 13.5.4 ');
-    expect(termoTs).toContain('em obediência à Portaria Mtb nº 3.214');
+    // 22/10/2026 · redação da NR-13 2022, da constante central (a mesma do LIVRO-REGISTRO.html).
+    expect(termoTs).toContain('conforme subitem ');
+    expect(termoTs).toContain('${itemInspecaoSeguranca(d.tipoEquipamento)} da NR-13 (${NR13_PORTARIA})');
+    expect(termoTs).not.toContain('3.214');
     expect(termoTs).toContain('foi considerado INAPTO a operar nas condições atuais');
   });
 

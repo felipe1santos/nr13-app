@@ -160,7 +160,7 @@ const DOCS_5_1 = [
   { id: 'v51-programa-inspecoes', texto: 'Programa de inspeções com datas limites' },
   { id: 'v51-recomendacoes-anteriores', texto: 'Recomendações de inspeções anteriores' },
   { id: 'v51-mapa-espessuras', texto: 'Mapa de medição de espessuras por ultrassom' },
-  { id: 'v51-art-assinada', texto: 'A.R.T assinada do profissional habilitado' },
+  { id: 'v51-art-assinada', texto: 'A.R.T assinada do profissional legalmente habilitado (PLH)' },
 ];
 
 const PERGUNTAS_5_2 = [

@@ -4,6 +4,12 @@ import type { ModeloRelatorio } from './modelo';
 import { textoOu } from './modelo';
 import { imagemEncaixada } from './primitivas';
 import type { SecaoRelatorio } from './composicao';
+import { NR13_PORTARIA, PLH, itemInspecaoSeguranca, itemRegistroSeguranca } from '../../normas/nr13';
+
+/** O tipo do equipamento pelo rótulo do modelo — caldeira e vaso citam subitens diferentes da NR-13. */
+function tipoDoModelo(m: ModeloRelatorio): 'caldeira' | 'vaso' {
+  return /caldeira/i.test(m.equipamento['TIPO DE EQUIPAMENTO'] ?? '') ? 'caldeira' : 'vaso';
+}
 
 /**
  * Fase 6.2 · 12. LIVRO DE REGISTRO DE SEGURANÇA dentro do relatório vetorial.
@@ -23,7 +29,7 @@ import type { SecaoRelatorio } from './composicao';
  * |---|---|---|---|
  * | A | o Livro de Registro (documento do equipamento) | `/livro-registro`, `nr13_livro_<TAG>` | não |
  * | B | a folha DESTA inspeção, para colar no livro físico | `LIVRO-REGISTRO.html` na composição | **12.2** |
- * | C | o Termo de Abertura (1ª inspeção do livro, NR-13 13.4.1.9) | `TERMO-ABERTURA.html` auto-injetado | **12.1** |
+ * | C | o Termo de Abertura (1ª inspeção do livro; registro de segurança, NR-13 13.4.1.8 / 13.5.1.7) | `TERMO-ABERTURA.html` auto-injetado | **12.1** |
  * | D | registro oficial lacrado | `nr13_livro_<TAG>` (entrada trancada) | não — nada aqui escreve no livro |
  *
  * A capa do livro (`CAPA-LIVRO-REGISTRO.html`) viaja com o Termo e não vira uma
@@ -88,8 +94,8 @@ export function textoTermoAbertura(m: ModeloRelatorio): string {
     `${String(total).padStart(2, '0')} e servirá como Livro de Registro de Segurança do ${tipo}${complemento}` +
     `${fabricante ? `, fabricado por ${fabricante}` : ''}, TAG ${tag}, Número de Série: ${textoOu(m.equipamento['NÚMERO DE SÉRIE'])}, ` +
     `da Empresa ${m.cliente ?? 'EMPRESA NÃO INFORMADA'}, sob o CNPJ: ${m.clienteCnpj ?? 'CNPJ não informado'}, ` +
-    `${m.clienteEndereco ?? 'Endereço não informado'}. Em atendimento ao item 13.4.1.9 da Norma Regulamentadora ` +
-    `Nº 13, Portaria Nº 1.082, de 18 de dezembro de 2018.`
+    `${m.clienteEndereco ?? 'Endereço não informado'}. Em atendimento ao subitem ${itemRegistroSeguranca(tipoDoModelo(m))} ` +
+    `da Norma Regulamentadora nº 13 (${NR13_PORTARIA}).`
   );
 }
 
@@ -111,9 +117,9 @@ export function textoTermoInspecao(m: ModeloRelatorio): string {
       ? 'foi considerado INAPTO a operar nas condições atuais, conforme conclusão do referido relatório'
       : 'está apto a operar dentro da PMTA estipulada';
   return (
-    `Em ${textoOu(m.dadosInspecao.dataTermino, '--')}, executou-se inspeção de segurança ${DESCRITIVO[tipo] ?? ''}, conforme item ` +
-    `13.5.4 da NR-13, pela empresa habilitada ${m.empresa.razao || 'NOME DA EMPRESA NÃO INFORMADO'}, em obediência ` +
-    `à Portaria Mtb nº 3.214, onde o equipamento a que se refere o relatório de inspeção n° ` +
+    `Em ${textoOu(m.dadosInspecao.dataTermino, '--')}, executou-se inspeção de segurança ${DESCRITIVO[tipo] ?? ''}, conforme subitem ` +
+    `${itemInspecaoSeguranca(tipoDoModelo(m))} da NR-13 (${NR13_PORTARIA}), pela empresa habilitada ` +
+    `${m.empresa.razao || 'NOME DA EMPRESA NÃO INFORMADO'}, onde o equipamento a que se refere o relatório de inspeção n° ` +
     `${m.numeroRelatorio || '--'} ${situacao}.`
   ).replace(/\s{2,}/g, ' ');
 }
@@ -167,7 +173,7 @@ function folhaTermoAbertura(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
   doc.banner('12. LIVRO DE REGISTRO DE SEGURANÇA');
   doc.secao('12.1 TERMO DE ABERTURA');
-  doc.texto('NR-13, item 13.4.1.9 — Portaria nº 1.082, de 18 de dezembro de 2018', {
+  doc.texto(`NR-13, subitem ${itemRegistroSeguranca(tipoDoModelo(m))} — ${NR13_PORTARIA}`, {
     tamanho: FONTE.nota,
     cor: COR.nota,
   });
@@ -211,7 +217,7 @@ function folhaRegistro(doc: Documento, m: ModeloRelatorio, tem: Record<SecaoRela
   if (comBanner) doc.banner('12. LIVRO DE REGISTRO DE SEGURANÇA');
   doc.secao('12.2 REGISTRO DE SEGURANÇA DESTA INSPEÇÃO');
   doc.texto(
-    'NR-13, itens 13.5.1.8 / 13.5.4 — folha individual do Livro de Registro de Segurança, para impressão e ' +
+    `NR-13, subitens ${itemRegistroSeguranca(tipoDoModelo(m))} / ${itemInspecaoSeguranca(tipoDoModelo(m))} — folha individual do Livro de Registro de Segurança, para impressão e ` +
       'colagem na folha numerada tipograficamente correspondente do livro físico.',
     { tamanho: FONTE.nota, cor: COR.nota },
   );
@@ -254,7 +260,7 @@ function folhaRegistro(doc: Documento, m: ModeloRelatorio, tem: Record<SecaoRela
   const tec = porPapel(m, 'tecnico');
   if (eng || tec) {
     doc.texto('Inspeção realizada por:', { negrito: true, espacoAntes: 3 });
-    if (eng) doc.texto(`Profissional Habilitado: ${eng.nome}${eng.registro ? ` — CREA/Registro: ${eng.registro}` : ''}`);
+    if (eng) doc.texto(`${PLH}: ${eng.nome}${eng.registro ? ` — CREA/Registro: ${eng.registro}` : ''}`);
     if (tec) doc.texto(`Técnico / Inspetor: ${tec.nome}`);
   }
   assinaturaUnica(doc, porPapel(m, m.livro.assinanteTermo) ?? eng);

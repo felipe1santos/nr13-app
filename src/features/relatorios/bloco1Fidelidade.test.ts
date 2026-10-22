@@ -138,7 +138,8 @@ describe('A · capa com dados completos', () => {
 
   it('a capa desenha a referência: Portaria, tabela superior, foto e bloco inferior', () => {
     const folhas = readFileSync('src/features/relatorios/pdfVetorial/folhas.ts', 'utf8');
-    expect(folhas).toContain('Portaria nº 1.082');
+    // 22/10/2026 · a portaria vem da constante central (NR-13 2022).
+    expect(folhas).toContain('doc.texto(`(${NR13_PORTARIA})`, {');
     expect(folhas).toContain("id: 'capa.classe-do-fluido'");
     expect(folhas).toContain("id: 'capa.art'");
     expect(folhas).toContain("id: 'capa.responsavel'");

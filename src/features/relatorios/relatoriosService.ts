@@ -232,7 +232,7 @@ export function snapshotAssinantes(
   };
 }
 
-// NR-13 13.4.1.9 — injeta TERMO-ABERTURA.html antes de LIVRO-REGISTRO.html só quando é a
+// NR-13 13.4.1.8 / 13.5.1.7 (registro de segurança) — injeta TERMO-ABERTURA.html antes de LIVRO-REGISTRO.html só quando é a
 // 1ª inspeção do livro daquele equipamento (livro vazio).
 // Também injeta automaticamente TESTE-HIDROSTATICO-FOTOS.html após TESTE-HIDROSTATICO.html.
 export function montarListaComTermoAbertura(
@@ -423,7 +423,7 @@ export async function montarEntradaLivroDoRelatorio(
 
 // ── Ocorrência manual no Livro de Registro ─────────────────────────────────────
 // Nem tudo é inspeção: manutenções/reparos pontuais entre inspeções também DEVEM ser
-// registrados (NR-13 13.4.1.9). A entrada manual entra CRONOLOGICAMENTE entre as existentes.
+// registrados (NR-13 13.4.1.8 / 13.5.1.7). A entrada manual entra CRONOLOGICAMENTE entre as existentes.
 
 // Timestamp para ordenação cronológica: aceita "aaaa-mm-dd" (input date / execucaoInspecao)
 // e "dd/mm/aaaa" (entradas automáticas antigas). Data inválida vai pro fim da lista.
