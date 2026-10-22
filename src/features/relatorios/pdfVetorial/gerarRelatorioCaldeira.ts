@@ -264,7 +264,10 @@ function emitirCaldeira(
 
   if (tem.livro) {
     anotar('7');
-    secaoLivroRegistro(doc, b, temBase);
+    secaoLivroRegistro(doc, b, temBase, {
+      numero: '7',
+      ensaiosExtras: mc.acumulacaoFeita ? [`Ensaio de acumulação (${mc.rastreavel('EA')})`] : [],
+    });
   }
 }
 

@@ -169,10 +169,10 @@ const porPapel = (m: ModeloRelatorio, papel: Assinante['papel']) => m.assinantes
  * 12.1 · TERMO DE ABERTURA — folha própria. Só quando a composição o traz
  * (1ª inspeção do livro). Assinado pelo engenheiro, como a folha HTML.
  */
-function folhaTermoAbertura(doc: Documento, m: ModeloRelatorio): void {
+function folhaTermoAbertura(doc: Documento, m: ModeloRelatorio, n: string): void {
   doc.novaFolha();
-  doc.banner('12. LIVRO DE REGISTRO DE SEGURANÇA');
-  doc.secao('12.1 TERMO DE ABERTURA');
+  doc.banner(`${n}. LIVRO DE REGISTRO DE SEGURANÇA`);
+  doc.secao(`${n}.1 TERMO DE ABERTURA`);
   doc.texto(`NR-13, subitem ${itemRegistroSeguranca(tipoDoModelo(m))} — ${NR13_PORTARIA}`, {
     tamanho: FONTE.nota,
     cor: COR.nota,
@@ -212,10 +212,17 @@ function folhaTermoAbertura(doc: Documento, m: ModeloRelatorio): void {
  * 12.2 · REGISTRO DESTA INSPEÇÃO — a folha individual do livro, para imprimir
  * e colar na folha numerada correspondente do livro físico.
  */
-function folhaRegistro(doc: Documento, m: ModeloRelatorio, tem: Record<SecaoRelatorio, boolean>, comBanner: boolean): void {
+function folhaRegistro(
+  doc: Documento,
+  m: ModeloRelatorio,
+  tem: Record<SecaoRelatorio, boolean>,
+  comBanner: boolean,
+  opcoes: OpcoesLivro,
+): void {
+  const n = opcoes.numero ?? '12';
   doc.novaFolha();
-  if (comBanner) doc.banner('12. LIVRO DE REGISTRO DE SEGURANÇA');
-  doc.secao('12.2 REGISTRO DE SEGURANÇA DESTA INSPEÇÃO');
+  if (comBanner) doc.banner(`${n}. LIVRO DE REGISTRO DE SEGURANÇA`);
+  doc.secao(`${n}.2 REGISTRO DE SEGURANÇA DESTA INSPEÇÃO`);
   doc.texto(
     `NR-13, subitens ${itemRegistroSeguranca(tipoDoModelo(m))} / ${itemInspecaoSeguranca(tipoDoModelo(m))} — folha individual do Livro de Registro de Segurança, para impressão e ` +
       'colagem na folha numerada tipograficamente correspondente do livro físico.',
@@ -248,7 +255,7 @@ function folhaRegistro(doc: Documento, m: ModeloRelatorio, tem: Record<SecaoRela
     id: 'livro.termo',
     rotuloCampo: 'Termo de inspeção do Livro de Registro',
   });
-  const ensaios = ensaiosDoRegistro(tem);
+  const ensaios = [...ensaiosDoRegistro(tem), ...(opcoes.ensaiosExtras ?? [])];
   if (ensaios.length > 0) {
     doc.texto('Ensaios / exames realizados:', { negrito: true, espacoAntes: 3 });
     for (const e of ensaios) doc.texto(`• ${e}`);
@@ -270,21 +277,31 @@ function folhaRegistro(doc: Documento, m: ModeloRelatorio, tem: Record<SecaoRela
  * Emite a seção 12 conforme a composição e devolve em que folha cada
  * subseção começou (para o sumário). Nada é emitido sem a folha na lista.
  */
+/**
+ * O relatório de vaso numera o livro como seção 12; o de caldeira, como 7.
+ * Sem opções, a saída é a de sempre (o vaso não muda um byte).
+ */
+export interface OpcoesLivro {
+  numero?: string;
+  ensaiosExtras?: string[];
+}
+
 export function secaoLivroRegistro(
   doc: Documento,
   m: ModeloRelatorio,
   tem: Record<SecaoRelatorio, boolean>,
+  opcoes: OpcoesLivro = {},
 ): { termo?: number; registro?: number } {
   // Cada subseção abre com `novaFolha`: a página dela é a SEGUINTE à atual,
   // anotada antes de desenhar — se o conteúdo quebrar, o sumário aponta a 1ª.
   const paginas: { termo?: number; registro?: number } = {};
   if (tem.termoAbertura) {
     paginas.termo = doc.pdf.getNumberOfPages() + 1;
-    folhaTermoAbertura(doc, m);
+    folhaTermoAbertura(doc, m, opcoes.numero ?? '12');
   }
   if (tem.livro) {
     paginas.registro = doc.pdf.getNumberOfPages() + 1;
-    folhaRegistro(doc, m, tem, !tem.termoAbertura);
+    folhaRegistro(doc, m, tem, !tem.termoAbertura, opcoes);
   }
   return paginas;
 }

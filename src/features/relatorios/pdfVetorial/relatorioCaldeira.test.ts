@@ -235,6 +235,14 @@ describe('relatório de caldeira CAL-25/5340', () => {
     expect(total).toBe(paginas.length);
   });
 
+  it('livro de registro é a seção 7 (7.2) e registra o ensaio de acumulação', () => {
+    const i = pagina('7.2 REGISTRO DE SEGURANÇA DESTA INSPEÇÃO');
+    expect(i).toBeGreaterThan(pagina('6. ART'));
+    expect(paginas[i]).toContain('7. LIVRO DE REGISTRO DE SEGURANÇA');
+    expect(paginas[i]).toContain('Ensaio de acumulação (REL-1790000000000/EA)');
+    expect(paginas.some((p) => p.includes('12. LIVRO DE REGISTRO') || p.includes('12.2 REGISTRO'))).toBe(false);
+  });
+
   it('a numeração do corpo continua certa depois dos anexos (Página X de Y)', () => {
     const ult = paginas.length;
     const corpoDepois = paginas.findIndex((p, i) => i > pagina('6. ART') && /Página \d+ de \d+/.test(p));

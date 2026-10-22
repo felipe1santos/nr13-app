@@ -221,6 +221,23 @@ export function validarParaFinalizar(e: EntradaValidacao): ResultadoValidacao {
     }
   }
 
+  // 22/10/2026 · RELATÓRIO DE CALDEIRA sem ensaio de acumulação feito: a folha
+  // 3 pede "SE NÃO, JUSTIFIQUE", e a justificativa só existe como override do
+  // documento ('ri.acumulacao.justificativa'). Sem ela, não finaliza.
+  if (tem(e.documentos, 'CALD-RELATORIO-INSPECAO.html')) {
+    const bruto = bloco<Partial<DadosAcumulacao>>(e.dadosContainer, 'acumulacao');
+    // Mesma regra do modelo (`acumulacaoFeita`): o dado preenchido, escolhida ou não a folha.
+    const feito = !!bruto && acumulacaoPreenchida(bruto);
+    const just = resolverValor('', (e.overrides ?? {})['ri.acumulacao.justificativa']) ?? '';
+    if (!feito && vazio(just)) {
+      obrigatorios.push({
+        campo: 'ri.acumulacao.justificativa',
+        texto: 'Ensaio de acumulação não realizado: escreva a justificativa no relatório de inspeção (folha 3)',
+        onde: 'Documento · Relatório de inspeção',
+      });
+    }
+  }
+
   // Exames visuais: a observação em branco é o exemplo que o dono deu.
   for (const [arquivo, chave, rotulo, prefixo, itensDaLista] of [
     ['VISUAL-EXTERNO.html', 'visual_externo', 'exame externo', 'exameExterno', ITENS_VISUAL_EXTERNO],
