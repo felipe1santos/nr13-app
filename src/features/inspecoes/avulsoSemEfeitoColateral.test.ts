@@ -118,7 +118,9 @@ const DADOS_B = {
   },
 };
 
-const SECAO: Record<Exclude<FormularioEnsaio, 'manometro' | 'psv' | 'imagens'>, string> = {
+// `acumulacao` fica fora: o fixture é um VASO, e o ensaio só existe em caldeira
+// (`ensaioAcumulacao.test.ts` cobre o avulso dele).
+const SECAO: Record<Exclude<FormularioEnsaio, 'manometro' | 'psv' | 'imagens' | 'acumulacao'>, string> = {
   checklist: 'VERIFICAÇÃO DA DOCUMENTAÇÃO',
   ultrassom: 'MEDIÇÃO DE ESPESSURA POR ULTRASSOM',
   visual_externo: 'EXAME EXTERNO',

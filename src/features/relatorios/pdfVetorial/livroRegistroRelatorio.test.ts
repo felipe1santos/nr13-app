@@ -199,7 +199,7 @@ describe('conteúdo · das fontes que o resto do relatório já usa', () => {
     expect(reg).toContain('Situação: APTO');
     expect(reg).toContain('• Exame visual externo');
     expect(reg).not.toContain('Teste hidrostático');
-    expect(reg).toContain('Profissional Habilitado: ENG LIVRO 62 — CREA/Registro: CREA-62');
+    expect(reg).toContain('Profissional Legalmente Habilitado: ENG LIVRO 62 — CREA/Registro: CREA-62');
     expect(reg).toContain('Técnico / Inspetor: TEC LIVRO 62');
   });
 

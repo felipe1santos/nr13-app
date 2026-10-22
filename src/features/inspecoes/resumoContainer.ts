@@ -1,11 +1,12 @@
 import {
-  ENSAIOS_DISPONIVEIS,
+  TODOS_ENSAIOS,
   FORM_POR_ENSAIO,
   ROTULO_FORMULARIO,
   type ContainerInspecao,
   type FormularioEnsaio,
   type TipoEnsaio,
 } from './tipos';
+import { acumulacaoPreenchida, type DadosAcumulacao } from './acumulacao';
 
 /**
  * O QUE UM CONTAINER DE INSPEÇÃO REALMENTE TEM DENTRO — 09/09/2026.
@@ -143,7 +144,8 @@ const LEITOR: Record<FormularioEnsaio, (d: Blob) => Omit<EnsaioResumido, 'ensaio
   visual_externo: (d) => lerVisual(d),
   visual_interno: (d) => lerVisual(d),
   ultrassom: (d) => {
-    const medicoes = contarMedicoes(d.medidas);
+    // 22/10/2026 · + a grade de CALDEIRA (`ultrassom.caldeira`), mesmo formato de dois níveis.
+    const medicoes = contarMedicoes(d.medidas) + contarMedicoes(d.caldeira);
     const resultado = txt(d.resultado);
     const conclusao = txt(d.observacoes);
     return {
@@ -193,6 +195,20 @@ const LEITOR: Record<FormularioEnsaio, (d: Blob) => Omit<EnsaioResumido, 'ensaio
       conclusao,
     };
   },
+  // 21/10/2026 · Ensaio de Acumulação (só caldeira). "Salvo" com a mesma
+  // pergunta que o documento faz: há pressão, horário, tempo, resposta ou foto.
+  acumulacao: (d) => {
+    const fotos = arr(d.fotos).length;
+    return {
+      salvo: acumulacaoPreenchida(d as Partial<DadosAcumulacao>),
+      data: dataBrDoCampo(d.dataEnsaio),
+      respostas: 0,
+      medicoes: 0,
+      fotos,
+      resultado: txt(d.resultado),
+      conclusao: txt(d.laudo),
+    };
+  },
 };
 
 function lerVisual(d: Blob): Omit<EnsaioResumido, 'ensaio' | 'formulario' | 'rotulo' | 'atribuido'> {
@@ -237,7 +253,7 @@ const VAZIO: Omit<EnsaioResumido, 'ensaio' | 'formulario' | 'rotulo' | 'atribuid
 /** O ensaio, lido do container. Fonte única da tela de criação. */
 export function resumirEnsaio(c: ContainerInspecao, ensaio: TipoEnsaio): EnsaioResumido {
   const formulario = FORM_POR_ENSAIO[ensaio];
-  const rotulo = ENSAIOS_DISPONIVEIS.find((e) => e.value === ensaio)?.label ?? ROTULO_FORMULARIO[formulario] ?? ensaio;
+  const rotulo = TODOS_ENSAIOS.find((e) => e.value === ensaio)?.label ?? ROTULO_FORMULARIO[formulario] ?? ensaio;
   const bruto = c.dados?.[formulario];
   // `undefined` é o caso comum de "nunca abriu"; sem isto o leitor rodaria
   // sobre `{}` e devolveria a mesma coisa, só que mais devagar.
@@ -251,7 +267,9 @@ export function resumirEnsaio(c: ContainerInspecao, ensaio: TipoEnsaio): EnsaioR
  * do que mostrar um ensaio fora da lista original.
  */
 export function resumirContainer(c: ContainerInspecao): ResumoContainer {
-  const ensaios = ENSAIOS_DISPONIVEIS.map((e) => resumirEnsaio(c, e.value)).filter(
+  // TODOS os ensaios: o de acumulação só aparece num container de caldeira (é o
+  // único que o oferece), e quem não o tem continua com o mesmo resumo.
+  const ensaios = TODOS_ENSAIOS.map((e) => resumirEnsaio(c, e.value)).filter(
     (r) => r.atribuido || r.salvo,
   );
   const salvos = ensaios.filter((r) => r.salvo);
@@ -286,4 +304,5 @@ export const DOC_DO_ENSAIO: Record<TipoEnsaio, string | null> = {
   teste_hidrostatico: 'TESTE-HIDROSTATICO.html',
   // Fase 5.2 · a seção 8.4 do relatório completo (só vetorial).
   relatorio_imagens: 'RELATORIO-IMAGENS.html',
+  acumulacao: 'ENSAIO-ACUMULACAO.html',
 };

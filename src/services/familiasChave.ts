@@ -34,6 +34,10 @@ export const POR_TAG = [
   'nr13_croqui3d_',
   'nr13_docs_',
   'nr13_emp_',
+  // 22/10/2026 · dados que só a caldeira tem (construtivos, operacionais,
+  // acessórios). Por TAG: sai junto na exclusão do equipamento. O nome não é
+  // `nr13_caldeira_` porque já existem `nr13_caldeira_dados_*` (memorial antigo).
+  'nr13_ficha_caldeira_',
   'nr13_folha_dados_',
   'nr13_fotos_',
   'nr13_info_',

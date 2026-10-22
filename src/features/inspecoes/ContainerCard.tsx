@@ -13,7 +13,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formulariosDoContainer } from './inspecaoService';
-import { ENSAIOS_DISPONIVEIS, type ContainerInspecao } from './tipos';
+import { TODOS_ENSAIOS, type ContainerInspecao } from './tipos';
 import { rotaInspecaoContainer } from '../../app/rotas';
 
 export default function ContainerCard({
@@ -59,7 +59,7 @@ export default function ContainerCard({
           <div className="container-card-badges">
             {container.ensaios.map((e) => (
               <span key={e} className="badge-item-ensaio">
-                {ENSAIOS_DISPONIVEIS.find((d) => d.value === e)?.label ?? e}
+                {TODOS_ENSAIOS.find((d) => d.value === e)?.label ?? e}
               </span>
             ))}
           </div>

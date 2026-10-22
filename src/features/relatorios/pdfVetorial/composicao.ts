@@ -66,11 +66,14 @@ export const FOLHA_DA_SECAO = {
   fotosTh: ['TESTE-HIDROSTATICO-FOTOS.HTML'],
   // Fase 5.2 · 8.4 — as fotos descritas do ensaio Relatório de Imagens.
   imagens: ['RELATORIO-IMAGENS.HTML'],
+  // 21/10/2026 · Ensaio de Acumulação — só caldeira (só o perfil dela oferece a
+  // folha). Só vetorial, como a 8.4.
+  acumulacao: ['ENSAIO-ACUMULACAO.HTML'],
   parecer: ['CONCLUSAO.HTML'],
   // Fase 6.2 · o LIVRO DE REGISTRO DE SEGURANÇA (seção 12). A folha do livro é
   // escolhida no assistente; o TERMO DE ABERTURA (com a capa do livro) é
   // auto-injetado por `montarListaComTermoAbertura` quando o livro da TAG
-  // ainda não tem entrada nenhuma (NR-13 13.4.1.9). Até aqui as três eram
+  // ainda não tem entrada nenhuma (registro de segurança, NR-13 13.4.1.8 / 13.5.1.7). Até aqui as três eram
   // ignoradas em silêncio pelo vetorial: nenhuma chave desta tabela as casava.
   livro: ['LIVRO-REGISTRO.HTML'],
   termoAbertura: ['TERMO-ABERTURA.HTML', 'CAPA-LIVRO-REGISTRO.HTML'],
@@ -86,7 +89,7 @@ export type SecaoRelatorio = keyof typeof FOLHA_DA_SECAO;
  * de Abertura depende da 1ª inspeção do livro. A bancada que pede "o layout
  * inteiro" não está afirmando nem uma coisa nem outra.
  */
-const SO_EXPLICITAS: ReadonlySet<SecaoRelatorio> = new Set<SecaoRelatorio>(['livro', 'termoAbertura']);
+const SO_EXPLICITAS: ReadonlySet<SecaoRelatorio> = new Set<SecaoRelatorio>(['livro', 'termoAbertura', 'acumulacao']);
 
 /** Quais seções aquele relatório tem. */
 export function secoesPresentes(documentos?: string[]): Record<SecaoRelatorio, boolean> {

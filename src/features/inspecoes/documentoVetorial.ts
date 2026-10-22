@@ -67,6 +67,8 @@ export const ENSAIOS_VETORIAIS: FormularioEnsaio[] = [
   'visual_interno',
   'ultrassom',
   'th',
+  // 21/10/2026 · só caldeira oferece o ensaio.
+  'acumulacao',
 ];
 
 export function temDocumentoVetorial(formulario: FormularioEnsaio): boolean {

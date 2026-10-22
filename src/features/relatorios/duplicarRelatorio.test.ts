@@ -91,8 +91,29 @@ function finalizado(): RelatorioSalvo {
   };
 }
 
+const FOTO_REF = { bucket: 'inspecao', path: 'org/inspecoes/foto-acumulacao.jpg', mimeType: 'image/jpeg', tamanho: 10 };
+
+/** O container de campo do relatório original — com medição, acumulação e foto. */
+function containerOriginal() {
+  return {
+    id: 'cont-campo-1',
+    nome: 'Inspeção periódica 2026',
+    criadoEm: '10/03/2026',
+    ensaios: ['ultrassom', 'acumulacao'],
+    dados: {
+      ultrassom: { medidas: { c1: { '0': '9,10', '90': '9,20' } } },
+      acumulacao: {
+        pressaoMaxima: '10,80',
+        pressaoUnidade: 'bar',
+        fotos: [{ id: 'f1', ordem: 0, ref: FOTO_REF, descricao: 'MANÔMETRO' }],
+      },
+    },
+  };
+}
+
 /** Grava o original como FINALIZADO pelo caminho real e devolve o JSON cru. */
 async function semearOriginal(): Promise<string> {
+  localStorage.setItem(`nr13_docs_${TAG}`, JSON.stringify([containerOriginal()]));
   const r = finalizado();
   await salvarRelatorio(r);
   await gravarOverrides(r.id, TAG, {
@@ -181,7 +202,13 @@ describe('A · finalizado → duplicar → NOVO RASCUNHO', () => {
     const { relatorio: c } = await duplicarRelatorio('REL-1700000000000', TAG, AGORA);
     expect(c!.documentos).toEqual(['CAPA.html', 'ULTRASSOM.html', 'CONCLUSAO.html']);
     expect(c!.meta.documentos).toEqual(['CAPA.html', 'ULTRASSOM.html', 'CONCLUSAO.html']);
-    expect(c!.meta.containerOrigemId).toBe('cont-campo-1');
+    // 22/10/2026 · container PRÓPRIO, com os dados do original copiados.
+    expect(c!.meta.containerOrigemId).toBeDefined();
+    expect(c!.meta.containerOrigemId).not.toBe('cont-campo-1');
+    const lista = JSON.parse(localStorage.getItem(`nr13_docs_${TAG}`)!) as { id: string; nome: string; dados: unknown }[];
+    const copia = lista.find((x) => x.id === c!.meta.containerOrigemId)!;
+    expect(copia.nome).toBe('Cópia de Inspeção periódica 2026');
+    expect(copia.dados).toEqual(containerOriginal().dados);
     expect(c!.meta.tipoInspecao).toBe('Inspeção Periódica');
     expect(c!.meta.phNome).toBe('Eng. Fulano');
     expect(c!.meta.tecnicoNome).toBe('Téc. Beltrano');
@@ -189,11 +216,11 @@ describe('A · finalizado → duplicar → NOVO RASCUNHO', () => {
 });
 
 describe('datas — identidade nova, inspeção em branco', () => {
-  it('emissão = hoje; execução, validade, próximas, válvula e ART vazias', async () => {
+  it('emissão VAZIA (é ato da finalização); execução, validade, próximas, válvula e ART vazias', async () => {
     await semearOriginal();
     const { relatorio: c } = await duplicarRelatorio('REL-1700000000000', TAG, AGORA);
     const hoje = new Date(AGORA).toLocaleDateString('pt-BR');
-    expect(c!.meta.emissao).toBe(hoje);
+    expect(c!.meta.emissao).toBe('');
     expect(c!.data).toBe(hoje);
     expect(c!.meta.execucaoInspecao).toBe('');
     expect(c!.meta.validade).toBe('');
@@ -214,6 +241,9 @@ describe('datas — identidade nova, inspeção em branco', () => {
       'inspecao.observacoes',
     ]);
     expect(Object.keys(overridesDaCopia({ 'parecer.laudo': {} as never, 'datas.execucao': {} as never }))).toEqual([]);
+    const da = (id: string) => Object.keys(overridesDaCopia({ [id]: {} as never })).length === 0;
+    for (const id of ['capa.n-do-relatorio', 'capa.data-da-inspecao', 'inspecao.data-inicio', 'proximas.externa', 'th.resultado', 'ri.laudo-final', 'ri.acumulacao.justificativa', 'acumulacao.laudo']) expect(da(id), id).toBe(true);
+    expect(da('capa.cliente')).toBe(false);
   });
 });
 
@@ -290,7 +320,12 @@ describe('várias cópias, recarga e sync', () => {
     expect(escritas).not.toContain(chaveRelatorio('REL-1700000000000', TAG));
     expect(escritas).not.toContain(chaveOverrides('REL-1700000000000', TAG));
     expect(escritas).not.toContain(chaveIndice(TAG));
-    expect(escritas.some((k) => k.startsWith('nr13_docs_') || k.startsWith('nr13_fotos_'))).toBe(false);
+    // A lista de containers recebe a CÓPIA (acréscimo); o container original
+    // continua idêntico, e nenhuma chave de foto é tocada.
+    expect(escritas.some((k) => k.startsWith('nr13_fotos_'))).toBe(false);
+    const lista = JSON.parse(localStorage.getItem(`nr13_docs_${TAG}`)!) as { id: string }[];
+    expect(lista.find((x) => x.id === 'cont-campo-1')).toEqual(containerOriginal());
+    expect(lista).toHaveLength(2);
     expect(escritas).toContain(chaveRelatorio(novoId, TAG));
   });
 
@@ -301,7 +336,30 @@ describe('várias cópias, recarga e sync', () => {
 });
 
 describe('fotos e anexos — a cópia não copia nem apaga arquivo', () => {
-  it('aponta para o MESMO container; nenhum arquivo é escrito; o PDF do original é outro objeto', async () => {
+  it('editar medição, acumulação e foto NA CÓPIA não muda o container do original', async () => {
+    const { salvarDadosFormulario, carregarContainer } = await import('../inspecoes/inspecaoService');
+    await semearOriginal();
+    const { relatorio: c } = await duplicarRelatorio('REL-1700000000000', TAG, AGORA);
+    const idCopia = c!.meta.containerOrigemId!;
+    // A foto é a MESMA referência ao bucket nos dois — nenhum arquivo copiado.
+    const fotoCopia = (carregarContainer(TAG, idCopia)!.dados.acumulacao as { fotos: { ref: unknown }[] }).fotos[0].ref;
+    expect(fotoCopia).toEqual(FOTO_REF);
+
+    await salvarDadosFormulario(TAG, idCopia, 'ultrassom', { medidas: { c1: { '0': '5,00', '90': '5,10' } } });
+    await salvarDadosFormulario(TAG, idCopia, 'acumulacao', { pressaoMaxima: '12,50', pressaoUnidade: 'bar', fotos: [] });
+
+    expect(carregarContainer(TAG, 'cont-campo-1')).toEqual(containerOriginal());
+    expect((carregarContainer(TAG, idCopia)!.dados.acumulacao as { pressaoMaxima: string }).pressaoMaxima).toBe('12,50');
+  });
+
+  it('container de origem que não existe mais: a cópia nasce SEM container, nunca com o de outro', async () => {
+    await semearOriginal();
+    localStorage.setItem(`nr13_docs_${TAG}`, JSON.stringify([]));
+    const { relatorio: c } = await duplicarRelatorio('REL-1700000000000', TAG, AGORA);
+    expect(c!.meta.containerOrigemId).toBeUndefined();
+  });
+
+  it('montagem pura: o PDF do original é outro objeto e a cópia não o leva', async () => {
     await semearOriginal();
     const c = montarDuplicata(finalizado(), { codigo: 'REL-2', hojeBr: '21/10/2026', modeloDocumento: 'novo' });
     expect(c.meta.containerOrigemId).toBe('cont-campo-1');

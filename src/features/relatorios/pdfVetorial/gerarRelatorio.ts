@@ -31,6 +31,10 @@ import {
 import { medirFotos, montarModeloRelatorio, type FontesDoModelo, type FotoModelo, type ModeloRelatorio } from './modelo';
 import { baixarFoto, blobParaDataUrl } from '../../../services/fotos';
 import { TITULO_LIVRO, TITULO_REGISTRO, TITULO_TERMO, secaoLivroRegistro } from './livroRegistro';
+import { folhasAcumulacao } from './folhaAcumulacao';
+import { fontesCaldeira, gerarCorpoCaldeira } from './gerarRelatorioCaldeira';
+import { incluiFolha } from './composicao';
+import { ler } from '../../../services/storage';
 import { resolverPlacaReal } from '../placaIdentificacao';
 
 /**
@@ -234,6 +238,20 @@ function emitir(
       }
     }
   }
+  // 7.6 · 21/10/2026 — o Ensaio de Acumulação (só caldeira), logo depois do TH.
+  if (tem.acumulacao && m.acumulacao) {
+    const antes = doc.pdf.getNumberOfPages();
+    folhasAcumulacao(doc, m, true);
+    if (registrar) {
+      registrar.set('Ensaio de acumulação', antes + 1);
+      // A folha de dados é elástica e pode passar de uma página: conta as de fotos do fim.
+      if (m.acumulacao.fotos.length > 0)
+        registrar.set(
+          'Registro fotográfico — ensaio de acumulação',
+          Math.max(antes + 2, doc.pdf.getNumberOfPages() - folhasDeFotos(m.acumulacao.fotos, true) + 1),
+        );
+    }
+  }
   // 8.4 · Fase 5.2 — o Relatório de Imagens, pelo MESMO desenho do avulso
   // (`secaoRelatorioImagens` → `desenharFotosDescritas`), no cabeçalho, rodapé
   // e paginação deste documento. Depois dos ensaios e antes do parecer.
@@ -326,6 +344,10 @@ async function comFotosMedidas(m: ModeloRelatorio): Promise<ModeloRelatorio> {
     resolverFotos(m.visualInterno.fotos).then(medirFotos),
     resolverFotos(m.th.fotos).then(medirFotos),
   ]);
+  // 21/10/2026 · fotos da acumulação: só existe em caldeira; `null` não baixa nada.
+  const acumulacao = m.acumulacao
+    ? { ...m.acumulacao, fotos: await resolverFotos(m.acumulacao.fotos).then(medirFotos) }
+    : null;
   return {
     ...m,
     fotosDocumentacao: doc,
@@ -333,6 +355,7 @@ async function comFotosMedidas(m: ModeloRelatorio): Promise<ModeloRelatorio> {
     visualExterno: { ...m.visualExterno, fotos: ve },
     visualInterno: { ...m.visualInterno, fotos: vi },
     th: { ...m.th, fotos: th },
+    acumulacao,
   };
 }
 
@@ -353,6 +376,38 @@ async function contarPaginasAnexadas(opcoes: OpcoesVetorial): Promise<number> {
     console.error('Falha ao contar as páginas anexadas; o total usará só o corpo.', e);
     return 0;
   }
+}
+
+/**
+ * O relatório completo de CALDEIRA usa `gerarCorpoCaldeira`. "Completo" = sem
+ * lista (a bancada), ou com capa, sumário, prontuário ou relatório de inspeção
+ * na composição — o documento avulso de um ensaio (só a folha do ensaio) segue
+ * no caminho de sempre.
+ */
+export function ehRelatorioCompletoDeCaldeira(tag: string, documentos?: string[]): boolean {
+  let info: { tipo?: unknown; subtipo?: unknown } | null;
+  try {
+    info = ler<{ tipo?: unknown; subtipo?: unknown }>(`nr13_info_${tag}`);
+  } catch {
+    info = null;
+  }
+  if (info?.tipo !== 'caldeira') return false;
+  // Só a flamotubular (a única que o sistema cria): caldeira legada de outro
+  // subtipo segue no caminho de sempre, sem fórmulas que não são as dela.
+  if (info.subtipo && info.subtipo !== 'flamotubular') return false;
+  if (!documentos || documentos.length === 0) return true;
+  return incluiFolha(
+    documentos,
+    'CAPA.HTML',
+    'SUMARIO.HTML',
+    'CALD-PRONTUARIO.HTML',
+    'CALD-ACESSORIOS.HTML',
+    'CALD-RELATORIO-INSPECAO.HTML',
+    'CALD-CALCULOS.HTML',
+    'PRONTUARIO.HTML',
+    'INSPECOES.HTML',
+    'CONCLUSAO.HTML',
+  );
 }
 
 export async function gerarRelatorioVetorial(
@@ -427,6 +482,35 @@ export async function gerarRelatorioVetorial(
     numeroRelatorio: modelo.numeroRelatorio,
     rodape: [modelo.empresa.razao, modelo.empresa.endereco, modelo.empresa.contato] as [string, string, string],
   };
+
+  // ── CALDEIRA FLAMOTUBULAR (22/10/2026) ────────────────────────────────
+  // O relatório COMPLETO de caldeira tem gerador próprio (ordem, seções e
+  // anexos da referência). O documento AVULSO de um ensaio continua aqui, no
+  // caminho de sempre. Vaso e autoclave nunca entram neste desvio.
+  if (ehRelatorioCompletoDeCaldeira(tag, opcoes.documentos)) {
+    const { meta, injecao } = fontesCaldeira(opcoes.fontes);
+    const r = await gerarCorpoCaldeira({
+      tag,
+      modelo,
+      documentos: opcoes.documentos ?? [],
+      meta,
+      injecao,
+      certificados: opcoes.certificados !== false,
+      modo: opcoes.modo ?? 'final',
+      overrides: ovr,
+      cab,
+      novoPdf,
+      temBase: secoesPresentes(opcoes.documentos),
+    });
+    return {
+      bytes: r.bytes,
+      paginas: r.paginas,
+      ms: Math.round(performance.now() - inicio),
+      modelo,
+      falhasAnexo: r.falhasAnexo,
+      editaveis: r.editaveis,
+    };
+  }
 
   // 1ª passagem: contar. O total ainda é desconhecido, então o cabeçalho
   // escreve um número provisório que ninguém verá — este PDF é descartado.

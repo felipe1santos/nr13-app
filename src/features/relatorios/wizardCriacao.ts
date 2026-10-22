@@ -68,8 +68,13 @@ export function ensaiosRevisaveis(
  * `DOCUMENTOS_DISPONIVEIS` é a ordem do documento, e a ordem em que o usuário
  * clicou nas caixas não é ordem nenhuma.
  */
-export function documentosFinais(marcados: string[], docsCalibracao: string[]): string[] {
-  return [...DOCUMENTOS_DISPONIVEIS.filter((d) => marcados.includes(d)), ...docsCalibracao];
+export function documentosFinais(
+  marcados: string[],
+  docsCalibracao: string[],
+  /** A ordem do documento DESTE tipo (`perfilEquipamento.documentosDoTipo`); ausente = a de sempre. */
+  ordem: readonly string[] = DOCUMENTOS_DISPONIVEIS,
+): string[] {
+  return [...ordem.filter((d) => marcados.includes(d)), ...docsCalibracao];
 }
 
 /**

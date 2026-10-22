@@ -36,6 +36,7 @@ import { descricaoCombinada, termoSugerido, tituloTermo, type DadosPrevia } from
 import type { FormOcorrencia } from './formRegistro';
 import { TIPOS_OCORRENCIA } from './formRegistro';
 import './modalNovoRegistro.css';
+import { tipoDaTag } from '../equipamento/perfilEquipamento';
 
 export interface OpcaoRelatorio {
   id: string;
@@ -171,8 +172,9 @@ export default function ModalNovoRegistro({
         relatorioCodigo: form.relatorioCodigo,
         apto: form.apto,
         descricao: descricaoCombinada(form.oQueFoiFeito, form.descricao),
+        tipoEquipamento: tipoDaTag(tag),
       }),
-    [form.tipoOcorrencia, form.data, form.relatorioCodigo, form.apto, form.oQueFoiFeito, form.descricao, empresa],
+    [form.tipoOcorrencia, form.data, form.relatorioCodigo, form.apto, form.oQueFoiFeito, form.descricao, empresa, tag],
   );
   /*
    * A REGRA DO TERMO, em uma linha: `null` é "ainda não editado" — só aí a

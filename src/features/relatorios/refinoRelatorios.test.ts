@@ -214,7 +214,10 @@ describe('10, 11, 12 e 13 · criar sem sair da rota', () => {
     expect(wizard).toContain('Configurar novo relatório');
     // A lista deixou de ser um recorte: o bloco azul que retirava itens dela
     // saiu, e as folhas voltam a ser o catálogo canônico inteiro.
-    expect(wizard).toContain('DOCUMENTOS_DISPONIVEIS.map((doc)');
+    // 21/10/2026 · o catálogo é o do TIPO do equipamento (`documentosDoTipo`):
+    // o de sempre para vaso e autoclave, o mesmo + acumulação para caldeira.
+    expect(wizard).toContain('folhasDoTipo.map((doc)');
+    expect(wizard).toContain('documentosDoTipo(tipoDaTag(tag))');
     expect(wizard).not.toContain('const naLista =');
   });
 

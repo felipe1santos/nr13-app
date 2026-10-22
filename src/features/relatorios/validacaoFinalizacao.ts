@@ -1,10 +1,13 @@
 import type { RelatorioMeta } from './tipos';
 import { resolverValor, type MapaOverrides } from './overridesRelatorio';
+import { acumulacaoPreenchida, dadosPadraoAcumulacao, verificarAcumulacao, type DadosAcumulacao } from '../inspecoes/acumulacao';
 import { listaDeItens, precisaConfirmarSemantica } from '../inspecoes/formularios/semanticaNc';
 import { ITENS_VISUAL_EXTERNO } from '../inspecoes/formularios/FormularioVisualExterno';
 import { ITENS_VISUAL_INTERNO } from '../inspecoes/formularios/FormularioVisualInterno';
+import { itensDoExame } from '../caldeira/itensVisuaisCaldeira';
 import { pendenciasParaEmissao } from '../inspecoes/fotosDescritas';
 import { FOLHA_RELATORIO_IMAGENS } from './relatorioImagensNoRelatorio';
+import { itemConteudoRelatorio } from '../normas/nr13';
 
 /**
  * Fase 10B.1 · o que se confere ANTES de finalizar — e a diferença entre
@@ -62,6 +65,44 @@ export interface EntradaValidacao {
    * pode ter sido escrita DENTRO do documento, e não no formulário — ela vale.
    */
   overrides?: MapaOverrides;
+  /**
+   * 21/10/2026 · PMTA do documento (adotada ?? calculada), em MPa — só o Ensaio
+   * de Acumulação a usa, para o ALERTA de 1,06 × PMTA. Ausente = sem alerta.
+   */
+  pmtaMpa?: number | null;
+  /**
+   * 22/10/2026 · tipo do equipamento (`'caldeira'` | `'vaso'` | …) — decide qual
+   * subitem da NR-13 o aviso do certificado da PSV cita. Ausente = vaso.
+   */
+  tipoEquipamento?: string | null;
+  /**
+   * O documento sai pelo gerador de CALDEIRA (`ehRelatorioCompletoDeCaldeira`)?
+   * Só ele desenha o campo da justificativa da acumulação. Ausente = deduz do tipo.
+   */
+  relatorioDeCaldeira?: boolean;
+}
+
+/**
+ * O relatório traz o NÚMERO de algum certificado de inspeção e teste da válvula
+ * de segurança? (NR-13 2022: 13.4.4.12 "n" para caldeira, 13.5.4.11 "n" para
+ * vaso.) Três caminhos por onde ele chega ao documento:
+ * - a folha de calibração da PSV na composição (`CERTIIFCADO-CAL-PSV.html?calibId=`);
+ * - o snapshot congelado na meta (`meta.certCalibracoes`) de uma PSV com número;
+ * - o quadro 7.1.1 do checklist apontando para uma calibração de PSV com número.
+ */
+export function temCertificadoPsv(
+  documentos: string[] | null,
+  meta: RelatorioMeta | null,
+  dadosContainer: EntradaValidacao['dadosContainer'],
+): boolean {
+  if ((documentos ?? []).some((d) => d.startsWith('CERTIIFCADO-CAL-PSV.html'))) return true;
+  const numerado = (v: unknown, tipoCampo: string) => {
+    const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+    return o[tipoCampo] === 'psv' && typeof o.numeroCertificado === 'string' && o.numeroCertificado.trim() !== '';
+  };
+  if (Object.values(meta?.certCalibracoes ?? {}).some((c) => numerado(c, 'tipo'))) return true;
+  const chk = dadosContainer?.checklist as { instrumentosRef?: Record<string, { snapshot?: unknown }> } | undefined;
+  return Object.values(chk?.instrumentosRef ?? {}).some((r) => numerado(r?.snapshot, 'tipo'));
 }
 
 function vazio(v: string | undefined | null): boolean {
@@ -166,13 +207,59 @@ export function validarParaFinalizar(e: EntradaValidacao): ResultadoValidacao {
     }
   }
 
+  // 21/10/2026 · ENSAIO DE ACUMULAÇÃO (só caldeira oferece a folha). As regras
+  // são as do formulário (`verificarAcumulacao`): erro bloqueia — o laudo
+  // sairia contraditório —, alerta só avisa, porque a decisão é do PLH.
+  if (tem(e.documentos, 'ENSAIO-ACUMULACAO.html')) {
+    const onde = 'Inspeção · Ensaio de acumulação';
+    const bruto = bloco<Partial<DadosAcumulacao>>(e.dadosContainer, 'acumulacao');
+    if (!bruto || !acumulacaoPreenchida(bruto)) {
+      obrigatorios.push({ campo: 'acumulacao', texto: 'Ensaio de acumulação escolhido, mas não preenchido', onde });
+    } else {
+      const d = { ...dadosPadraoAcumulacao(''), ...bruto } as DadosAcumulacao;
+      for (const a of verificarAcumulacao(d, { pmtaMpa: e.pmtaMpa ?? null })) {
+        (a.nivel === 'erro' ? obrigatorios : opcionais).push({ campo: `acumulacao.${a.campo}`, texto: a.texto, onde });
+      }
+      if (vazio(texto(d.resultado))) {
+        opcionais.push({ campo: 'acumulacao.resultado', texto: 'Resultado do ensaio de acumulação não informado', onde });
+      }
+    }
+  }
+
+  // 22/10/2026 · RELATÓRIO DE CALDEIRA sem ensaio de acumulação feito: a folha
+  // 3 pede "SE NÃO, JUSTIFIQUE", e a justificativa só existe como override do
+  // documento ('ri.acumulacao.justificativa'). Sem ela, não finaliza.
+  // Mesmas folhas que acendem a seção no gerador (`FOLHAS_CALDEIRA.relatorioInspecao`):
+  // rascunho de caldeira anterior ao relatório próprio traz INSPECOES/CONCLUSAO.
+  const relatorioInspecaoCaldeira =
+    (e.relatorioDeCaldeira ?? (e.tipoEquipamento === 'caldeira' || tem(e.documentos, 'CALD-RELATORIO-INSPECAO.html'))) &&
+    (!e.documentos?.length ||
+      ['CALD-RELATORIO-INSPECAO.html', 'INSPECOES.html', 'CONCLUSAO.html'].some((f) => tem(e.documentos, f)));
+  if (relatorioInspecaoCaldeira) {
+    const bruto = bloco<Partial<DadosAcumulacao>>(e.dadosContainer, 'acumulacao');
+    // Mesma regra do modelo (`acumulacaoFeita`): o dado preenchido, escolhida ou não a folha.
+    const feito = !!bruto && acumulacaoPreenchida(bruto);
+    const just = resolverValor('', (e.overrides ?? {})['ri.acumulacao.justificativa']) ?? '';
+    if (!feito && vazio(just)) {
+      obrigatorios.push({
+        campo: 'ri.acumulacao.justificativa',
+        texto: 'Ensaio de acumulação não realizado: escreva a justificativa no relatório de inspeção (folha 3)',
+        onde: 'Documento · Relatório de inspeção',
+      });
+    }
+  }
+
   // Exames visuais: a observação em branco é o exemplo que o dono deu.
-  for (const [arquivo, chave, rotulo, prefixo, itens] of [
+  for (const [arquivo, chave, rotulo, prefixo, itensDaLista] of [
     ['VISUAL-EXTERNO.html', 'visual_externo', 'exame externo', 'exameExterno', ITENS_VISUAL_EXTERNO],
     ['VISUAL-INTERNO.html', 'visual_interno', 'exame interno', 'exameInterno', ITENS_VISUAL_INTERNO],
+    // (o 5º elemento é a lista PADRÃO; a efetiva sai do catálogo do registro)
   ] as const) {
+    const itensPadrao = itensDaLista;
     if (!tem(e.documentos, arquivo)) continue;
     const v = bloco<Record<string, unknown>>(e.dadosContainer, chave);
+    // 22/10/2026 · as perguntas do CATÁLOGO do registro (caldeira ou a de sempre).
+    const itens = itensDoExame(chave === 'visual_externo' ? 'externo' : 'interno', v, e.tipoEquipamento === 'caldeira', itensPadrao);
     const onde = `Inspeção · Visual ${chave === 'visual_externo' ? 'externo' : 'interno'}`;
 
     // ── 18/09/2026 · a pergunta de não conformidade ─────────────────────────
@@ -223,6 +310,20 @@ export function validarParaFinalizar(e: EntradaValidacao): ResultadoValidacao {
     if (vazio(texto(u?.resultado))) {
       opcionais.push({ campo: 'ultrassom.resultado', texto: 'Resultado da medição de espessura não informado', onde: 'Inspeção · Medição de espessura' });
     }
+  }
+
+  // 22/10/2026 · NR-13 2022, alínea "n" do conteúdo mínimo do relatório: o número
+  // do certificado de inspeção e teste da válvula de segurança. AVISO, nunca
+  // bloqueio — decisão do dono: o engenheiro pode ter o certificado fora do
+  // sistema e citá-lo no texto.
+  if (!temCertificadoPsv(e.documentos, m, e.dadosContainer)) {
+    opcionais.push({
+      campo: 'certificadoPsv',
+      texto:
+        `Nenhum certificado de inspeção e teste da válvula de segurança vinculado — a NR-13 ` +
+        `(subitem ${itemConteudoRelatorio(e.tipoEquipamento)}, alínea "n") pede o número dele no relatório`,
+      onde: 'Calibrações · válvula de segurança',
+    });
   }
 
   return { obrigatorios, opcionais, podeFinalizar: obrigatorios.length === 0 };

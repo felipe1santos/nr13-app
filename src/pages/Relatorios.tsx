@@ -67,6 +67,7 @@ import { validarParaFinalizar, type LaudoConclusao, type ResultadoValidacao } fr
 import { salvarRascunho as gravarRascunho } from '../features/relatorios/historicoRelatorios';
 import { ehRascunhoConhecido } from '../features/relatorios/rascunhos';
 import { duplicarRelatorio } from '../features/relatorios/duplicarRelatorio';
+import { pmtaDoDocumentoMpa, tipoDaTag } from '../features/equipamento/perfilEquipamento';
 import { abrirRelatorio, avisoDaAbertura } from '../features/relatorios/aberturaRelatorio';
 import { ultimaLacrada, type LivroEntrada } from '../features/relatorios/livroLacre';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
@@ -80,8 +81,9 @@ import { avisarBloqueioDocumentos, documentosBloqueados } from '../services/tria
 import { mascararData } from '../services/mascaras';
 import { exportarPdf, gerarPdfBytes } from '../features/relatorios/pdfService';
 import { modeloDaEmpresa, motorDoRelatorio } from '../features/relatorios/modeloDocumento';
-import { gerarPreviaRelatorio, gerarRelatorioVetorial } from '../features/relatorios/pdfVetorial/gerarRelatorio';
+import { ehRelatorioCompletoDeCaldeira, gerarPreviaRelatorio, gerarRelatorioVetorial } from '../features/relatorios/pdfVetorial/gerarRelatorio';
 import { publicarArtefato, artefatoDe } from '../features/relatorios/artefatoRelatorio';
+import { anexarArt } from '../features/relatorios/anexoArt';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import { ehRascunho, temArtefato, temTemplateHtml, type RelatorioIndiceItem, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from '../features/relatorios/tipos';
 import VisualizadorPdf, { abrirPdfEmAba, baixarPdfArquivado, baixarPdfDeBytes, imprimirPdfArquivado } from '../components/VisualizadorPdf';
@@ -337,6 +339,8 @@ function RelatoriosLegado() {
   // Erro da finalização (geração/upload do PDF). Fica na tela até o próximo save:
   // um alert() sumiria e o usuário concluiria que salvou.
   const [erroSalvar, setErroSalvar] = useState('');
+  const [anexandoArt, setAnexandoArt] = useState(false);
+  const [erroArt, setErroArt] = useState('');
   // Progresso da rasterização — dezenas de segundos num relatório grande.
   const [progressoPdf, setProgressoPdf] = useState<{ feito: number; total: number } | null>(null);
   // ── Fase 10B.1 · ciclo de vida ─────────────────────────────────────────────
@@ -1124,6 +1128,9 @@ function RelatoriosLegado() {
         laudo: ler<LaudoConclusao>(`nr13_laudo_${tag}`),
         dadosContainer,
         overrides,
+        pmtaMpa: pmtaDoDocumentoMpa(tag),
+        tipoEquipamento: tipoDaTag(tag),
+        relatorioDeCaldeira: ehRelatorioCompletoDeCaldeira(tag, documentos),
       }),
     );
   }
@@ -1871,6 +1878,46 @@ function RelatoriosLegado() {
                         onChange={(e) => setCampoMeta('art', e.target.value)}
                       />
                     </div>
+                    {/* 22/10/2026 · só caldeira: o PDF da ART entra como anexo da
+                        seção 6. Sobe num caminho novo; a meta guarda ref + SHA. */}
+                    {tipoDaTag(tag) === 'caldeira' && (
+                      <div className="rel-campo">
+                        <label>PDF da A.R.T. (opcional)</label>
+                        {meta.artAnexo ? (
+                          <span className="rel-campo-anexo">
+                            {meta.artAnexo.nome}
+                            {!somenteLeitura && (
+                              <button type="button" className="btn-link" onClick={() => setMeta((m) => (m ? { ...m, artAnexo: undefined } : m))}>
+                                Remover
+                              </button>
+                            )}
+                          </span>
+                        ) : (
+                          <input
+                            type="file"
+                            accept="application/pdf,.pdf"
+                            disabled={somenteLeitura || anexandoArt}
+                            onChange={async (e) => {
+                              const arquivo = e.target.files?.[0];
+                              e.target.value = '';
+                              if (!arquivo || somenteLeitura) return;
+                              setErroArt('');
+                              setAnexandoArt(true);
+                              try {
+                                const artAnexo = await anexarArt(arquivo);
+                                setMeta((m) => (m ? { ...m, artAnexo } : m));
+                              } catch (err) {
+                                setErroArt(err instanceof Error ? err.message : 'Não foi possível anexar a ART.');
+                              } finally {
+                                setAnexandoArt(false);
+                              }
+                            }}
+                          />
+                        )}
+                        {anexandoArt && <small>Anexando…</small>}
+                        {erroArt && <small className="rel-campo-erro" role="alert">{erroArt}</small>}
+                      </div>
+                    )}
                     {/* Assinantes do relatório (motor de assinatura) — gravados em
                         nr13_assinantes_rel_<TAG> antes do remount dos iframes. */}
                     <div className="meta-barra-campo">

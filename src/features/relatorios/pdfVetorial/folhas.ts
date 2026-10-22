@@ -28,6 +28,7 @@ import {
   type CampoQuadro,
 } from '../../calibracoes/idsInstrumentos';
 import { listaDeItens, resultadoNcDerivado } from '../../inspecoes/formularios/semanticaNc';
+import { NR13_ITENS, NR13_ORGAO, NR13_PORTARIA } from '../../normas/nr13';
 
 /**
  * Fase 11 · as 21 folhas do relatório, na ordem da referência.
@@ -283,7 +284,7 @@ function blocoExame(
  * 5–8 → 2; 9–12 → 3. Quem distribui dentro da folha é `doc.fotos` (4 por folha,
  * §5, proporção real e `contain`); quem conta as folhas é `folhasDeFotos`.
  */
-function folhaDeFotos(doc: Documento, titulo: string, lista: FotoModelo[]): void {
+export function folhaDeFotos(doc: Documento, titulo: string, lista: FotoModelo[]): void {
   if (lista.length === 0) return;
   doc.novaFolha();
   const banner = () => doc.banner(titulo);
@@ -312,7 +313,9 @@ export function folhaCapa(doc: Documento, m: ModeloRelatorio): void {
   // A referência traz a Portaria logo abaixo do subtítulo; é texto PADRÃO do
   // documento (não dado do equipamento), e por isso nasce como default
   // editável — quem precisar citar outra portaria reescreve neste relatório.
-  doc.texto('(Portaria nº 1.082, de 18 de dezembro de 2018)', {
+  // 22/10/2026 · a redação vigente (2022), da constante central. Override já
+  // digitado num rascunho continua valendo; documento emitido é arquivo.
+  doc.texto(`(${NR13_PORTARIA})`, {
     tamanho: FONTE.sigla,
     italico: true,
     cor: '#6a6a6a',
@@ -445,8 +448,8 @@ export function folhaSumario(
   // "Restaurar automático" devolve exatamente esta redação.
   doc.texto(
     `Este relatório apresenta o resultado da ${textoOu(m.tipoInspecao, 'inspeção')} de segurança do ` +
-      `equipamento ${m.tag}, realizada conforme a Norma Regulamentadora NR-13 do Ministério do ` +
-      'Trabalho e Emprego, com o objetivo de avaliar as condições de integridade e de segurança ' +
+      `equipamento ${m.tag}, realizada conforme a Norma Regulamentadora NR-13 do ${NR13_ORGAO}, ` +
+      'com o objetivo de avaliar as condições de integridade e de segurança ' +
       'operacional do equipamento.',
     { id: 'objetivo.texto', rotuloCampo: 'Objetivo do relatório' },
   );
@@ -791,7 +794,7 @@ function desenharPressaoDaPlaca(
 
 // ── 4. CATEGORIZAÇÃO DE RISCO ───────────────────────────────────────────────
 /**
- * A MATRIZ do item 13.5.1.2 — a tabela da norma, como a referência a imprime.
+ * A MATRIZ do subitem 13.5.1.1 (Tabela 1) — a tabela da norma, como a referência a imprime.
  *
  * Ela é a NORMA impressa, não uma conta: as cinco faixas de P.V. e as quatro
  * classes de fluido são texto fixo do regulamento. A categoria do equipamento
@@ -822,12 +825,12 @@ const MATRIZ_13512: { classe: string; itens: string[]; categorias: string[] }[] 
   { classe: 'D', itens: ['Outro fluido'], categorias: ['II', 'III', 'IV', 'V', 'V'] },
 ];
 
-// As cinco faixas de P.V. do item 13.5.1.2: o NÚMERO do grupo em cima, os
+// As cinco faixas de P.V. da Tabela 1 (subitem 13.5.1.1): o NÚMERO do grupo em cima, os
 // limites embaixo, em corpo menor — como na referência.
 const FAIXAS_PV = [['P.V ≥ 100'], ['P.V < 100', 'P.V ≥ 30'], ['P.V < 30', 'P.V ≥ 2,5'], ['P.V < 2,5', 'P.V ≥ 1'], ['P.V < 1']];
 
 /**
- * A MATRIZ do item 13.5.1.2, desenhada à mão — e com os TRÊS realces.
+ * A MATRIZ da Tabela 1 (subitem 13.5.1.1), desenhada à mão — e com os TRÊS realces.
  *
  * ## Por que não é `doc.tabela`
  *
@@ -1053,7 +1056,7 @@ export function matrizCategorizacao(doc: Documento, classe: string | null, grupo
 export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
   doc.banner('4. CATEGORIZAÇÃO DE RISCO');
-  doc.texto('Classificação do vaso de pressão conforme o item 13.5.1.2 da norma NR-13.', {
+  doc.texto(`Classificação do vaso de pressão conforme o subitem ${NR13_ITENS.categoriaVaso} da NR-13.`, {
     tamanho: FONTE.nota,
     cor: COR.nota,
     espacoAntes: 1,
@@ -1096,7 +1099,7 @@ export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
   ]);
 
   doc.y += 3.4;
-  doc.texto('Matriz de categoria conforme item 13.5.1.2 da norma NR-13.', {
+  doc.texto(`Matriz de categoria conforme a Tabela 1 do subitem ${NR13_ITENS.categoriaVaso} da NR-13.`, {
     tamanho: FONTE.nota,
     cor: COR.nota,
   });
@@ -1116,7 +1119,7 @@ export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
   ]);
 
   doc.texto(
-    'A categorização segue o item 13.5.1.2 da NR-13: o grupo de potencial de risco resulta do ' +
+    `A categorização segue o subitem ${NR13_ITENS.categoriaVaso} da NR-13 (classes em 13.5.1.1.1, grupos em 13.5.1.1.3 e Tabela 1): o grupo de potencial de risco resulta do ` +
       'produto pressão × volume, e a categoria, do cruzamento desse grupo com a classe do fluido.',
     { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2, id: 'categoria.nota', rotuloCampo: 'Nota da categorização' },
   );
@@ -1509,11 +1512,18 @@ export function folhaDadosInspecao(doc: Documento, m: ModeloRelatorio): void {
   doc.tabela({
     compacta: true,
     colunas: [0.35, 0.15, 0.35, 0.15],
-    linhas: [0, 2, 4].map((i) =>
-      [i, i + 1].flatMap((k) => [
-        { texto: e[k]?.rotulo ?? '', rotulo: true } as CelulaDoc,
-        celulaMarca(!!e[k]?.feito, `inspecao.ensaio-${k}`, `Ensaio — ${e[k]?.rotulo ?? ''}`),
-      ]),
+    // Duas por linha. Com as seis de sempre são as linhas 0, 2 e 4 — o mesmo
+    // desenho de antes; a caldeira tem uma sétima (acumulação), e a meia linha
+    // que sobra fica em branco, sem caixa de marcação nem campo editável.
+    linhas: Array.from({ length: Math.ceil(e.length / 2) }, (_, r) => r * 2).map((i) =>
+      [i, i + 1].flatMap((k) =>
+        k < e.length
+          ? [
+              { texto: e[k]?.rotulo ?? '', rotulo: true } as CelulaDoc,
+              celulaMarca(!!e[k]?.feito, `inspecao.ensaio-${k}`, `Ensaio — ${e[k]?.rotulo ?? ''}`),
+            ]
+          : [{ texto: '', rotulo: true } as CelulaDoc, { texto: '' } as CelulaDoc],
+      ),
     ),
   });
 
@@ -1768,20 +1778,30 @@ export function folhasFotosDocumentacao(
 }
 
 // ── 13 a 16. EXAMES VISUAIS E SUAS FOTOS ────────────────────────────────────
-export function folhasExameExterno(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
-  doc.novaFolha();
-  doc.abrirSecaoElastica('exameExterno');
-  blocoExame(doc, '7.2 EXAME EXTERNO (INSPEÇÃO VISUAL EXTERNA)', m.visualExterno, 'exameExterno', 'exame externo');
-  doc.fecharSecaoElastica();
-  if (comFotos) folhaDeFotos(doc, '8.1 REGISTRO FOTOGRÁFICO — EXAME EXTERNO', m.visualExterno.fotos);
+/**
+ * Títulos das folhas reaproveitadas por outro relatório (22/10/2026 — o de
+ * caldeira numera as seções de outro jeito). Ausente = os títulos de sempre:
+ * o relatório de vaso e autoclave não muda.
+ */
+export interface TitulosFolha {
+  banner?: string;
+  fotos?: string;
 }
 
-export function folhasExameInterno(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
+export function folhasExameExterno(doc: Documento, m: ModeloRelatorio, comFotos = true, titulos: TitulosFolha = {}): void {
+  doc.novaFolha();
+  doc.abrirSecaoElastica('exameExterno');
+  blocoExame(doc, titulos.banner ?? '7.2 EXAME EXTERNO (INSPEÇÃO VISUAL EXTERNA)', m.visualExterno, 'exameExterno', 'exame externo');
+  doc.fecharSecaoElastica();
+  if (comFotos) folhaDeFotos(doc, titulos.fotos ?? '8.1 REGISTRO FOTOGRÁFICO — EXAME EXTERNO', m.visualExterno.fotos);
+}
+
+export function folhasExameInterno(doc: Documento, m: ModeloRelatorio, comFotos = true, titulos: TitulosFolha = {}): void {
   doc.novaFolha();
   doc.abrirSecaoElastica('exameInterno');
-  blocoExame(doc, '7.3 EXAME INTERNO (INSPEÇÃO VISUAL INTERNA)', m.visualInterno, 'exameInterno', 'exame interno');
+  blocoExame(doc, titulos.banner ?? '7.3 EXAME INTERNO (INSPEÇÃO VISUAL INTERNA)', m.visualInterno, 'exameInterno', 'exame interno');
   doc.fecharSecaoElastica();
-  if (comFotos) folhaDeFotos(doc, '8.2 REGISTRO FOTOGRÁFICO — EXAME INTERNO', m.visualInterno.fotos);
+  if (comFotos) folhaDeFotos(doc, titulos.fotos ?? '8.2 REGISTRO FOTOGRÁFICO — EXAME INTERNO', m.visualInterno.fotos);
 }
 
 // ── 17. ULTRASSOM ───────────────────────────────────────────────────────────
@@ -2065,10 +2085,10 @@ function blocoInstrumentoPadrao(
 }
 
 // ── 18 e 19. TESTE HIDROSTÁTICO E SUAS FOTOS ────────────────────────────────
-export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
+export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comFotos = true, titulos: TitulosFolha = {}): void {
   doc.novaFolha();
   doc.abrirSecaoElastica('th');
-  doc.banner('7.5 REGISTRO DE TESTE HIDROSTÁTICO');
+  doc.banner(titulos.banner ?? '7.5 REGISTRO DE TESTE HIDROSTÁTICO');
 
   doc.faixa('DADOS GERAIS');
   doc.tabela({
@@ -2193,7 +2213,7 @@ export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comF
   );
   doc.fecharSecaoElastica();
 
-  if (comFotos) folhaDeFotos(doc, '8.3 REGISTRO FOTOGRÁFICO — TESTE HIDROSTÁTICO', m.th.fotos);
+  if (comFotos) folhaDeFotos(doc, titulos.fotos ?? '8.3 REGISTRO FOTOGRÁFICO — TESTE HIDROSTÁTICO', m.th.fotos);
 }
 
 // ── 20. RECOMENDAÇÕES, PARECER, PRÓXIMAS INSPEÇÕES E ASSINATURAS ────────────
@@ -2313,7 +2333,7 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
  */
 const EXTRAS_POR_ASSINANTE = 3;
 
-function assinaturas(doc: Documento, m: ModeloRelatorio): void {
+export function assinaturas(doc: Documento, m: ModeloRelatorio): void {
   // A altura acompanha o assinante com MAIS campos extras: fixá-la em três
   // linhas fazia o texto passar do fim do papel quando havia extras.
   const extras = Math.min(
@@ -2416,6 +2436,13 @@ export function secoesDoRelatorio(
   // página que não está no documento.
   push(tem.ultrassom && modeloCroqui(m.ultrassom.pontos).temAlgo, '7.4.1', 'Mapa dos pontos de medição de espessura');
   push(tem.th, '7.5', 'Teste hidrostático');
+  // 21/10/2026 · só caldeira: o modelo só tem acumulação quando o tipo é caldeira.
+  push(tem.acumulacao && m.acumulacao !== null, '7.6', 'Ensaio de acumulação');
+  push(
+    tem.acumulacao && (m.acumulacao?.fotos.length ?? 0) > 0,
+    '7.6.1',
+    'Registro fotográfico — ensaio de acumulação',
+  );
   push(tem.fotosDocumentacao && m.fotosDocumentacao.length > 0, '8', 'Registro fotográfico — documentação');
   push(tem.fotosChecklist && m.fotosChecklist.length > 0, '8.0', 'Registro fotográfico — checklist');
   push(tem.fotosExterno && m.visualExterno.fotos.length > 0, '8.1', 'Registro fotográfico — exame externo');

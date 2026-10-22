@@ -10,6 +10,7 @@ import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
 import type { RefFoto } from '../../../services/fotos';
 import EditorFotosDescritas from '../EditorFotosDescritas';
 import { normalizarFotos } from '../fotosDescritas';
+import { ehCaldeira, tipoDaTag } from '../../equipamento/perfilEquipamento';
 import FeedbackSalvamento, { useSalvamento } from '../../../components/FeedbackSalvamento';
 
 const ESTILO_DICA = { fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 } as const;
@@ -88,7 +89,7 @@ interface DadosTH {
   unidade?: SistemaUnidade;
 }
 
-function dadosPadrao(unidade: SistemaUnidade): DadosTH {
+function dadosPadrao(unidade: SistemaUnidade, caldeira = false): DadosTH {
   return {
     cliente: '',
     docNum: '',
@@ -106,7 +107,8 @@ function dadosPadrao(unidade: SistemaUnidade): DadosTH {
     tempFluido: '',
     // O mesmo texto que a folha antiga trazia impresso: é a norma que este
     // ensaio segue em praticamente todo vaso, e continua editável.
-    normas: 'ASME VIII Div.1 / NR-13',
+    // Caldeira (22/10/2026) segue o ASME Seção I; registro já salvo mantém o seu texto.
+    normas: caldeira ? 'ASME Seção I / NR-13' : 'ASME VIII Div.1 / NR-13',
     validadeLaudo: '',
     procedimento: '',
     parecer: '',
@@ -128,7 +130,7 @@ export default function FormularioTH({ tag, containerId }: { tag: string; contai
   const [dados, setDados] = useState<DadosTH>(() => {
     const salvo = carregarDadosFormulario<DadosTH>(tag, containerId, 'th');
     const unidade = unidadeDoRegistroTh(salvo, unidadeDoEquipamento(tag));
-    const mesclado = mesclarPreenchimento(dadosPadrao(unidade), prefillTH(tag, unidade), salvo);
+    const mesclado = mesclarPreenchimento(dadosPadrao(unidade, ehCaldeira(tipoDaTag(tag))), prefillTH(tag, unidade), salvo);
     // `mesclarPreenchimento` herdaria o carimbo do PADRÃO num registro antigo.
     return { ...mesclado, unidade };
   });

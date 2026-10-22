@@ -87,6 +87,10 @@ export const GLOBAIS_LIBERADAS: string[] = ['nr13_minha_empresa', 'nr13_lista_ph
  * alguém "esqueceu" de copiar.
  */
 export const FORA_DO_PORTAL: string[] = [
+  // 22/10/2026 · dados construtivos/operacionais da CALDEIRA (ficha). O cliente recebe
+  // o relatório emitido, que já os traz; a ficha de trabalho do engenheiro não é do Portal.
+  // Esta Edge nunca buscou o prefixo: acrescentá-lo aqui não muda o comportamento dela.
+  'nr13_ficha_caldeira_',
   // Fase 10B.2 · registros do Livro de Segurança EM RASCUNHO.
   //
   // O cliente enxerga o Livro do equipamento dele, e o Livro é documento legal: ele só pode

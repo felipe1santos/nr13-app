@@ -39,6 +39,7 @@ import * as catalogo from '../../services/catalogoLocal';
 import { formatarValor } from '../../calc/unidades';
 import type { SistemaUnidade } from '../../calc/unidades';
 import ModalNovaInspecaoContainer from './ModalNovaInspecaoContainer';
+import { ensaiosDoTipo, tipoDaTag } from '../equipamento/perfilEquipamento';
 import ContainerCard from './ContainerCard';
 import ModalRenomearContainer from './ModalRenomearContainer';
 import AjudaContainers from './AjudaContainers';
@@ -286,7 +287,11 @@ export default function InspecoesV9() {
         </div>
 
         {modalAberto && (
-          <ModalNovaInspecaoContainer onClose={() => setModalAberto(false)} onCriar={criar} />
+          <ModalNovaInspecaoContainer
+            onClose={() => setModalAberto(false)}
+            onCriar={criar}
+            ensaios={ensaiosDoTipo(tipoDaTag(tag))}
+          />
         )}
         {renomeando && (
           <ModalRenomearContainer

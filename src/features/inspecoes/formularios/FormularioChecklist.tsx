@@ -40,7 +40,7 @@ const SECAO_DOCUMENTACAO: Pergunta[] = [
   {
     id: 'v51-art-assinada',
     texto:
-      'A.R.T assinada (Anotação de Responsabilidade Técnica) do profissional habilitado responsável pela documentação/ensaios descritos acima.',
+      'A.R.T assinada (Anotação de Responsabilidade Técnica) do profissional legalmente habilitado (PLH) responsável pela documentação/ensaios descritos acima.',
     opcoes: OPCOES_EXISTE,
   },
 ];
@@ -312,7 +312,7 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
             <input type="date" value={dados.dataInspecao} onChange={(e) => setDados((d) => ({ ...d, dataInspecao: e.target.value }))} />
           </label>
           <label>
-            Inspecionado Por (PH ou Inspetor)
+            Inspecionado Por (PLH ou Inspetor)
             <input type="text" value={dados.inspetor} onChange={(e) => setDados((d) => ({ ...d, inspetor: e.target.value }))} />
           </label>
         </div>

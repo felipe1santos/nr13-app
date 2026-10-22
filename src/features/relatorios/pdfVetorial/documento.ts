@@ -100,6 +100,15 @@ export class Documento {
     this.respiro = respiro;
   }
 
+  /**
+   * 22/10/2026 · o número que o CABEÇALHO imprime para a folha `p` deste
+   * documento. Ausente = `p`. Existe para o relatório de caldeira, que insere
+   * anexos (certificados, prontuário de fabricação, ART) NO MEIO do arquivo,
+   * na ordem da referência: a folha que vem depois deles tem de dizer o número
+   * que ela terá no arquivo final.
+   */
+  numeroDaPagina?: (p: number) => number;
+
   /** Os campos editáveis desta geração, na ordem em que foram desenhados. */
   get editaveis(): CampoEditavel[] {
     return this.campos;
@@ -407,7 +416,12 @@ export class Documento {
       this.folhaDaSecao++;
       this.linhasNaFolhaAtual = 0;
     }
-    cabecalho({ pdf: this.pdf, cabecalho: this.cab }, this.pagina, this.total, this.modo === 'preview');
+    cabecalho(
+      { pdf: this.pdf, cabecalho: this.cab },
+      this.numeroDaPagina ? this.numeroDaPagina(this.pagina) : this.pagina,
+      this.total,
+      this.modo === 'preview',
+    );
     rodape({ pdf: this.pdf, cabecalho: this.cab });
     this.cursor = CORPO.y;
 

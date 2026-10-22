@@ -56,7 +56,9 @@ interface UsoDia {
 }
 
 function hoje(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Dia LOCAL: o dia UTC virava às 21h no Brasil e dava dois tetos numa noite.
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 /** Uso do dia neste aparelho. Sem localStorage (aba privada etc.) devolve vazio. */

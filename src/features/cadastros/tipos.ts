@@ -20,7 +20,7 @@ export interface CampoExtraFuncionario {
   valor: string;
 }
 
-// Profissionais habilitados (PH) / inspetores que assinam a documentação. Lido pelos templates
+// Profissionais legalmente habilitados (PLH) / inspetores que assinam a documentação. Lido pelos templates
 // (ULTRASSOM, TESTE-HIDROSTATICO) pela chave nr13_lista_phs: campos id, nome, crea, assinatura, tipo.
 // tipo 'Inspetor' alimenta o seletor de técnico (filtro startsWith('Inspetor')); 'Engenheiro' assina.
 // Os campos opcionais abaixo (funcao, camposExtras, folhasProntuario, folhasRelatorio) foram

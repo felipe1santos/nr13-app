@@ -20,9 +20,12 @@ import { INSTRUMENTOS_CHECKLIST, SECOES_CHECKLIST } from '../../inspecoes/formul
 import { linhaQuadro, type RefInstrumentoChecklist } from '../../calibracoes/quadroInstrumentos';
 import { ITENS_VISUAL_EXTERNO } from '../../inspecoes/formularios/FormularioVisualExterno';
 import { ITENS_VISUAL_INTERNO } from '../../inspecoes/formularios/FormularioVisualInterno';
+import { itensDoExame } from '../../caldeira/itensVisuaisCaldeira';
 import type { RefFoto } from '../../../services/fotos';
 import { normalizarFotos, type FotoDescrita } from '../../inspecoes/fotosDescritas';
 import type { RelatorioMeta } from '../tipos';
+import { modeloAcumulacao, type ModeloAcumulacao } from './modeloAcumulacao';
+import { acumulacaoPreenchida, type DadosAcumulacao } from '../../inspecoes/acumulacao';
 import { rotuloClasseFluido, rotuloEnquadramento, rotuloResposta, rotuloResultado, rotuloSubtipo, rotuloTipoEquipamento } from './rotulos';
 
 /**
@@ -460,6 +463,11 @@ export interface ModeloRelatorio {
     fotos: FotoDescrita[];
     desenho: { dataUrl: string; descricao: string; proporcao?: number }[];
   };
+  /**
+   * 21/10/2026 · ENSAIO DE ACUMULAÇÃO — só caldeira. `null` quando o container
+   * não tem o ensaio (todo vaso e autoclave): nada muda no documento deles.
+   */
+  acumulacao: ModeloAcumulacao | null;
   /**
    * Fase 6.2 · 12. LIVRO DE REGISTRO DE SEGURANÇA — só o que o resto do modelo
    * ainda não tinha. Empresa proprietária, equipamento, pressões, laudo, datas
@@ -1160,6 +1168,11 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
         { rotulo: 'ULTRASSOM (MEDIÇÃO DE ESPESSURA)', feito: temUltrassom },
         { rotulo: 'LÍQUIDO PENETRANTE', feito: false },
         { rotulo: 'PARTÍCULA MAGNÉTICA', feito: false },
+        // 21/10/2026 · só CALDEIRA ganha a linha: em vaso e autoclave a grade
+        // continua com as mesmas seis, e o documento não muda.
+        ...(info.tipo === 'caldeira'
+          ? [{ rotulo: 'ENSAIO DE ACUMULAÇÃO', feito: !!inj.acumulacao && acumulacaoPreenchida(inj.acumulacao as Partial<DadosAcumulacao>) }]
+          : []),
       ],
       resultadoVisualExterno: rotuloResultado((inj.visual_externo as Record<string, unknown>)?.resultado as string),
       resultadoVisualInterno: rotuloResultado((inj.visual_interno as Record<string, unknown>)?.resultado as string),
@@ -1189,11 +1202,19 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
     fotosChecklist: fotos(chk.fotos),
 
     visualExterno: {
-      ...exameVisual(inj.visual_externo as Record<string, unknown>, ITENS_VISUAL_EXTERNO),
+      // 22/10/2026 · a lista de perguntas sai do CATÁLOGO do registro (caldeira
+      // ou a de sempre) — nunca se reinterpreta um número já respondido.
+      ...exameVisual(
+        inj.visual_externo as Record<string, unknown>,
+        [...itensDoExame('externo', inj.visual_externo as Record<string, unknown>, info.tipo === 'caldeira', ITENS_VISUAL_EXTERNO)],
+      ),
       tag,
     },
     visualInterno: {
-      ...exameVisual(inj.visual_interno as Record<string, unknown>, ITENS_VISUAL_INTERNO),
+      ...exameVisual(
+        inj.visual_interno as Record<string, unknown>,
+        [...itensDoExame('interno', inj.visual_interno as Record<string, unknown>, info.tipo === 'caldeira', ITENS_VISUAL_INTERNO)],
+      ),
       tag,
     },
 
@@ -1306,6 +1327,14 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
       desenho: [],
     },
     livro: livroDoModelo(tag, info, meta),
+    acumulacao:
+      info.tipo === 'caldeira'
+        ? modeloAcumulacao(
+            inj.acumulacao,
+            meta?.codigo,
+            numeroDoStorage(info.pmtaAdotadaMpa) ?? numeroDoStorage(calc.pmta),
+          )
+        : null,
   };
 }
 

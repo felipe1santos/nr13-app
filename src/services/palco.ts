@@ -189,6 +189,9 @@ export const POR_ID_FILTRADO_POR_TAG = ['nr13_calibracao_item_'];
  */
 export const FORA_DO_PALCO = [
   'nr13_docs_',
+  // 22/10/2026 · dados da caldeira: só o gerador vetorial os lê (nenhum template
+  // de public/), então não gastam orçamento do palco.
+  'nr13_ficha_caldeira_',
   // 10B.2 · rascunho de registro do Livro. NENHUMA folha o lê — e não pode ler:
   // `LIVRO-REGISTRO.html` é documento legal e imprime só o que está trancado.
   'nr13_livro_rascunho_',

@@ -45,6 +45,8 @@ import './relatorios.css';
    propósito: ele chegaria pelo `CatalogoLivroV9` de qualquer jeito, mas a tela
    que usa a regra é esta. */
 import '../features/livro/listaRegistros.css';
+import { tipoDaTag } from '../features/equipamento/perfilEquipamento';
+import { NR13_ITENS, itemRegistroSeguranca } from '../features/normas/nr13';
 
 interface LivroEntrada {
   id?: string;
@@ -258,7 +260,7 @@ function medirFundoConteudo(doc: Document | null | undefined): number | null {
   }
 }
 
-// Tipos de ocorrência manual (manutenções pontuais entre inspeções — NR-13 13.4.1.9).
+// Tipos de ocorrência manual (manutenções pontuais entre inspeções — registro de segurança, NR-13 13.4.1.8 / 13.5.1.7).
 /* Os tipos de ocorrência, o tipo do formulário e o estado vazio moram em
    `features/livro/formRegistro.ts` desde 07/09/2026: o modal virou componente
    próprio (`ModalNovoRegistro`) e os dois precisam do MESMO tipo. */
@@ -626,6 +628,7 @@ export default function LivroRegistro() {
           relatorioCodigo: e.relatorioCodigo || undefined,
           apto: e.apto,
           descricao: e.descricao ?? '',
+          tipoEquipamento: tipoDaTag(linhaAberta?.tag ?? ''),
         }),
     };
   }
@@ -646,6 +649,7 @@ export default function LivroRegistro() {
       relatorioCodigo: form.relatorioCodigo,
       apto: form.apto,
       descricao: descricaoCombinada(form.oQueFoiFeito, form.descricao),
+      tipoEquipamento: tipoDaTag(linhaAberta?.tag ?? ''),
     });
   }
 
@@ -750,7 +754,7 @@ export default function LivroRegistro() {
                   ← Todos os equipamentos
                 </button>
                 <span className="breadcrumb-chevron">›</span>
-                <span className="fj-eyebrow">NR-13 · 13.4.1.9 · Livro de Registro de Segurança</span>
+                <span className="fj-eyebrow">NR-13 · {NR13_ITENS.registroCaldeira} / {NR13_ITENS.registroVaso} · Livro de Registro de Segurança</span>
               </div>
 
               {/* 10B.2 · o registro do Livro passou a ser ATO DO USUÁRIO. Antes,
@@ -832,7 +836,7 @@ export default function LivroRegistro() {
                 <span className="livro-doc-ic termo"><Icone nome="clipboard" tam={15} /></span>
                 <div>
                   <strong>Termo de Abertura</strong>
-                  <span>NR-13, item 13.4.1.9</span>
+                  <span>NR-13, subitem {itemRegistroSeguranca(tipoDaTag(linhaAberta.tag))}</span>
                 </div>
               </button>
             </div>
@@ -1273,7 +1277,7 @@ export default function LivroRegistro() {
             conhece encontra a explicação onde a dúvida aparece. */}
         <div className="fj-panel-head reg-hero">
           <div className="reg-hero-txt">
-            <div className="fj-eyebrow">NR-13 · 13.4.1.9</div>
+            <div className="fj-eyebrow">NR-13 · {NR13_ITENS.registroCaldeira} / {NR13_ITENS.registroVaso}</div>
             <h2>
               Registros de Segurança
               <PopoverAjuda rotulo="Como funcionam os Registros de Segurança">

@@ -4,7 +4,8 @@ export type TipoEnsaio =
   | 'visual_interno'
   | 'visual_externo'
   | 'teste_hidrostatico'
-  | 'relatorio_imagens';
+  | 'relatorio_imagens'
+  | 'acumulacao';
 
 export const ENSAIOS_DISPONIVEIS: { value: TipoEnsaio; label: string }[] = [
   { value: 'checklist',         label: 'Checklist Completo de Inspeção (NR-13)' },
@@ -15,7 +16,32 @@ export const ENSAIOS_DISPONIVEIS: { value: TipoEnsaio; label: string }[] = [
   { value: 'relatorio_imagens', label: 'Relatório de Imagens' },
 ];
 
-export type FormularioEnsaio = 'ultrassom' | 'checklist' | 'visual_externo' | 'visual_interno' | 'th' | 'manometro' | 'psv' | 'imagens';
+/**
+ * ENSAIO DE ACUMULAÇÃO (21/10/2026) — só para CALDEIRA (flamotubular).
+ *
+ * Fica FORA de `ENSAIOS_DISPONIVEIS` de propósito: aquela lista é a que vaso e
+ * autoclave sempre viram, e é ela que quem oferece ensaios recebe para esses
+ * tipos. Quem decide a lista por tipo é `perfilEquipamento.ensaiosDoTipo`.
+ * Quem só TRADUZ um ensaio já gravado em rótulo usa `TODOS_ENSAIOS`.
+ */
+export const ENSAIO_ACUMULACAO = { value: 'acumulacao', label: 'Ensaio de Acumulação' } as const satisfies {
+  value: TipoEnsaio;
+  label: string;
+};
+
+/** Todos os ensaios que o sistema conhece — para rótulo e leitura, nunca para oferecer. */
+export const TODOS_ENSAIOS: { value: TipoEnsaio; label: string }[] = [...ENSAIOS_DISPONIVEIS, ENSAIO_ACUMULACAO];
+
+export type FormularioEnsaio =
+  | 'ultrassom'
+  | 'checklist'
+  | 'visual_externo'
+  | 'visual_interno'
+  | 'th'
+  | 'manometro'
+  | 'psv'
+  | 'imagens'
+  | 'acumulacao';
 
 export const FORM_POR_ENSAIO: Record<TipoEnsaio, FormularioEnsaio> = {
   checklist:          'checklist',
@@ -24,6 +50,7 @@ export const FORM_POR_ENSAIO: Record<TipoEnsaio, FormularioEnsaio> = {
   visual_externo:     'visual_externo',
   teste_hidrostatico: 'th',
   relatorio_imagens:  'imagens',
+  acumulacao:         'acumulacao',
 };
 
 export const ROTULO_FORMULARIO: Record<FormularioEnsaio, string> = {
@@ -35,6 +62,7 @@ export const ROTULO_FORMULARIO: Record<FormularioEnsaio, string> = {
   manometro:      'Calibração de Manômetro',
   psv:            'Calibração de Válvula de Segurança (PSV)',
   imagens:        'Relatório de Imagens',
+  acumulacao:     'Ensaio de Acumulação',
 };
 
 // Container de inspeção: agrupa os ensaios atribuídos a um equipamento numa rodada de inspeção.
@@ -62,4 +90,6 @@ export const DOCS_POR_FORMULARIO: Record<FormularioEnsaio, string[]> = {
   // vetorial, ver `FOLHAS_SO_VETORIAIS`); o documento AVULSO do ensaio tem
   // gerador próprio (`documentoImagens.ts`) e não passa por esta tabela.
   imagens:        ['RELATORIO-IMAGENS.html'],
+  // 21/10/2026 · só vetorial, como a 8.4: não existe template HTML.
+  acumulacao:     ['ENSAIO-ACUMULACAO.html'],
 };
