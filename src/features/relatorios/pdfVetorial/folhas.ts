@@ -283,7 +283,7 @@ function blocoExame(
  * 5–8 → 2; 9–12 → 3. Quem distribui dentro da folha é `doc.fotos` (4 por folha,
  * §5, proporção real e `contain`); quem conta as folhas é `folhasDeFotos`.
  */
-function folhaDeFotos(doc: Documento, titulo: string, lista: FotoModelo[]): void {
+export function folhaDeFotos(doc: Documento, titulo: string, lista: FotoModelo[]): void {
   if (lista.length === 0) return;
   doc.novaFolha();
   const banner = () => doc.banner(titulo);
@@ -1775,20 +1775,30 @@ export function folhasFotosDocumentacao(
 }
 
 // ── 13 a 16. EXAMES VISUAIS E SUAS FOTOS ────────────────────────────────────
-export function folhasExameExterno(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
-  doc.novaFolha();
-  doc.abrirSecaoElastica('exameExterno');
-  blocoExame(doc, '7.2 EXAME EXTERNO (INSPEÇÃO VISUAL EXTERNA)', m.visualExterno, 'exameExterno', 'exame externo');
-  doc.fecharSecaoElastica();
-  if (comFotos) folhaDeFotos(doc, '8.1 REGISTRO FOTOGRÁFICO — EXAME EXTERNO', m.visualExterno.fotos);
+/**
+ * Títulos das folhas reaproveitadas por outro relatório (22/10/2026 — o de
+ * caldeira numera as seções de outro jeito). Ausente = os títulos de sempre:
+ * o relatório de vaso e autoclave não muda.
+ */
+export interface TitulosFolha {
+  banner?: string;
+  fotos?: string;
 }
 
-export function folhasExameInterno(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
+export function folhasExameExterno(doc: Documento, m: ModeloRelatorio, comFotos = true, titulos: TitulosFolha = {}): void {
+  doc.novaFolha();
+  doc.abrirSecaoElastica('exameExterno');
+  blocoExame(doc, titulos.banner ?? '7.2 EXAME EXTERNO (INSPEÇÃO VISUAL EXTERNA)', m.visualExterno, 'exameExterno', 'exame externo');
+  doc.fecharSecaoElastica();
+  if (comFotos) folhaDeFotos(doc, titulos.fotos ?? '8.1 REGISTRO FOTOGRÁFICO — EXAME EXTERNO', m.visualExterno.fotos);
+}
+
+export function folhasExameInterno(doc: Documento, m: ModeloRelatorio, comFotos = true, titulos: TitulosFolha = {}): void {
   doc.novaFolha();
   doc.abrirSecaoElastica('exameInterno');
-  blocoExame(doc, '7.3 EXAME INTERNO (INSPEÇÃO VISUAL INTERNA)', m.visualInterno, 'exameInterno', 'exame interno');
+  blocoExame(doc, titulos.banner ?? '7.3 EXAME INTERNO (INSPEÇÃO VISUAL INTERNA)', m.visualInterno, 'exameInterno', 'exame interno');
   doc.fecharSecaoElastica();
-  if (comFotos) folhaDeFotos(doc, '8.2 REGISTRO FOTOGRÁFICO — EXAME INTERNO', m.visualInterno.fotos);
+  if (comFotos) folhaDeFotos(doc, titulos.fotos ?? '8.2 REGISTRO FOTOGRÁFICO — EXAME INTERNO', m.visualInterno.fotos);
 }
 
 // ── 17. ULTRASSOM ───────────────────────────────────────────────────────────
@@ -2072,10 +2082,10 @@ function blocoInstrumentoPadrao(
 }
 
 // ── 18 e 19. TESTE HIDROSTÁTICO E SUAS FOTOS ────────────────────────────────
-export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
+export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comFotos = true, titulos: TitulosFolha = {}): void {
   doc.novaFolha();
   doc.abrirSecaoElastica('th');
-  doc.banner('7.5 REGISTRO DE TESTE HIDROSTÁTICO');
+  doc.banner(titulos.banner ?? '7.5 REGISTRO DE TESTE HIDROSTÁTICO');
 
   doc.faixa('DADOS GERAIS');
   doc.tabela({
@@ -2200,7 +2210,7 @@ export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comF
   );
   doc.fecharSecaoElastica();
 
-  if (comFotos) folhaDeFotos(doc, '8.3 REGISTRO FOTOGRÁFICO — TESTE HIDROSTÁTICO', m.th.fotos);
+  if (comFotos) folhaDeFotos(doc, titulos.fotos ?? '8.3 REGISTRO FOTOGRÁFICO — TESTE HIDROSTÁTICO', m.th.fotos);
 }
 
 // ── 20. RECOMENDAÇÕES, PARECER, PRÓXIMAS INSPEÇÕES E ASSINATURAS ────────────
@@ -2320,7 +2330,7 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
  */
 const EXTRAS_POR_ASSINANTE = 3;
 
-function assinaturas(doc: Documento, m: ModeloRelatorio): void {
+export function assinaturas(doc: Documento, m: ModeloRelatorio): void {
   // A altura acompanha o assinante com MAIS campos extras: fixá-la em três
   // linhas fazia o texto passar do fim do papel quando havia extras.
   const extras = Math.min(

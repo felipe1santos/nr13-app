@@ -204,15 +204,16 @@ describe('isolamento por tipo — vaso e autoclave não mudam', () => {
     expect(DOCUMENTOS_DISPONIVEIS).not.toContain('ENSAIO-ACUMULACAO.html');
   });
 
-  it('caldeira oferece o ensaio, e a folha fica logo depois do TH', () => {
+  it('caldeira oferece o ensaio; no relatório de caldeira ele é END (2.2), antes do teste de sobrepressão (3)', () => {
     expect(ensaiosDoTipo('caldeira').map((e) => e.value)).toContain('acumulacao');
     const docs = documentosDoTipo('caldeira');
-    expect(docs.indexOf('ENSAIO-ACUMULACAO.html')).toBe(docs.indexOf('TESTE-HIDROSTATICO.html') + 1);
+    expect(docs.indexOf('ENSAIO-ACUMULACAO.html')).toBe(docs.indexOf('ULTRASSOM.html') + 1);
+    expect(docs.indexOf('TESTE-HIDROSTATICO.html')).toBeGreaterThan(docs.indexOf('ENSAIO-ACUMULACAO.html'));
   });
 
   it('a ordem final do assistente é a do tipo; sem tipo, a de sempre', () => {
     const marcados = ['ENSAIO-ACUMULACAO.html', 'TESTE-HIDROSTATICO.html', 'CAPA.html'];
-    expect(documentosFinais(marcados, [], documentosDoTipo('caldeira'))).toEqual(['CAPA.html', 'TESTE-HIDROSTATICO.html', 'ENSAIO-ACUMULACAO.html']);
+    expect(documentosFinais(marcados, [], documentosDoTipo('caldeira'))).toEqual(['CAPA.html', 'ENSAIO-ACUMULACAO.html', 'TESTE-HIDROSTATICO.html']);
     expect(documentosFinais(marcados, [])).toEqual(['CAPA.html', 'TESTE-HIDROSTATICO.html']);
   });
 
@@ -350,8 +351,9 @@ describe('o documento — prévia e emissão', () => {
     if (process.env.NR13_DUMP_PDF) (await import('node:fs')).writeFileSync(`${process.env.NR13_DUMP_PDF}-${modo}.pdf`, r.bytes);
     const p = await paginasDoPdf(r.bytes);
     const tudo = p.join(' \n ');
-    const secao = p.find((x) => x.includes('7.6 ENSAIO DE ACUMULAÇÃO'))!;
-    const fotos = p.find((x) => x.includes('7.6.1 REGISTRO FOTOGRÁFICO'))!;
+    // Relatório COMPLETO de caldeira (tem sumário/seção 7) → gerador de caldeira: 2.2.
+    const secao = p.find((x) => x.includes('2.2 ENSAIO DE ACUMULAÇÃO'))!;
+    const fotos = p.find((x) => x.includes('2.2.1 REGISTRO FOTOGRÁFICO'))!;
     expect(secao).toBeDefined();
     expect(fotos).toBeDefined();
     for (const v of ['1,080', '1080', '157', '11,01', '10,80', 'POP-TP-003', 'NBR 12177 / NR-13', LAUDO_PADRAO, 'Caldeira Flamotubular', 'PI-CAL-25/5340']) {

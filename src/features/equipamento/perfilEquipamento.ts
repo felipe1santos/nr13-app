@@ -22,13 +22,27 @@ export const FOLHA_ACUMULACAO = 'ENSAIO-ACUMULACAO.html';
 
 const ENSAIOS_CALDEIRA: { value: TipoEnsaio; label: string }[] = [...ENSAIOS_DISPONIVEIS, ENSAIO_ACUMULACAO];
 
-/** As folhas da caldeira: as de sempre, com a acumulação logo depois do TH. */
-const DOCUMENTOS_CALDEIRA: readonly string[] = (() => {
-  const lista: string[] = [...DOCUMENTOS_DISPONIVEIS];
-  const posTh = lista.indexOf('TESTE-HIDROSTATICO.html');
-  lista.splice(posTh + 1, 0, FOLHA_ACUMULACAO);
-  return lista;
-})();
+/**
+ * As folhas do relatório de CALDEIRA, na ordem do sumário da referência (Rodada
+ * 2, 22/10/2026). As `CALD-*` só existem no gerador vetorial
+ * (`gerarRelatorioCaldeira`); as demais são as mesmas folhas de sempre, com os
+ * títulos e a numeração da caldeira. Certificados entram pela escolha de
+ * calibrações do assistente, como em qualquer relatório.
+ */
+export const DOCUMENTOS_CALDEIRA: readonly string[] = [
+  'CAPA.html',
+  'SUMARIO.html',
+  'CALD-PRONTUARIO.html',
+  'CALD-ACESSORIOS.html',
+  'CALD-RELATORIO-INSPECAO.html',
+  'VISUAL-EXTERNO.html',
+  'VISUAL-INTERNO.html',
+  'CALD-CALCULOS.html',
+  'ULTRASSOM.html',
+  FOLHA_ACUMULACAO,
+  'TESTE-HIDROSTATICO.html',
+  'LIVRO-REGISTRO.html',
+];
 
 export function ehCaldeira(tipo: TipoEquipamento | string | null | undefined): boolean {
   return tipo === 'caldeira';

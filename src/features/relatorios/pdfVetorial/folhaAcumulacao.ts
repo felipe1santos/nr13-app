@@ -52,7 +52,13 @@ function linhaPar(
 }
 
 /** A folha do ensaio. Devolve `false` (nada desenhado) quando não há ensaio. */
-export function folhasAcumulacao(doc: Documento, m: ModeloRelatorio, comFotos = true): boolean {
+export function folhasAcumulacao(
+  doc: Documento,
+  m: ModeloRelatorio,
+  comFotos = true,
+  /** O relatório de caldeira numera a seção de outro jeito (2.2). Ausente = 7.6. */
+  titulos: { banner?: string; fotos?: string } = {},
+): boolean {
   const a: ModeloAcumulacao | null = m.acumulacao;
   if (!a) return false;
   const d = a.dados;
@@ -62,7 +68,7 @@ export function folhasAcumulacao(doc: Documento, m: ModeloRelatorio, comFotos = 
   // sobra da folha, e as observações vão até o fim — sem meia página em branco
   // no pé de um documento assinado (§5).
   doc.abrirSecaoElastica('acumulacao');
-  doc.banner(TITULO_ACUMULACAO);
+  doc.banner(titulos.banner ?? TITULO_ACUMULACAO);
 
   doc.faixa('DADOS GERAIS');
   doc.tabela({
@@ -199,7 +205,7 @@ export function folhasAcumulacao(doc: Documento, m: ModeloRelatorio, comFotos = 
 
   if (comFotos && a.fotos.length > 0) {
     doc.novaFolha();
-    const banner = () => doc.banner(TITULO_FOTOS_ACUMULACAO);
+    const banner = () => doc.banner(titulos.fotos ?? TITULO_FOTOS_ACUMULACAO);
     banner();
     if (a.rastreavel) doc.texto(`Nº rastreável: ${a.rastreavel}`, { tamanho: 8, cor: COR.nota });
     doc.fotos(a.fotos, banner);

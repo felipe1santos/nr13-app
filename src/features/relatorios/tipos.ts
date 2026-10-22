@@ -38,7 +38,15 @@ export const DOCUMENTOS_DISPONIVEIS = [
  * iframe apontando para um arquivo inexistente seria uma página de erro
  * fotografada dentro do documento.
  */
-export const FOLHAS_SO_VETORIAIS: ReadonlySet<string> = new Set(['RELATORIO-IMAGENS.html', 'ENSAIO-ACUMULACAO.html']);
+export const FOLHAS_SO_VETORIAIS: ReadonlySet<string> = new Set([
+  'RELATORIO-IMAGENS.html',
+  'ENSAIO-ACUMULACAO.html',
+  // 22/10/2026 · as folhas do relatório de caldeira (gerador vetorial próprio).
+  'CALD-PRONTUARIO.html',
+  'CALD-ACESSORIOS.html',
+  'CALD-RELATORIO-INSPECAO.html',
+  'CALD-CALCULOS.html',
+]);
 
 /** A folha tem template HTML para montar em iframe? */
 export function temTemplateHtml(doc: string): boolean {
@@ -153,6 +161,12 @@ export interface RelatorioMeta {
    * cópia não lê nada do original por ele, e o original não sabe da cópia.
    */
   duplicadoDe?: string;
+  /**
+   * 22/10/2026 · a ART em PDF, anexada ao relatório de CALDEIRA (seção 6).
+   * Opcional. O arquivo vai para o bucket por caminho novo (nunca sobrescreve);
+   * anexar só vale para rascunho — relatório emitido é arquivo (§7-quater).
+   */
+  artAnexo?: { ref: RefFoto; nome: string; sha256: string; anexadoEm: string };
 }
 
 /**

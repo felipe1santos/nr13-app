@@ -79,6 +79,10 @@ const ROTULOS: Record<string, string> = {
   'VISUAL-INTERNO.html': 'Inspeção Visual Interna (checklist + folhas de fotos)',
   'RELATORIO-IMAGENS.html': 'Relatório de Imagens (fotos descritas do ensaio)',
   'ENSAIO-ACUMULACAO.html': 'Ensaio de Acumulação (dados + fotos)',
+  'CALD-PRONTUARIO.html': 'Prontuário da caldeira (construção, operação e controles)',
+  'CALD-ACESSORIOS.html': 'Instrumentos de segurança e acessórios',
+  'CALD-RELATORIO-INSPECAO.html': 'Relatório de inspeção (ensaios, dispositivos e laudo final)',
+  'CALD-CALCULOS.html': 'Cálculos de pressão interna (corpo e espelhos)',
   'LIVRO-REGISTRO.html': 'Livro de Registro de Segurança (NR-13)',
 };
 

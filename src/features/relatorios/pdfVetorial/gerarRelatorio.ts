@@ -32,6 +32,9 @@ import { medirFotos, montarModeloRelatorio, type FontesDoModelo, type FotoModelo
 import { baixarFoto, blobParaDataUrl } from '../../../services/fotos';
 import { TITULO_LIVRO, TITULO_REGISTRO, TITULO_TERMO, secaoLivroRegistro } from './livroRegistro';
 import { folhasAcumulacao } from './folhaAcumulacao';
+import { fontesCaldeira, gerarCorpoCaldeira } from './gerarRelatorioCaldeira';
+import { incluiFolha } from './composicao';
+import { ler } from '../../../services/storage';
 import { resolverPlacaReal } from '../placaIdentificacao';
 
 /**
@@ -370,6 +373,33 @@ async function contarPaginasAnexadas(opcoes: OpcoesVetorial): Promise<number> {
   }
 }
 
+/**
+ * O relatório completo de CALDEIRA usa `gerarCorpoCaldeira`. "Completo" = sem
+ * lista (a bancada), ou com capa, sumário, prontuário ou relatório de inspeção
+ * na composição — o documento avulso de um ensaio (só a folha do ensaio) segue
+ * no caminho de sempre.
+ */
+function ehRelatorioCompletoDeCaldeira(tag: string, documentos?: string[]): boolean {
+  let tipo: unknown;
+  try {
+    tipo = ler<{ tipo?: unknown }>(`nr13_info_${tag}`)?.tipo;
+  } catch {
+    tipo = null;
+  }
+  if (tipo !== 'caldeira') return false;
+  if (!documentos || documentos.length === 0) return true;
+  return incluiFolha(
+    documentos,
+    'CAPA.HTML',
+    'SUMARIO.HTML',
+    'CALD-PRONTUARIO.HTML',
+    'CALD-RELATORIO-INSPECAO.HTML',
+    'PRONTUARIO.HTML',
+    'INSPECOES.HTML',
+    'CONCLUSAO.HTML',
+  );
+}
+
 export async function gerarRelatorioVetorial(
   tag: string,
   opcoes: OpcoesVetorial = {},
@@ -442,6 +472,35 @@ export async function gerarRelatorioVetorial(
     numeroRelatorio: modelo.numeroRelatorio,
     rodape: [modelo.empresa.razao, modelo.empresa.endereco, modelo.empresa.contato] as [string, string, string],
   };
+
+  // ── CALDEIRA FLAMOTUBULAR (22/10/2026) ────────────────────────────────
+  // O relatório COMPLETO de caldeira tem gerador próprio (ordem, seções e
+  // anexos da referência). O documento AVULSO de um ensaio continua aqui, no
+  // caminho de sempre. Vaso e autoclave nunca entram neste desvio.
+  if (ehRelatorioCompletoDeCaldeira(tag, opcoes.documentos)) {
+    const { meta, injecao } = fontesCaldeira(opcoes.fontes);
+    const r = await gerarCorpoCaldeira({
+      tag,
+      modelo,
+      documentos: opcoes.documentos ?? [],
+      meta,
+      injecao,
+      certificados: opcoes.certificados !== false,
+      modo: opcoes.modo ?? 'final',
+      overrides: ovr,
+      cab,
+      novoPdf,
+      temBase: secoesPresentes(opcoes.documentos),
+    });
+    return {
+      bytes: r.bytes,
+      paginas: r.paginas,
+      ms: Math.round(performance.now() - inicio),
+      modelo,
+      falhasAnexo: r.falhasAnexo,
+      editaveis: r.editaveis,
+    };
+  }
 
   // 1ª passagem: contar. O total ainda é desconhecido, então o cabeçalho
   // escreve um número provisório que ninguém verá — este PDF é descartado.
