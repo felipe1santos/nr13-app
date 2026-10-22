@@ -352,6 +352,12 @@ export interface ModeloRelatorio {
       medidas: string[];
       menor: string | null;
       requerida: string | null;
+      /**
+       * A requerida como NÚMERO técnico (21/10/2026) — a que decide "abaixo da
+       * mínima". Opcional: documento serializado antes disso não a tem, e aí
+       * vale o texto de `requerida`.
+       */
+      requeridaMm?: number | null;
     }[];
     instrumento: { padrao: string | null; serie: string | null; certificado: string | null; validade: string | null };
     /**
@@ -684,14 +690,38 @@ function instrumentoDoEnsaio(
 export function requeridaDoMemorial(
   componentes: Record<string, unknown>[] | undefined,
 ): Record<Regiao, string | null> {
+  const c = componentesPorRegiao(componentes);
+  const valor = (x: Record<string, unknown> | undefined) => (x ? numeroBr(x.tReqMm) : null);
+  return { ts: valor(c.ts), casco: valor(c.casco), ti: valor(c.ti) };
+}
+
+/**
+ * A MESMA requerida, como NÚMERO — o valor técnico que o motor calculou, sem
+ * passar pelo texto formatado (21/10/2026).
+ *
+ * É este que decide se uma leitura está abaixo da mínima. Comparar com o texto
+ * exibido (`numeroBr` corta casas) poderia aprovar no papel uma leitura que o
+ * cálculo reprova por milésimos.
+ */
+export function requeridaMmDoMemorial(
+  componentes: Record<string, unknown>[] | undefined,
+): Record<Regiao, number | null> {
+  const c = componentesPorRegiao(componentes);
+  const valor = (x: Record<string, unknown> | undefined) => (x ? numeroDoStorage(x.tReqMm) : null);
+  return { ts: valor(c.ts), casco: valor(c.casco), ti: valor(c.ti) };
+}
+
+/** Qual componente do memorial vale para cada região da grade. */
+function componentesPorRegiao(
+  componentes: Record<string, unknown>[] | undefined,
+): Record<Regiao, Record<string, unknown> | undefined> {
   const lista = componentes ?? [];
   const dos = (re: RegExp) => lista.filter((c) => re.test(String(c?.nome ?? '')));
-  const valor = (c: Record<string, unknown> | undefined) => (c ? numeroBr(c.tReqMm) : null);
   const tampos = dos(/tampo|espelho|calota/i);
   return {
-    ts: valor(tampos.find((c) => /superior|direit/i.test(String(c.nome))) ?? tampos[0]),
-    casco: valor(dos(/casco|costado|corpo|cilindr/i)[0]),
-    ti: valor(tampos.find((c) => /inferior|esquerd/i.test(String(c.nome))) ?? tampos[tampos.length - 1]),
+    ts: tampos.find((c) => /superior|direit/i.test(String(c.nome))) ?? tampos[0],
+    casco: dos(/casco|costado|corpo|cilindr/i)[0],
+    ti: tampos.find((c) => /inferior|esquerd/i.test(String(c.nome))) ?? tampos[tampos.length - 1],
   };
 }
 
@@ -1182,7 +1212,15 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
       cabecote: txt(us.cabecote),
       velSonica: txt(us.velSonica),
       resultado: rotuloResultado(us.resultado as string),
-      pontos: pontosUltrassom(tag, us, medEsp, requeridaDoMemorial(calc.componentes), meta?.containerOrigemId ?? null),
+      pontos: pontosUltrassom(
+        tag,
+        us,
+        medEsp,
+        requeridaDoMemorial(calc.componentes),
+        meta?.containerOrigemId ?? null,
+        undefined,
+        requeridaMmDoMemorial(calc.componentes),
+      ),
       vida: {
         taxaMmAno: numeroBr(vida.taxaMmAno, 4),
         sobremetalMm: numeroBr(vida.sobremetalMm),
@@ -1343,12 +1381,23 @@ export function pontosUltrassom(
   containerAtual: string | null = null,
   /** A grade entregue (prontuário, Fase 6.1); ausente = a chave `nr13_med_grid_<TAG>`. */
   gradeEntregue?: Parameters<typeof carregarMedicoes>[3],
+  /** A requerida do memorial como número técnico; ver `requeridaMmDoMemorial`. */
+  requeridaMmPorRegiao: Record<Regiao, number | null> = { ts: null, casco: null, ti: null },
 ): ModeloRelatorio['ultrassom']['pontos'] {
-  const requeridaDe = (id: string, regiao: Regiao): string | null => {
+  const digitadaDe = (id: string): string | null => {
     const lista = (medEsp.pontos ?? us.pontos ?? []) as Record<string, unknown>[];
     const achado = lista.find((p) => String(p.id ?? p.nome ?? '') === id);
+    return achado ? txt(achado.espMinRequerida ?? achado.requerida) : null;
+  };
+  const requeridaDe = (id: string, regiao: Regiao): string | null =>
     // O digitado à mão vence; sem ele, a do memorial daquela região.
-    return (achado ? txt(achado.espMinRequerida ?? achado.requerida) : null) ?? requeridaPorRegiao[regiao];
+    digitadaDe(id) ?? requeridaPorRegiao[regiao];
+  // O mesmo limite como número: o digitado é o próprio número; o do memorial
+  // vem cru do cálculo, nunca do texto arredondado.
+  const requeridaMmDe = (id: string, regiao: Regiao): number | null => {
+    const digitada = digitadaDe(id);
+    if (digitada !== null) return numeroDoStorage(digitada);
+    return requeridaMmPorRegiao[regiao] ?? numeroDoStorage(requeridaPorRegiao[regiao]);
   };
 
   // O container DESTE documento: sem ele, a grade de outra inspeção do mesmo
@@ -1371,6 +1420,7 @@ export function pontosUltrassom(
         medidas,
         menor: numeros.length ? String(Math.min(...numeros)).replace('.', ',') : null,
         requerida: requeridaDe(ponto.id, regiao),
+        requeridaMm: requeridaMmDe(ponto.id, regiao),
       });
     });
   }

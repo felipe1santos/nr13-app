@@ -30,7 +30,7 @@
 import type { jsPDF } from 'jspdf';
 import { FAMILIA } from './carlito';
 import { CAIXA, COR, FONTE } from './documentoA4';
-import { abaixoDaRequerida, destaqueDaMedida, extremosDaRegiao, temMedida } from './destaqueMedida';
+import { destaqueDaMedida, extremosDaRegiao, temMedida } from './destaqueMedida';
 
 /** As regiões que a grade de medição conhece (`medicoesEspessura.REGIOES`). */
 export type RegiaoCroqui = 'ts' | 'casco' | 'ti';
@@ -44,6 +44,8 @@ export interface LinhaMedicao {
   medidas: string[];
   menor: string | null;
   requerida: string | null;
+  /** A requerida como número técnico; ausente em documento antigo. */
+  requeridaMm?: number | null;
 }
 
 /** Um ponto do desenho — e a sua linha na tabela. */
@@ -59,8 +61,12 @@ export interface PontoCroqui {
   angulo: number;
   /** O texto exatamente como a tabela o imprime, ou `null` se não medido. */
   valor: string | null;
-  destaque: 'maior' | 'menor' | null;
-  /** Abaixo da espessura mínima requerida daquela linha. */
+  /**
+   * A MESMA classificação da célula da tabela 7.4 (`destaqueDaMedida`):
+   * `abaixo` da mínima requerida, `menor` ou `maior` da região.
+   */
+  destaque: 'maior' | 'menor' | 'abaixo' | null;
+  /** Abaixo da espessura mínima requerida daquela linha (= `destaque === 'abaixo'`). */
   critico: boolean;
 }
 
@@ -159,6 +165,9 @@ export function modeloCroqui(linhas: LinhaMedicao[]): ModeloCroqui {
       angulos.push(angulo);
       const cru = l.medidas[i];
       const valor = temMedida(cru) ? String(cru).trim() : null;
+      // UMA chamada decide as duas coisas: o mapa não pode classificar um
+      // ponto de um jeito e a tabela a mesma leitura de outro.
+      const destaque = destaqueDaMedida(cru, ext.maior, ext.menor, l.requeridaMm ?? l.requerida).destaque ?? null;
       const p: PontoCroqui = {
         id: `${sigla}-${Math.round(angulo)}`,
         regiao,
@@ -166,8 +175,8 @@ export function modeloCroqui(linhas: LinhaMedicao[]): ModeloCroqui {
         ponto: l.ponto,
         angulo,
         valor,
-        destaque: destaqueDaMedida(cru, ext.maior, ext.menor).destaque ?? null,
-        critico: abaixoDaRequerida(cru, l.requerida),
+        destaque,
+        critico: destaque === 'abaixo',
       };
       pontos.push(p);
       todos.push(p);
@@ -302,9 +311,13 @@ const CORES = {
    * porque lá o destaque tem FUNDO colorido; aqui só existe o marcador.
    */
   ponto: doHex(COR.nota),
-  menor: doHex(COR.textoMenorEspessura),
+  /**
+   * A menor leitura é ÂMBAR, não vermelha (21/10/2026): ser o menor número da
+   * região é comparação. Vermelho é só `critico` — abaixo da mínima.
+   */
+  menor: doHex(COR.bordaRealce),
   maior: doHex(COR.textoMaiorEspessura),
-  critico: doHex(COR.textoMenorEspessura),
+  critico: doHex(COR.textoAbaixoMinima),
   rotulo: [48, 55, 64] as [number, number, number],
 };
 
@@ -524,7 +537,7 @@ function marcadorLegenda(
  * marcadores na outra, com os marcadores DESENHADOS em vez de descritos. Um
  * círculo vazado explica-se melhor do que a frase "ponto vazado".
  */
-function legenda(pdf: jsPDF, x: number, y: number): number {
+function legenda(pdf: jsPDF, x: number, y: number, temCritico: boolean): number {
   // O limite é a margem direita da folha. A 1ª versão emendava os quatro
   // marcadores numa linha só e o último saía CORTADO na borda do papel —
   // visto no PDF, não no código: em mm a conta fechava, mas a largura real do
@@ -563,8 +576,12 @@ function legenda(pdf: jsPDF, x: number, y: number): number {
   };
   item(CORES.ponto, true, 'medido');
   item(CORES.ponto, false, 'sem medição (não é zero)');
-  item(CORES.menor, true, 'menor / abaixo da mínima');
-  item(CORES.maior, true, 'maior da região');
+  // DUAS legendas para DUAS condições (21/10/2026). A antiga, "menor / abaixo
+  // da mínima", dizia que todo menor valor estava reprovado. "Abaixo da
+  // mínima" só aparece quando algum ponto do desenho está de fato abaixo.
+  item(CORES.menor, true, 'menor valor medido');
+  item(CORES.maior, true, 'maior valor medido');
+  if (temCritico) item(CORES.critico, true, 'abaixo da espessura mínima requerida');
 
   return linha + 3;
 }
@@ -614,7 +631,7 @@ export function desenharCroquiEspessura(pdf: jsPDF, y: number, dados: DadosCroqu
   // A legenda mora no canto inferior direito: desce até a base do conteúdo e
   // nunca encavala o costado quando ele é alto.
   const yLegenda = Math.max(fimCasco + 9, fimEsquerda - GEO.alturaLegenda + 6);
-  const fimLegenda = legenda(pdf, xDir, yLegenda);
+  const fimLegenda = legenda(pdf, xDir, yLegenda, m.pontos.some((p) => p.critico));
 
   // Devolve o estado de texto do documento: quem desenha não pode deixar a
   // caneta com a cor e o corpo do croqui para a próxima linha da folha.

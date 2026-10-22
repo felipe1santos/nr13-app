@@ -45,11 +45,18 @@ describe('a maior e a menor leitura de uma região', () => {
 });
 
 describe('as cores do realce', () => {
-  it('maior: azul-petróleo sobre azul claro; menor: vermelho sobre vermelho claro', () => {
+  it('maior: azul-petróleo; menor: âmbar (não crítico); abaixo da mínima: vermelho', () => {
     expect(corDeFundo({ texto: '6,35', valor: true, destaque: 'maior' }, 'final')).toBe(COR.fundoMaiorEspessura);
     expect(corDeFundo({ texto: '5,91', valor: true, destaque: 'menor' }, 'final')).toBe(COR.fundoMenorEspessura);
+    expect(corDeFundo({ texto: '3,99', valor: true, destaque: 'abaixo' }, 'final')).toBe(COR.fundoAbaixoMinima);
     expect(COR.textoMaiorEspessura).toBe('#0b4f60');
-    expect(COR.textoMenorEspessura).toBe('#a11c1c');
+    // 21/10/2026 · o menor valor medido deixou de ser vermelho: o vermelho é
+    // só da leitura abaixo da espessura mínima requerida.
+    expect(COR.textoMenorEspessura).toBe(COR.textoRealce);
+    expect(COR.fundoMenorEspessura).toBe(COR.fundoRealceSuave);
+    expect(COR.textoAbaixoMinima).toBe('#a11c1c');
+    expect(COR.textoMenorEspessura).not.toBe(COR.textoAbaixoMinima);
+    expect(COR.fundoMenorEspessura).not.toBe(COR.fundoAbaixoMinima);
   });
 
   it('o realce sobrevive ao documento emitido — não é marcação de revisão', () => {
@@ -66,6 +73,7 @@ describe('as cores do realce', () => {
     expect(documento).toContain("negritoDaCelula(cel) ? 'bold' : 'normal'");
     expect(documento).toContain('COR.textoMaiorEspessura');
     expect(documento).toContain('COR.textoMenorEspessura');
+    expect(documento).toContain('COR.textoAbaixoMinima');
   });
 });
 

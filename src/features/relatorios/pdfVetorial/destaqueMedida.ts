@@ -56,18 +56,50 @@ export function extremosDaRegiao(
   return { maior: Math.max(...valores), menor: Math.min(...valores) };
 }
 
-export type Destaque = 'maior' | 'menor';
+/**
+ * O destaque de uma leitura — TRÊS significados, que não se misturam
+ * (21/10/2026).
+ *
+ * - `abaixo`: a leitura é MENOR QUE A ESPESSURA MÍNIMA REQUERIDA. É a única
+ *   condição técnica crítica, e a única que sai em vermelho.
+ * - `menor`: a menor leitura DA REGIÃO. É só uma comparação entre os pontos —
+ *   4,61 pode ser o menor valor medido e continuar acima de 4,01.
+ * - `maior`: a maior leitura da região.
+ *
+ * O DEFEITO QUE ISTO CONSERTA. Até aqui `menor` saía com o vermelho e o mapa
+ * o legendava "menor / abaixo da mínima". Um cliente mediu 4,61 mm contra
+ * 4,01 mm de mínima e o documento dizia, pela legenda, que o ponto estava
+ * abaixo do limite. Ser o menor número não é reprovação.
+ *
+ * Precedência `abaixo` → `menor` → `maior`: a leitura crítica nunca perde o
+ * vermelho por também ser a menor da região.
+ *
+ * A comparação é NUMÉRICA, sobre o valor técnico (`requerida` pode chegar como
+ * o número cru do memorial). O texto formatado serve só para exibir.
+ */
+export type Destaque = 'maior' | 'menor' | 'abaixo';
 
 export function destaqueDaMedida(
   valor: string | null | undefined,
   maior: number | null,
   menor: number | null,
+  requerida?: string | number | null,
 ): { destaque?: Destaque } {
   const n = medidaNumero(valor);
   if (n === null) return {};
+  if (abaixoDaRequerida(valor, requerida)) return { destaque: 'abaixo' };
   if (menor !== null && n === menor) return { destaque: 'menor' };
   if (maior !== null && n === maior) return { destaque: 'maior' };
   return {};
+}
+
+/**
+ * O limite técnico como número. Aceita o número cru do memorial (`tReqMm`) ou
+ * o texto digitado ("4,01"). Mesma regra de `medidaNumero`: só positivos.
+ */
+export function limiteNumero(r: string | number | null | undefined): number | null {
+  if (typeof r === 'number') return Number.isFinite(r) && r > 0 ? r : null;
+  return medidaNumero(r);
 }
 
 /**
@@ -76,12 +108,14 @@ export function destaqueDaMedida(
  * Só responde quando os dois números existem. Sem requerida não há reprovação
  * possível — e pintar de vermelho por não saber seria inventar uma
  * classificação técnica, que é o que o §14 do pedido proíbe.
+ *
+ * IGUAL À MÍNIMA NÃO É ABAIXO: a comparação é estrita.
  */
 export function abaixoDaRequerida(
   valor: string | null | undefined,
-  requerida: string | null | undefined,
+  requerida: string | number | null | undefined,
 ): boolean {
   const v = medidaNumero(valor);
-  const r = medidaNumero(requerida);
+  const r = limiteNumero(requerida);
   return v !== null && r !== null && v < r;
 }

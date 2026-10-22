@@ -898,7 +898,9 @@ export class Documento {
         this.pdf.setFont(FAMILIA, negritoDaCelula(cel) ? 'bold' : 'normal');
         this.pdf.setFontSize(tamanho);
         this.pdf.setTextColor(
-          cel.destaque === 'maior'
+          cel.destaque === 'abaixo'
+            ? COR.textoAbaixoMinima
+            : cel.destaque === 'maior'
             ? COR.textoMaiorEspessura
             : cel.destaque === 'menor'
               ? COR.textoMenorEspessura
@@ -1009,6 +1011,7 @@ export type ModoDocumento = 'preview' | 'final';
 export function corDeFundo(cel: CelulaDoc, modo: ModoDocumento): string {
   // O destaque vale nos DOIS modos: ele é conteúdo do documento, não uma
   // marcação de revisão como o amarelo da prévia.
+  if (cel.destaque === 'abaixo') return COR.fundoAbaixoMinima;
   if (cel.destaque === 'maior') return COR.fundoMaiorEspessura;
   if (cel.destaque === 'menor') return COR.fundoMenorEspessura;
   if (cel.rotulo) return COR.fundoRotulo;
@@ -1135,12 +1138,13 @@ export interface CelulaDoc {
    */
   linhaOpcional?: string;
   /**
-   * Realce de leitura: a MAIOR e a MENOR espessura medida de uma região.
+   * Realce de leitura: a MAIOR e a MENOR espessura medida de uma região, e a
+   * leitura ABAIXO DA MÍNIMA REQUERIDA — a única em vermelho (21/10/2026).
    *
    * É informação, não enfeite — a menor leitura é a que define a vida
    * remanescente do equipamento, e numa grade de dezenas de números ela some.
    */
-  destaque?: 'maior' | 'menor';
+  destaque?: 'maior' | 'menor' | 'abaixo';
   centro?: boolean;
   colspan?: number;
   valor?: boolean;

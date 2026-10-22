@@ -3,6 +3,7 @@ import { foto, imagemEncaixada } from './primitivas';
 import type { CelulaDoc, Documento } from './documento';
 import { textoOu } from './modelo';
 import { extremosDaRegiao } from './folhas';
+import { destaqueDaMedida } from './destaqueMedida';
 import { formulaDoLatex } from './latexMemorial';
 import type { FolhaDadosProntuario, ModeloProntuario } from './modeloProntuario';
 import { COLUNAS_DIMENSAO, rotulosDimensoes } from '../../prontuarios/rotulosDimensoes';
@@ -261,19 +262,15 @@ export function folhaProntUltrassom(doc: Documento, m: ModeloProntuario): void {
 /**
  * A grade: uma tabela só quando todas as regiões medem nos MESMOS ângulos.
  *
- * O realce é o do relatório — maior leitura em azul-petróleo, menor em
- * vermelho. Numa grade de dezenas de números, é a menor que decide a vida
- * remanescente do equipamento.
+ * O realce é o do relatório — maior leitura em azul-petróleo, menor em âmbar
+ * e, em vermelho, só a leitura abaixo da espessura mínima requerida.
  */
 function desenharGradeEspessura(doc: Documento, m: ModeloProntuario): void {
   const { maior, menor } = extremosDaRegiao(m.ultrassom.pontos);
-  const marca = (v: string | null | undefined): { destaque?: 'maior' | 'menor' } => {
-    const n = Number(String(v ?? '').replace(',', '.'));
-    if (!Number.isFinite(n) || n <= 0) return {};
-    if (menor !== null && n === menor) return { destaque: 'menor' };
-    if (maior !== null && n === maior) return { destaque: 'maior' };
-    return {};
-  };
+  // A MESMA regra da tabela 7.4 e do mapa (`destaqueMedida.ts`, 21/10/2026):
+  // vermelho só ABAIXO da mínima requerida; a menor leitura é realce neutro.
+  const marca = (v: string | null | undefined, p: { requerida: string | null; requeridaMm?: number | null }) =>
+    destaqueDaMedida(v, maior, menor, p.requeridaMm ?? p.requerida);
   const mesmosAngulos = new Set(m.ultrassom.pontos.map((p) => p.angulos.join('|'))).size === 1;
 
   if (mesmosAngulos) {
@@ -296,9 +293,9 @@ function desenharGradeEspessura(doc: Documento, m: ModeloProntuario): void {
           texto: textoOu(p.medidas[i]),
           centro: true,
           valor: true,
-          ...marca(p.medidas[i]),
+          ...marca(p.medidas[i], p),
         })) as CelulaDoc[]),
-        { texto: textoOu(p.menor), centro: true, valor: true, ...marca(p.menor) },
+        { texto: textoOu(p.menor), centro: true, valor: true, ...marca(p.menor, p) },
         { texto: textoOu(p.requerida), centro: true, valor: true },
       ]),
     });
@@ -332,9 +329,9 @@ function desenharGradeEspessura(doc: Documento, m: ModeloProntuario): void {
           texto: textoOu(p.medidas[i]),
           centro: true,
           valor: true,
-          ...marca(p.medidas[i]),
+          ...marca(p.medidas[i], p),
         })) as CelulaDoc[]),
-        { texto: textoOu(p.menor), centro: true, valor: true, ...marca(p.menor) },
+        { texto: textoOu(p.menor), centro: true, valor: true, ...marca(p.menor, p) },
         { texto: textoOu(p.requerida), centro: true, valor: true },
       ]),
     });

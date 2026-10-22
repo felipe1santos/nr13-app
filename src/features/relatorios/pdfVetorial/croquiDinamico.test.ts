@@ -284,8 +284,11 @@ describe('o layout pedido', () => {
     expect(c6.croqui).toContain('níveis do costado');
     expect(c6.croqui).toContain('sem medição (não é zero)');
     // O último item não pode ser engolido pela margem: a 1ª versão emendava
-    // os quatro numa linha só e "maior da região" saía cortado no papel.
-    expect(c6.croqui).toContain('maior da região');
+    // os quatro numa linha só e o último item saía cortado no papel.
+    expect(c6.croqui).toContain('maior valor medido');
+    // 21/10/2026 · "menor / abaixo da mínima" virou DUAS legendas.
+    expect(c6.croqui).toContain('menor valor medido');
+    expect(c6.croqui).not.toContain('menor / abaixo da mínima');
   });
 
   it('a folha do croqui usa o MESMO rodapé das outras — dados da empresa', () => {

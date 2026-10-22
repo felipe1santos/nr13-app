@@ -69,8 +69,15 @@ export const COR = {
   // sem o leitor varrer a tabela célula a célula.
   fundoMaiorEspessura: '#ddeef3',
   textoMaiorEspessura: '#0b4f60',
-  fundoMenorEspessura: '#fbe4e4',
-  textoMenorEspessura: '#a11c1c',
+  //
+  // 21/10/2026 · A MENOR LEITURA NÃO É VERMELHA. Ser o menor número da região
+  // é comparação, não reprovação: ela usa o âmbar de realce que o documento já
+  // tinha (`fundoRealceSuave`/`textoRealce`). O vermelho ficou reservado para
+  // a leitura ABAIXO DA ESPESSURA MÍNIMA REQUERIDA — ver `destaqueMedida.ts`.
+  fundoMenorEspessura: '#fdf6e3',
+  textoMenorEspessura: '#6b4f07',
+  fundoAbaixoMinima: '#fbe4e4',
+  textoAbaixoMinima: '#a11c1c',
   fundoZebra: '#fafafa',
   bordaFoto: '#cfcfcf',
   nota: '#404040',

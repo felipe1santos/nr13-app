@@ -99,8 +99,9 @@ describe('modelo próprio: compacto, com UMA assinatura no fim', () => {
 
   it('a grade de espessuras usa o realce e os ângulos do relatório', () => {
     expect(folhas).toContain('extremosDaRegiao');
-    expect(folhas).toContain("destaque: 'menor'");
-    expect(folhas).toContain("destaque: 'maior'");
+    // 21/10/2026 · a grade usa a MESMA regra da tabela 7.4 e do mapa, com a
+    // requerida — vermelho só abaixo da mínima.
+    expect(folhas).toContain('destaqueDaMedida(v, maior, menor, p.requeridaMm ?? p.requerida)');
   });
 
   it('o resumo traz as EQUAÇÕES, não a memória linha a linha', () => {

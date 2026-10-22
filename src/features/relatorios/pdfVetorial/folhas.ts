@@ -1883,7 +1883,7 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
               valor: true,
               id: `${pref}.m${i}`,
               rotuloCampo: `${p.ponto} — ${angulos[i] ? `${angulos[i]}°` : 'medida'}`,
-              ...destaqueDaMedida(p.medidas[i], maior, menor),
+              ...destaqueDaMedida(p.medidas[i], maior, menor, p.requeridaMm ?? p.requerida),
             })),
             {
               texto: textoOu(p.menor),
@@ -1891,7 +1891,7 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
               valor: true,
               id: `${pref}.menor`,
               rotuloCampo: `${p.ponto} — menor valor`,
-              ...destaqueDaMedida(p.menor, maior, menor),
+              ...destaqueDaMedida(p.menor, maior, menor, p.requeridaMm ?? p.requerida),
             },
             { texto: textoOu(p.requerida), centro: true, valor: true, id: `${pref}.requerida`, rotuloCampo: `${p.ponto} — espessura mínima requerida` },
           ];
