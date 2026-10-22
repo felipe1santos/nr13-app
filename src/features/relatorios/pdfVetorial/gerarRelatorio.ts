@@ -380,13 +380,16 @@ async function contarPaginasAnexadas(opcoes: OpcoesVetorial): Promise<number> {
  * no caminho de sempre.
  */
 function ehRelatorioCompletoDeCaldeira(tag: string, documentos?: string[]): boolean {
-  let tipo: unknown;
+  let info: { tipo?: unknown; subtipo?: unknown } | null;
   try {
-    tipo = ler<{ tipo?: unknown }>(`nr13_info_${tag}`)?.tipo;
+    info = ler<{ tipo?: unknown; subtipo?: unknown }>(`nr13_info_${tag}`);
   } catch {
-    tipo = null;
+    info = null;
   }
-  if (tipo !== 'caldeira') return false;
+  if (info?.tipo !== 'caldeira') return false;
+  // Só a flamotubular (a única que o sistema cria): caldeira legada de outro
+  // subtipo segue no caminho de sempre, sem fórmulas que não são as dela.
+  if (info.subtipo && info.subtipo !== 'flamotubular') return false;
   if (!documentos || documentos.length === 0) return true;
   return incluiFolha(
     documentos,

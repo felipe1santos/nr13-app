@@ -74,11 +74,35 @@ export const OVERRIDES_DA_EMISSAO: readonly string[] = [
   'th.data',
   'vida.proxima',
   'parecer.laudo',
+  'capa.n-do-relatorio',
+  'capa.data-da-inspecao',
+  'inspecao.numero-relatorio',
+  'th.validade-laudo',
+  'th.resultado',
+  'th.doc-numero',
+  'ultrassom.resultado',
+  'ri.laudo-final',
+  'acumulacao.laudo',
 ];
+
+/**
+ * Famílias inteiras que também são DAQUELA emissão: datas e resultados da
+ * inspeção, os prazos das próximas e as marcações do ensaio de acumulação.
+ */
+export const PREFIXOS_DA_EMISSAO: readonly string[] = [
+  'inspecao.data-',
+  'inspecao.resultado-',
+  'proximas.',
+  'ri.acumulacao.',
+];
+
+function ehDaEmissao(id: string): boolean {
+  return OVERRIDES_DA_EMISSAO.includes(id) || PREFIXOS_DA_EMISSAO.some((p) => id.startsWith(p));
+}
 
 export function overridesDaCopia(mapa: MapaOverrides): MapaOverrides {
   const saida: MapaOverrides = {};
-  for (const [id, v] of Object.entries(mapa)) if (!OVERRIDES_DA_EMISSAO.includes(id)) saida[id] = v;
+  for (const [id, v] of Object.entries(mapa)) if (!ehDaEmissao(id)) saida[id] = v;
   return saida;
 }
 

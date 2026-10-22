@@ -31,11 +31,12 @@ if (typeof globalThis.localStorage === 'undefined') {
 // O cofre devolve um PDF de 2 páginas para qualquer referência: é a ART e o
 // prontuário de fabricação desta massa.
 let ANEXO_PDF: Uint8Array;
+let BYTES_COFRE: () => Uint8Array = () => ANEXO_PDF;
 vi.mock('../../../services/fotos', async (original) => {
   const real = await original<typeof import('../../../services/fotos')>();
   return {
     ...real,
-    baixarFoto: async () => new Blob([ANEXO_PDF as unknown as BlobPart], { type: "application/pdf" }),
+    baixarFoto: async () => new Blob([BYTES_COFRE() as unknown as BlobPart], { type: "application/pdf" }),
   };
 });
 vi.mock('../../../services/supabase', () => ({
@@ -249,4 +250,23 @@ describe('relatório de caldeira CAL-25/5340', () => {
     if (corpoDepois >= 0) expect(paginas[corpoDepois]).toContain(`Página ${corpoDepois + 1} de ${ult}`);
     expect(paginas[pagina('6. ART')]).toContain(`Página ${pagina('6. ART') + 1} de ${ult}`);
   });
+});
+
+describe('anexo ilegível (PDF cifrado/truncado que passou pela assinatura)', () => {
+  it('prévia sai e nomeia a falha; finalização recusa — nunca afirma "não possui"', async () => {
+    BYTES_COFRE = () => new TextEncoder().encode('%PDF-1.7 truncado');
+    try {
+      montarCal25();
+      const r = await gerarRelatorioVetorial(TAG, { documentos: [...DOCUMENTOS_CALDEIRA], certificados: false, modo: 'preview' });
+      expect(r.falhasAnexo).toEqual(expect.arrayContaining(['ART', 'prontuário de fabricação']));
+      const t = (await textos(r.bytes)).join(' ');
+      expect(t).toContain('não pôde ser anexado');
+      expect(t).not.toContain('não possui prontuário de fabricação');
+      await expect(
+        gerarRelatorioVetorial(TAG, { documentos: [...DOCUMENTOS_CALDEIRA], certificados: false, modo: 'final' }),
+      ).rejects.toThrow(/Não foi possível anexar/);
+    } finally {
+      BYTES_COFRE = () => ANEXO_PDF;
+    }
+  }, 120_000);
 });

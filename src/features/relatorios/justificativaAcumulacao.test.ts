@@ -23,6 +23,11 @@ describe('relatório de caldeira: acumulação não realizada exige justificativ
     expect(campos(r)).not.toContain('ri.acumulacao.justificativa');
   });
 
+  it('rascunho de caldeira anterior (INSPECOES/CONCLUSAO) também exige', () => {
+    const r = validarParaFinalizar({ meta, documentos: ['CAPA.html', 'INSPECOES.html'], laudo: { apto: true }, dadosContainer: {}, overrides: {}, tipoEquipamento: 'caldeira' });
+    expect(campos(r)).toContain('ri.acumulacao.justificativa');
+  });
+
   it('relatório de vaso (sem a folha de caldeira) não ganha a regra', () => {
     const r = validarParaFinalizar({ meta, documentos: ['CAPA.html', 'INSPECOES.html'], laudo: { apto: true }, dadosContainer: {}, overrides: {} });
     expect(campos(r)).not.toContain('ri.acumulacao.justificativa');

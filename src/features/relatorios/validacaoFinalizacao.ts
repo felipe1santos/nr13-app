@@ -224,7 +224,13 @@ export function validarParaFinalizar(e: EntradaValidacao): ResultadoValidacao {
   // 22/10/2026 · RELATÓRIO DE CALDEIRA sem ensaio de acumulação feito: a folha
   // 3 pede "SE NÃO, JUSTIFIQUE", e a justificativa só existe como override do
   // documento ('ri.acumulacao.justificativa'). Sem ela, não finaliza.
-  if (tem(e.documentos, 'CALD-RELATORIO-INSPECAO.html')) {
+  // Mesmas folhas que acendem a seção no gerador (`FOLHAS_CALDEIRA.relatorioInspecao`):
+  // rascunho de caldeira anterior ao relatório próprio traz INSPECOES/CONCLUSAO.
+  const relatorioInspecaoCaldeira =
+    e.tipoEquipamento === 'caldeira' &&
+    (!e.documentos?.length ||
+      ['CALD-RELATORIO-INSPECAO.html', 'INSPECOES.html', 'CONCLUSAO.html'].some((f) => tem(e.documentos, f)));
+  if (relatorioInspecaoCaldeira || tem(e.documentos, 'CALD-RELATORIO-INSPECAO.html')) {
     const bruto = bloco<Partial<DadosAcumulacao>>(e.dadosContainer, 'acumulacao');
     // Mesma regra do modelo (`acumulacaoFeita`): o dado preenchido, escolhida ou não a folha.
     const feito = !!bruto && acumulacaoPreenchida(bruto);

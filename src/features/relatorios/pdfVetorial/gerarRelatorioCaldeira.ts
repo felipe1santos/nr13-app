@@ -47,6 +47,7 @@ import { ler } from '../../../services/storage';
 import { baixarFoto } from '../../../services/fotos';
 import { lerProntuarioFabricante } from '../../equipamento/ProntuarioFabricante';
 import { listarAnexados, bytesDaEmissao } from '../../prontuarios/emissaoProntuario';
+import { resolverProntuarioVigente } from '../../prontuarios/prontuarioVigente';
 import { artefatoDe, baixarArtefato } from '../artefatoRelatorio';
 import type { RelatorioMeta } from '../tipos';
 
@@ -89,6 +90,8 @@ interface Registro {
 interface Anexos {
   certificados: Uint8Array | null;
   fabricacao: Uint8Array | null;
+  /** Existe prontuário de fabricação cadastrado — mesmo que o arquivo não tenha vindo. */
+  temFabricacao: boolean;
   art: Uint8Array | null;
   paginas: { certificados: number; fabricacao: number; art: number };
   nomesCertificados: number;
@@ -97,30 +100,67 @@ interface Anexos {
 
 async function paginasDe(b: Uint8Array | null): Promise<number> {
   if (!b) return 0;
-  return (await PDFDocument.load(b)).getPageCount();
+  return (await PDFDocument.load(b, { ignoreEncryption: true })).getPageCount();
+}
+
+/**
+ * O anexo só entra se o pdf-lib consegue abri-lo E copiar as páginas: um PDF
+ * truncado ou cifrado passa pela assinatura `%PDF-` e quebraria a geração
+ * inteira. Ilegível = falha NOMEADA, nunca o relatório todo.
+ */
+async function anexoUtilizavel(b: Uint8Array | null, nome: string, falhas: string[]): Promise<Uint8Array | null> {
+  if (!b) return null;
+  try {
+    const src = await PDFDocument.load(b, { ignoreEncryption: true });
+    await (await PDFDocument.create()).copyPages(src, src.getPageIndices());
+    return src.getPageCount() > 0 ? b : null;
+  } catch (e) {
+    console.error(`Anexo ilegível (${nome}):`, e);
+    falhas.push(nome);
+    return null;
+  }
 }
 
 async function bytesDeBlob(b: Blob | null): Promise<Uint8Array | null> {
   return b ? new Uint8Array(await b.arrayBuffer()) : null;
 }
 
-/** O prontuário de fabricação: o PDF do fabricante, senão o prontuário anexado vigente. */
-async function bytesFabricacao(tag: string): Promise<Uint8Array | null> {
+/**
+ * O prontuário de fabricação: o PDF do fabricante, senão o prontuário ANEXADO
+ * vigente (pela mesma regra de versão da ficha — nunca a posição no array, e
+ * nunca item removido). `existe` diz se há documento cadastrado: arquivo que
+ * não baixou é FALHA, não "não possui" — o relatório não pode afirmar isso.
+ */
+async function bytesFabricacao(tag: string, falhas: string[]): Promise<{ bytes: Uint8Array | null; existe: boolean }> {
+  const fab = lerProntuarioFabricante(tag);
+  const vigente = resolverProntuarioVigente(listarAnexados(tag), null)?.emissao ?? null;
+  const existe = !!fab?.pdfRef?.path || !!fab?.pdfBase64?.startsWith('data:') || !!vigente;
+  if (!existe) return { bytes: null, existe };
+  let bytes: Uint8Array | null = null;
   try {
-    const fab = lerProntuarioFabricante(tag);
-    if (fab?.pdfRef?.path) return await bytesDeBlob(await baixarFoto(fab.pdfRef));
-    if (fab?.pdfBase64?.startsWith('data:')) {
-      const bin = atob(fab.pdfBase64.slice(fab.pdfBase64.indexOf(',') + 1));
-      const out = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-      return out;
-    }
-    const anexados = listarAnexados(tag);
-    const ultimo = anexados[anexados.length - 1];
-    if (ultimo) return await bytesDeBlob(await bytesDaEmissao(ultimo, { artefatoDe, baixarArtefato }));
+    bytes = await bytesFabricacaoDe(fab, vigente);
   } catch (e) {
     console.error('Prontuário de fabricação indisponível para o relatório de caldeira:', e);
   }
+  if (!bytes) {
+    falhas.push('prontuário de fabricação');
+    return { bytes: null, existe };
+  }
+  return { bytes: await anexoUtilizavel(bytes, 'prontuário de fabricação', falhas), existe };
+}
+
+async function bytesFabricacaoDe(
+  fab: ReturnType<typeof lerProntuarioFabricante>,
+  vigente: ReturnType<typeof listarAnexados>[number] | null,
+): Promise<Uint8Array | null> {
+  if (fab?.pdfRef?.path) return await bytesDeBlob(await baixarFoto(fab.pdfRef));
+  if (fab?.pdfBase64?.startsWith('data:')) {
+    const bin = atob(fab.pdfBase64.slice(fab.pdfBase64.indexOf(',') + 1));
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  if (vigente) return await bytesDeBlob(await bytesDaEmissao(vigente, { artefatoDe, baixarArtefato }));
   return null;
 }
 
@@ -147,13 +187,14 @@ async function prepararAnexos(
       falhas.push('certificados');
     }
   }
-  const fabricacao = await bytesFabricacao(tag);
+  const fab = await bytesFabricacao(tag, falhas);
+  const fabricacao = fab.bytes;
   let art: Uint8Array | null = null;
   const refArt = meta?.artAnexo?.ref;
   if (refArt?.path) {
     try {
-      art = await bytesDeBlob(await baixarFoto(refArt));
-      if (!art) falhas.push('ART');
+      art = await anexoUtilizavel(await bytesDeBlob(await baixarFoto(refArt)), 'ART', falhas);
+      if (!art && !falhas.includes('ART')) falhas.push('ART');
     } catch (e) {
       console.error('ART anexada indisponível:', e);
       falhas.push('ART');
@@ -162,6 +203,7 @@ async function prepararAnexos(
   return {
     certificados: certs,
     fabricacao,
+    temFabricacao: fab.existe,
     art,
     paginas: { certificados: await paginasDe(certs), fabricacao: await paginasDe(fabricacao), art: await paginasDe(art) },
     nomesCertificados: documentos.filter((d) => /calibId=|^CERTI/i.test(d)).length,
@@ -251,7 +293,9 @@ function emitirCaldeira(
   folhaDivisoria(doc, '5', 'Prontuário de fabricação', [
     anexos.fabricacao
       ? 'O prontuário de fabricação do equipamento segue anexado a partir da próxima página.'
-      : 'O equipamento não possui prontuário de fabricação anexado ao sistema.',
+      : anexos.temFabricacao
+        ? 'O prontuário de fabricação está cadastrado, mas o arquivo não pôde ser anexado nesta prévia.'
+        : 'O equipamento não possui prontuário de fabricação anexado ao sistema.',
   ]);
   if (reg) reg.divisorias.fabricacao = doc.pdf.getNumberOfPages();
 
@@ -295,7 +339,13 @@ export async function gerarCorpoCaldeira(ctx: ContextoCaldeira): Promise<{
   const mc = montarModeloCaldeira(ctx.tag, ctx.modelo, ctx.meta, ctx.injecao);
   const tem = secoesCaldeira(ctx.documentos);
   const anexos = await prepararAnexos(ctx.tag, ctx.documentos, ctx.meta, ctx.certificados);
-  mc.temFabricacao = anexos.fabricacao !== null;
+  mc.temFabricacao = anexos.temFabricacao;
+  // Finalizar com anexo da caldeira faltando gravaria um documento imutável sem
+  // ele: a emissão NÃO sai (a prévia segue, listando a falha).
+  const faltando = anexos.falhas.filter((f) => f === 'ART' || f === 'prontuário de fabricação');
+  if (ctx.modo === 'final' && faltando.length > 0) {
+    throw new Error(`Não foi possível anexar: ${faltando.join(', ')}. Confira a conexão e o arquivo e tente de novo.`);
+  }
 
   // 1ª passagem: contar e anotar seções e divisórias.
   const p1 = ctx.novoPdf();

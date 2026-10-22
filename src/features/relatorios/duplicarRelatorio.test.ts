@@ -241,6 +241,9 @@ describe('datas — identidade nova, inspeção em branco', () => {
       'inspecao.observacoes',
     ]);
     expect(Object.keys(overridesDaCopia({ 'parecer.laudo': {} as never, 'datas.execucao': {} as never }))).toEqual([]);
+    const da = (id: string) => Object.keys(overridesDaCopia({ [id]: {} as never })).length === 0;
+    for (const id of ['capa.n-do-relatorio', 'capa.data-da-inspecao', 'inspecao.data-inicio', 'proximas.externa', 'th.resultado', 'ri.laudo-final', 'ri.acumulacao.justificativa', 'acumulacao.laudo']) expect(da(id), id).toBe(true);
+    expect(da('capa.cliente')).toBe(false);
   });
 });
 
