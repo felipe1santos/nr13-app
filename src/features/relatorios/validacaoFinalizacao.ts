@@ -6,6 +6,7 @@ import { ITENS_VISUAL_EXTERNO } from '../inspecoes/formularios/FormularioVisualE
 import { ITENS_VISUAL_INTERNO } from '../inspecoes/formularios/FormularioVisualInterno';
 import { pendenciasParaEmissao } from '../inspecoes/fotosDescritas';
 import { FOLHA_RELATORIO_IMAGENS } from './relatorioImagensNoRelatorio';
+import { itemConteudoRelatorio } from '../normas/nr13';
 
 /**
  * Fase 10B.1 · o que se confere ANTES de finalizar — e a diferença entre
@@ -68,6 +69,34 @@ export interface EntradaValidacao {
    * de Acumulação a usa, para o ALERTA de 1,06 × PMTA. Ausente = sem alerta.
    */
   pmtaMpa?: number | null;
+  /**
+   * 22/10/2026 · tipo do equipamento (`'caldeira'` | `'vaso'` | …) — decide qual
+   * subitem da NR-13 o aviso do certificado da PSV cita. Ausente = vaso.
+   */
+  tipoEquipamento?: string | null;
+}
+
+/**
+ * O relatório traz o NÚMERO de algum certificado de inspeção e teste da válvula
+ * de segurança? (NR-13 2022: 13.4.4.12 "n" para caldeira, 13.5.4.11 "n" para
+ * vaso.) Três caminhos por onde ele chega ao documento:
+ * - a folha de calibração da PSV na composição (`CERTIIFCADO-CAL-PSV.html?calibId=`);
+ * - o snapshot congelado na meta (`meta.certCalibracoes`) de uma PSV com número;
+ * - o quadro 7.1.1 do checklist apontando para uma calibração de PSV com número.
+ */
+export function temCertificadoPsv(
+  documentos: string[] | null,
+  meta: RelatorioMeta | null,
+  dadosContainer: EntradaValidacao['dadosContainer'],
+): boolean {
+  if ((documentos ?? []).some((d) => d.startsWith('CERTIIFCADO-CAL-PSV.html'))) return true;
+  const numerado = (v: unknown, tipoCampo: string) => {
+    const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+    return o[tipoCampo] === 'psv' && typeof o.numeroCertificado === 'string' && o.numeroCertificado.trim() !== '';
+  };
+  if (Object.values(meta?.certCalibracoes ?? {}).some((c) => numerado(c, 'tipo'))) return true;
+  const chk = dadosContainer?.checklist as { instrumentosRef?: Record<string, { snapshot?: unknown }> } | undefined;
+  return Object.values(chk?.instrumentosRef ?? {}).some((r) => numerado(r?.snapshot, 'tipo'));
 }
 
 function vazio(v: string | undefined | null): boolean {
@@ -248,6 +277,20 @@ export function validarParaFinalizar(e: EntradaValidacao): ResultadoValidacao {
     if (vazio(texto(u?.resultado))) {
       opcionais.push({ campo: 'ultrassom.resultado', texto: 'Resultado da medição de espessura não informado', onde: 'Inspeção · Medição de espessura' });
     }
+  }
+
+  // 22/10/2026 · NR-13 2022, alínea "n" do conteúdo mínimo do relatório: o número
+  // do certificado de inspeção e teste da válvula de segurança. AVISO, nunca
+  // bloqueio — decisão do dono: o engenheiro pode ter o certificado fora do
+  // sistema e citá-lo no texto.
+  if (!temCertificadoPsv(e.documentos, m, e.dadosContainer)) {
+    opcionais.push({
+      campo: 'certificadoPsv',
+      texto:
+        `Nenhum certificado de inspeção e teste da válvula de segurança vinculado — a NR-13 ` +
+        `(subitem ${itemConteudoRelatorio(e.tipoEquipamento)}, alínea "n") pede o número dele no relatório`,
+      onde: 'Calibrações · válvula de segurança',
+    });
   }
 
   return { obrigatorios, opcionais, podeFinalizar: obrigatorios.length === 0 };

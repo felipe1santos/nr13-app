@@ -7,6 +7,7 @@ import { destaqueDaMedida } from './destaqueMedida';
 import { formulaDoLatex } from './latexMemorial';
 import type { FolhaDadosProntuario, ModeloProntuario } from './modeloProntuario';
 import { COLUNAS_DIMENSAO, rotulosDimensoes } from '../../prontuarios/rotulosDimensoes';
+import { NR13_REFERENCIA } from '../../normas/nr13';
 
 /**
  * O PRONTUÁRIO — modelo próprio, em 4 ou 5 folhas.
@@ -102,7 +103,7 @@ function responsabilidadeTecnica(doc: Documento, m: ModeloProntuario): void {
 export function folhaProntIdentificacao(doc: Documento, m: ModeloProntuario): void {
   doc.novaFolha();
   doc.texto('Prontuário do Equipamento', { tamanho: FONTE.secao + 4, negrito: true, alinhamento: 'center' });
-  doc.texto(`${textoOu(m.identificacao['TIPO DE EQUIPAMENTO'], 'Equipamento')} — NR-13 · Portaria nº 1.082/2018`, {
+  doc.texto(`${textoOu(m.identificacao['TIPO DE EQUIPAMENTO'], 'Equipamento')} — ${NR13_REFERENCIA}`, {
     tamanho: FONTE.nota,
     cor: COR.nota,
     alinhamento: 'center',

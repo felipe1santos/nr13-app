@@ -28,6 +28,7 @@ import {
   type CampoQuadro,
 } from '../../calibracoes/idsInstrumentos';
 import { listaDeItens, resultadoNcDerivado } from '../../inspecoes/formularios/semanticaNc';
+import { NR13_ITENS, NR13_ORGAO, NR13_PORTARIA } from '../../normas/nr13';
 
 /**
  * Fase 11 · as 21 folhas do relatório, na ordem da referência.
@@ -312,7 +313,9 @@ export function folhaCapa(doc: Documento, m: ModeloRelatorio): void {
   // A referência traz a Portaria logo abaixo do subtítulo; é texto PADRÃO do
   // documento (não dado do equipamento), e por isso nasce como default
   // editável — quem precisar citar outra portaria reescreve neste relatório.
-  doc.texto('(Portaria nº 1.082, de 18 de dezembro de 2018)', {
+  // 22/10/2026 · a redação vigente (2022), da constante central. Override já
+  // digitado num rascunho continua valendo; documento emitido é arquivo.
+  doc.texto(`(${NR13_PORTARIA})`, {
     tamanho: FONTE.sigla,
     italico: true,
     cor: '#6a6a6a',
@@ -445,8 +448,8 @@ export function folhaSumario(
   // "Restaurar automático" devolve exatamente esta redação.
   doc.texto(
     `Este relatório apresenta o resultado da ${textoOu(m.tipoInspecao, 'inspeção')} de segurança do ` +
-      `equipamento ${m.tag}, realizada conforme a Norma Regulamentadora NR-13 do Ministério do ` +
-      'Trabalho e Emprego, com o objetivo de avaliar as condições de integridade e de segurança ' +
+      `equipamento ${m.tag}, realizada conforme a Norma Regulamentadora NR-13 do ${NR13_ORGAO}, ` +
+      'com o objetivo de avaliar as condições de integridade e de segurança ' +
       'operacional do equipamento.',
     { id: 'objetivo.texto', rotuloCampo: 'Objetivo do relatório' },
   );
@@ -791,7 +794,7 @@ function desenharPressaoDaPlaca(
 
 // ── 4. CATEGORIZAÇÃO DE RISCO ───────────────────────────────────────────────
 /**
- * A MATRIZ do item 13.5.1.2 — a tabela da norma, como a referência a imprime.
+ * A MATRIZ do subitem 13.5.1.1 (Tabela 1) — a tabela da norma, como a referência a imprime.
  *
  * Ela é a NORMA impressa, não uma conta: as cinco faixas de P.V. e as quatro
  * classes de fluido são texto fixo do regulamento. A categoria do equipamento
@@ -822,12 +825,12 @@ const MATRIZ_13512: { classe: string; itens: string[]; categorias: string[] }[] 
   { classe: 'D', itens: ['Outro fluido'], categorias: ['II', 'III', 'IV', 'V', 'V'] },
 ];
 
-// As cinco faixas de P.V. do item 13.5.1.2: o NÚMERO do grupo em cima, os
+// As cinco faixas de P.V. da Tabela 1 (subitem 13.5.1.1): o NÚMERO do grupo em cima, os
 // limites embaixo, em corpo menor — como na referência.
 const FAIXAS_PV = [['P.V ≥ 100'], ['P.V < 100', 'P.V ≥ 30'], ['P.V < 30', 'P.V ≥ 2,5'], ['P.V < 2,5', 'P.V ≥ 1'], ['P.V < 1']];
 
 /**
- * A MATRIZ do item 13.5.1.2, desenhada à mão — e com os TRÊS realces.
+ * A MATRIZ da Tabela 1 (subitem 13.5.1.1), desenhada à mão — e com os TRÊS realces.
  *
  * ## Por que não é `doc.tabela`
  *
@@ -1053,7 +1056,7 @@ export function matrizCategorizacao(doc: Documento, classe: string | null, grupo
 export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
   doc.banner('4. CATEGORIZAÇÃO DE RISCO');
-  doc.texto('Classificação do vaso de pressão conforme o item 13.5.1.2 da norma NR-13.', {
+  doc.texto(`Classificação do vaso de pressão conforme o subitem ${NR13_ITENS.categoriaVaso} da NR-13.`, {
     tamanho: FONTE.nota,
     cor: COR.nota,
     espacoAntes: 1,
@@ -1096,7 +1099,7 @@ export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
   ]);
 
   doc.y += 3.4;
-  doc.texto('Matriz de categoria conforme item 13.5.1.2 da norma NR-13.', {
+  doc.texto(`Matriz de categoria conforme a Tabela 1 do subitem ${NR13_ITENS.categoriaVaso} da NR-13.`, {
     tamanho: FONTE.nota,
     cor: COR.nota,
   });
@@ -1116,7 +1119,7 @@ export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
   ]);
 
   doc.texto(
-    'A categorização segue o item 13.5.1.2 da NR-13: o grupo de potencial de risco resulta do ' +
+    `A categorização segue o subitem ${NR13_ITENS.categoriaVaso} da NR-13 (classes em 13.5.1.1.1, grupos em 13.5.1.1.3 e Tabela 1): o grupo de potencial de risco resulta do ` +
       'produto pressão × volume, e a categoria, do cruzamento desse grupo com a classe do fluido.',
     { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2, id: 'categoria.nota', rotuloCampo: 'Nota da categorização' },
   );

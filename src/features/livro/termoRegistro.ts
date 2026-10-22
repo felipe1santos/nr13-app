@@ -1,3 +1,5 @@
+import { NR13_PORTARIA, itemInspecaoSeguranca } from '../normas/nr13';
+
 /**
  * O que o registro vai dizer — antes de ele existir.
  *
@@ -50,6 +52,11 @@ export interface DadosTermo {
   apto?: boolean | null;
   /** O que foi feito + detalhe — usado no termo de OCORRÊNCIA. */
   descricao?: string;
+  /**
+   * 22/10/2026 · `'caldeira'` cita o subitem de inspeção de caldeira (13.4.4);
+   * o resto, o de vasos (13.5.4). Ausente = vaso, o que sempre foi citado.
+   */
+  tipoEquipamento?: string | null;
 }
 
 /**
@@ -79,8 +86,8 @@ export function termoSugerido(d: DadosTermo): string {
       ? 'foi considerado INAPTO a operar nas condições atuais, conforme conclusão do referido relatório'
       : 'está apto a operar dentro da PMTA estipulada';
   return (
-    `Em ${dataBR}, executou-se inspeção de segurança ${TIPOS_INSPECAO[d.tipo]}, conforme item 13.5.4 ` +
-    `da NR-13, pela empresa habilitada ${empresa}, em obediência à Portaria Mtb nº 3.214, onde o ` +
+    `Em ${dataBR}, executou-se inspeção de segurança ${TIPOS_INSPECAO[d.tipo]}, conforme subitem ` +
+    `${itemInspecaoSeguranca(d.tipoEquipamento)} da NR-13 (${NR13_PORTARIA}), pela empresa habilitada ${empresa}, onde o ` +
     `equipamento a que se refere o relatório de inspeção n° ${d.relatorioCodigo || '--'} ${situacao}.`
   );
 }

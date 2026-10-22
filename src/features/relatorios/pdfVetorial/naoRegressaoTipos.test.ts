@@ -19,6 +19,15 @@
  * §7-quater) — ver `caldeiraEmitidaIntacta.test.ts`.
  *
  * Gravar o baseline: `NR13_GRAVAR_BASELINE=1 npx vitest run naoRegressaoTipos`.
+ *
+ * REGRAVADO EM 22/10/2026 (vaso e autoclave) pela troca da citação da NR-13 para
+ * a redação de 2022 — mudança DECIDIDA, que vale para todo tipo. Conferido antes
+ * por diff palavra a palavra do texto extraído (pdfjs) das composições completa,
+ * vazia e checklist (vaso, autoclave e caldeira), em prévia e final: mesmas páginas, e as ÚNICAS diferenças eram a
+ * portaria (1.082/2018 → 1.846/2022 alterada pela 4.219/2022), os subitens
+ * (13.5.1.2 → 13.5.1.1/Tabela 1; 13.5.1.8 → 13.5.1.7; "item" → "subitem"), a
+ * saída da "Portaria Mtb nº 3.214" e "Profissional Habilitado" → "Profissional
+ * Legalmente Habilitado" (e "profissional habilitado" → "profissional legalmente habilitado (PLH)" no checklist). Das entradas de caldeira, só `caldeira:checklist:*` foi regravada; `caldeira:completo/vazio` seguem as do gerador antigo.
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -236,7 +245,11 @@ afterAll(() => {
   vi.useRealTimers();
   if (GRAVAR) {
     mkdirSync(dirname(ARQUIVO_BASELINE), { recursive: true });
-    writeFileSync(ARQUIVO_BASELINE, JSON.stringify(medidos, null, 2) + '\n');
+    // MESCLA, nunca substitui: as entradas `caldeira:*` são as do gerador ANTIGO
+    // (d2b97da) e `caldeiraEmitidaIntacta.test.ts` depende delas — regravar só
+    // vaso e autoclave não pode apagá-las (22/10/2026).
+    const anterior = existsSync(ARQUIVO_BASELINE) ? JSON.parse(readFileSync(ARQUIVO_BASELINE, 'utf8')) : {};
+    writeFileSync(ARQUIVO_BASELINE, JSON.stringify({ ...anterior, ...medidos }, null, 2) + '\n');
   }
 });
 
@@ -277,7 +290,7 @@ describe('o relatório de cada tipo sai idêntico ao baseline', () => {
     }
   }
 
-  if (!GRAVAR) {
+  {
     for (const [nome, documentos] of Object.entries(COMPOSICOES)) {
       for (const modo of ['preview', 'final'] as const) {
         const chave = `caldeira:${nome}:${modo}`;
@@ -286,6 +299,12 @@ describe('o relatório de cada tipo sai idêntico ao baseline', () => {
           montar('caldeira', 'ZZ-BASE-CALDEIRA');
           const r = await gerarRelatorioVetorial('ZZ-BASE-CALDEIRA', { documentos, certificados: false, modo });
           const h = hashNormalizado(r.bytes);
+          if (GRAVAR) {
+            // As que MUDAM ficam com o hash do gerador antigo (é a entrada da
+            // caldeira emitida); só as "igual" acompanham o texto novo da norma.
+            if (!muda) medidos[chave] = h;
+            return;
+          }
           if (muda) expect(h).not.toBe(baseline[chave]);
           else expect(h).toBe(baseline[chave]);
         }, 120_000);

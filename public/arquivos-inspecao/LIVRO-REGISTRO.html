@@ -166,7 +166,7 @@
                 </div>
             </div>
 
-            <div class="section-title">REGISTRO DE SEGURANÇA — NR-13, ITEM 13.5.1.8 / 13.5.4</div>
+            <div class="section-title">REGISTRO DE SEGURANÇA — NR-13, SUBITENS 13.5.1.7 / 13.5.4 (CALDEIRA: 13.4.1.8 / 13.4.4)</div>
             <div class="subsection-text">Folha individual do Livro de Registro de Segurança do vaso de pressão, para impressão e colagem na folha numerada tipograficamente correspondente do livro físico (caderno de capa dura).</div>
 
             <div class="tipo-inspecao-box">
@@ -347,7 +347,11 @@
                     const situacao = apto === false
                         ? 'foi considerado INAPTO a operar nas condições atuais, conforme conclusão do referido relatório'
                         : 'está apto a operar dentro da PMTA estipulada';
-                    elTexto.textContent = `Em ${dataFimBR}, executou-se inspeção de segurança ${tipoParaTextoDescritivo(tipo)}, conforme item 13.5.4 da NR-13, pela empresa habilitada ${nomeEmpresaInspetora()}, em obediência à Portaria Mtb nº 3.214, onde o equipamento a que se refere o relatório de inspeção n° ${codigoRelatorio || '--'} ${situacao}.`;
+                    // NR-13 2022: 13.4.4 (caldeira) ou 13.5.4 (vaso) — o mesmo texto de src/features/livro/termoRegistro.ts.
+                    let infoNr13 = {};
+                    try { infoNr13 = JSON.parse(localStorage.getItem('nr13_info_' + (new URLSearchParams(location.search).get('tag') || '')) || '{}') || {}; } catch (e) {}
+                    const subitemInspecao = infoNr13.tipo === 'caldeira' ? '13.4.4' : '13.5.4';
+                    elTexto.textContent = `Em ${dataFimBR}, executou-se inspeção de segurança ${tipoParaTextoDescritivo(tipo)}, conforme subitem ${subitemInspecao} da NR-13 (Portaria MTP nº 1.846/2022, alterada pela Portaria MTP nº 4.219/2022), pela empresa habilitada ${nomeEmpresaInspetora()}, onde o equipamento a que se refere o relatório de inspeção n° ${codigoRelatorio || '--'} ${situacao}.`;
                 }
             }
 
@@ -401,7 +405,7 @@
                 // Quem realizou (ocorrência manual: executante + responsável; inspeção: PH + técnico)
                 const linhas = [];
                 if (info.quemRealizou) linhas.push({ rotulo: 'Executante', nome: info.quemRealizou, extra: '' });
-                if (info.phNome) linhas.push({ rotulo: info.manual ? 'Responsável' : 'Profissional Habilitado', nome: info.phNome, extra: info.phCrea ? 'CREA/Registro: ' + info.phCrea : '' });
+                if (info.phNome) linhas.push({ rotulo: info.manual ? 'Responsável' : 'Profissional Legalmente Habilitado', nome: info.phNome, extra: info.phCrea ? 'CREA/Registro: ' + info.phCrea : '' });
                 if (info.tecnicoNome) linhas.push({ rotulo: 'Técnico / Inspetor', nome: info.tecnicoNome, extra: '' });
                 if (linhas.length > 0) {
                     const titulo = document.getElementById('exec-titulo');
@@ -464,7 +468,7 @@
                         rubricaA.appendChild(vazioA);
                     }
                     document.getElementById('assinatura-nome').textContent = a.nome;
-                    document.getElementById('assinatura-cargo').textContent = a.funcao || 'Profissional Habilitado — NR-13';
+                    document.getElementById('assinatura-cargo').textContent = a.funcao || 'Profissional Legalmente Habilitado — NR-13';
                     // Rótulo do registro: usa o campo extra do próprio cadastro quando houver
                     // (o técnico raramente tem CREA) — só cai em "CREA/Registro" como padrão.
                     document.getElementById('assinatura-crea').textContent = rotularRegistro(a.registro, a.rotuloRegistro);
@@ -503,7 +507,7 @@
                         rubrica.appendChild(vazio);
                     }
                     document.getElementById('assinatura-nome').textContent = nomeAssinante;
-                    document.getElementById('assinatura-cargo').textContent = info.assinanteFuncao || (func && func.funcao) || 'Profissional Habilitado — NR-13';
+                    document.getElementById('assinatura-cargo').textContent = info.assinanteFuncao || (func && func.funcao) || 'Profissional Legalmente Habilitado — NR-13';
                     const crea = info.phCrea || (func && func.crea) || '';
                     document.getElementById('assinatura-crea').textContent = crea ? 'CREA/Registro: ' + crea : '';
                     document.getElementById('assinatura-box').style.display = 'block';
