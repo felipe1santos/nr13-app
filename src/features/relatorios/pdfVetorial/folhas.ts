@@ -1509,11 +1509,18 @@ export function folhaDadosInspecao(doc: Documento, m: ModeloRelatorio): void {
   doc.tabela({
     compacta: true,
     colunas: [0.35, 0.15, 0.35, 0.15],
-    linhas: [0, 2, 4].map((i) =>
-      [i, i + 1].flatMap((k) => [
-        { texto: e[k]?.rotulo ?? '', rotulo: true } as CelulaDoc,
-        celulaMarca(!!e[k]?.feito, `inspecao.ensaio-${k}`, `Ensaio — ${e[k]?.rotulo ?? ''}`),
-      ]),
+    // Duas por linha. Com as seis de sempre são as linhas 0, 2 e 4 — o mesmo
+    // desenho de antes; a caldeira tem uma sétima (acumulação), e a meia linha
+    // que sobra fica em branco, sem caixa de marcação nem campo editável.
+    linhas: Array.from({ length: Math.ceil(e.length / 2) }, (_, r) => r * 2).map((i) =>
+      [i, i + 1].flatMap((k) =>
+        k < e.length
+          ? [
+              { texto: e[k]?.rotulo ?? '', rotulo: true } as CelulaDoc,
+              celulaMarca(!!e[k]?.feito, `inspecao.ensaio-${k}`, `Ensaio — ${e[k]?.rotulo ?? ''}`),
+            ]
+          : [{ texto: '', rotulo: true } as CelulaDoc, { texto: '' } as CelulaDoc],
+      ),
     ),
   });
 
@@ -2416,6 +2423,13 @@ export function secoesDoRelatorio(
   // página que não está no documento.
   push(tem.ultrassom && modeloCroqui(m.ultrassom.pontos).temAlgo, '7.4.1', 'Mapa dos pontos de medição de espessura');
   push(tem.th, '7.5', 'Teste hidrostático');
+  // 21/10/2026 · só caldeira: o modelo só tem acumulação quando o tipo é caldeira.
+  push(tem.acumulacao && m.acumulacao !== null, '7.6', 'Ensaio de acumulação');
+  push(
+    tem.acumulacao && (m.acumulacao?.fotos.length ?? 0) > 0,
+    '7.6.1',
+    'Registro fotográfico — ensaio de acumulação',
+  );
   push(tem.fotosDocumentacao && m.fotosDocumentacao.length > 0, '8', 'Registro fotográfico — documentação');
   push(tem.fotosChecklist && m.fotosChecklist.length > 0, '8.0', 'Registro fotográfico — checklist');
   push(tem.fotosExterno && m.visualExterno.fotos.length > 0, '8.1', 'Registro fotográfico — exame externo');

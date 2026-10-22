@@ -7,7 +7,8 @@ import { listarLotes, salvarLote, type LoteCal } from '../calibracoes/componente
 import { listarContainers } from '../inspecoes/inspecaoService';
 import { resumirContainer, rotuloConteudo, type ResumoContainer } from '../inspecoes/resumoContainer';
 import type { TipoEnsaio } from '../inspecoes/tipos';
-import { DOCUMENTOS_DISPONIVEIS, type TipoInspecao } from './tipos';
+import type { TipoInspecao } from './tipos';
+import { documentosDoTipo, tipoDaTag } from '../equipamento/perfilEquipamento';
 import {
   PASSOS,
   alternarDocumento,
@@ -77,6 +78,7 @@ const ROTULOS: Record<string, string> = {
   'VISUAL-EXTERNO.html': 'Inspeção Visual Externa (checklist + folhas de fotos)',
   'VISUAL-INTERNO.html': 'Inspeção Visual Interna (checklist + folhas de fotos)',
   'RELATORIO-IMAGENS.html': 'Relatório de Imagens (fotos descritas do ensaio)',
+  'ENSAIO-ACUMULACAO.html': 'Ensaio de Acumulação (dados + fotos)',
   'LIVRO-REGISTRO.html': 'Livro de Registro de Segurança (NR-13)',
 };
 
@@ -87,6 +89,7 @@ const ENSAIOS = new Set<string>([
   'ULTRASSOM.html',
   'TESTE-HIDROSTATICO.html',
   'RELATORIO-IMAGENS.html',
+  'ENSAIO-ACUMULACAO.html',
 ]);
 
 const ICONE_ENSAIO: Record<TipoEnsaio, NomeIcone> = {
@@ -96,6 +99,7 @@ const ICONE_ENSAIO: Record<TipoEnsaio, NomeIcone> = {
   visual_interno: 'search',
   teste_hidrostatico: 'cylinder',
   relatorio_imagens: 'camera',
+  acumulacao: 'manometro',
 };
 
 /** Item da seção de calibrações: um LOTE inteiro ou uma calibração avulsa antiga. */
@@ -129,8 +133,11 @@ interface Props {
 export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, onGerar }: Props) {
   const [passo, setPasso] = useState<PassoWizard>(1);
   const [tipo, setTipo] = useState<TipoInspecao>('Inspeção Periódica');
+  // As folhas que ESTE equipamento oferece: vaso e autoclave recebem a lista de
+  // sempre; caldeira, a mesma com o Ensaio de Acumulação (perfilEquipamento).
+  const folhasDoTipo = useMemo(() => documentosDoTipo(tipoDaTag(tag)), [tag]);
   const [marcados, setMarcados] = useState<string[]>(
-    DOCUMENTOS_DISPONIVEIS.filter((d) => !ENSAIOS.has(d)),
+    documentosDoTipo(tipoDaTag(tag)).filter((d) => !ENSAIOS.has(d)),
   );
   const [calibSelecionados, setCalibSelecionados] = useState<Set<string>>(new Set());
   const [containerId, setContainerId] = useState<string | null>(null);
@@ -218,7 +225,7 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
         }
       }
     }
-    onGerar({ tipo, documentos: documentosFinais(marcados, docsCalibracao), containerId });
+    onGerar({ tipo, documentos: documentosFinais(marcados, docsCalibracao, folhasDoTipo), containerId });
   }
 
   return (
@@ -302,7 +309,7 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
                   </span>
                 </div>
                 <div className="lista-documentos-scroll">
-                  {DOCUMENTOS_DISPONIVEIS.map((doc) => (
+                  {folhasDoTipo.map((doc) => (
                     <label key={doc} className="item-documento-check">
                       <input
                         type="checkbox"
@@ -469,7 +476,7 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
                   Documentos <span className="wz-rev-cont">{marcados.length}</span>
                 </h4>
                 <ul className="wz-rev-lista">
-                  {DOCUMENTOS_DISPONIVEIS.filter((d) => marcados.includes(d)).map((d) => (
+                  {folhasDoTipo.filter((d) => marcados.includes(d)).map((d) => (
                     <li key={d}>
                       <Icone nome="check" tam={12} /> {ROTULOS[d] || d}
                     </li>

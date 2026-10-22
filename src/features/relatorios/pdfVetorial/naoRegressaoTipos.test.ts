@@ -244,8 +244,18 @@ const baseline: Record<string, string> = existsSync(ARQUIVO_BASELINE)
   ? JSON.parse(readFileSync(ARQUIVO_BASELINE, 'utf8'))
   : {};
 
-/** Tipos cujo documento NÃO pode mudar. Caldeira sai daqui quando ganhar gerador próprio. */
-const IMUTAVEIS: Tipo[] = ['vaso', 'autoclave', 'caldeira'];
+/** Tipos cujo documento NÃO pode mudar um byte. */
+const IMUTAVEIS: Tipo[] = ['vaso', 'autoclave'];
+
+/**
+ * CALDEIRA muda DE PROPÓSITO, e só onde foi decidido:
+ * - Rodada 1 (21/10/2026): a grade "Ensaios realizados" da seção 7 ganha a
+ *   linha "Ensaio de acumulação" — muda toda composição que tem a seção 7
+ *   ('completo' e 'vazio'); o avulso de cada ensaio fica igual.
+ * O documento de caldeira JÁ EMITIDO não muda: é servido pelos bytes
+ * (`caldeiraEmitidaIntacta.test.ts`, com o PDF do gerador antigo como fixture).
+ */
+const CALDEIRA_MUDA: ReadonlySet<string> = new Set(['completo', 'vazio']);
 
 describe('o relatório de cada tipo sai idêntico ao baseline', () => {
   for (const tipo of IMUTAVEIS) {
@@ -262,6 +272,22 @@ describe('o relatório de cada tipo sai idêntico ao baseline', () => {
             expect(baseline[chave], `baseline ausente para ${chave}`).toBeDefined();
             expect(h).toBe(baseline[chave]);
           }
+        }, 120_000);
+      }
+    }
+  }
+
+  if (!GRAVAR) {
+    for (const [nome, documentos] of Object.entries(COMPOSICOES)) {
+      for (const modo of ['preview', 'final'] as const) {
+        const chave = `caldeira:${nome}:${modo}`;
+        const muda = CALDEIRA_MUDA.has(nome);
+        it(`${chave} — ${muda ? 'MUDA (decidido)' : 'igual'}`, async () => {
+          montar('caldeira', 'ZZ-BASE-CALDEIRA');
+          const r = await gerarRelatorioVetorial('ZZ-BASE-CALDEIRA', { documentos, certificados: false, modo });
+          const h = hashNormalizado(r.bytes);
+          if (muda) expect(h).not.toBe(baseline[chave]);
+          else expect(h).toBe(baseline[chave]);
         }, 120_000);
       }
     }

@@ -23,6 +23,8 @@ import { ITENS_VISUAL_INTERNO } from '../../inspecoes/formularios/FormularioVisu
 import type { RefFoto } from '../../../services/fotos';
 import { normalizarFotos, type FotoDescrita } from '../../inspecoes/fotosDescritas';
 import type { RelatorioMeta } from '../tipos';
+import { modeloAcumulacao, type ModeloAcumulacao } from './modeloAcumulacao';
+import { acumulacaoPreenchida, type DadosAcumulacao } from '../../inspecoes/acumulacao';
 import { rotuloClasseFluido, rotuloEnquadramento, rotuloResposta, rotuloResultado, rotuloSubtipo, rotuloTipoEquipamento } from './rotulos';
 
 /**
@@ -460,6 +462,11 @@ export interface ModeloRelatorio {
     fotos: FotoDescrita[];
     desenho: { dataUrl: string; descricao: string; proporcao?: number }[];
   };
+  /**
+   * 21/10/2026 · ENSAIO DE ACUMULAÇÃO — só caldeira. `null` quando o container
+   * não tem o ensaio (todo vaso e autoclave): nada muda no documento deles.
+   */
+  acumulacao: ModeloAcumulacao | null;
   /**
    * Fase 6.2 · 12. LIVRO DE REGISTRO DE SEGURANÇA — só o que o resto do modelo
    * ainda não tinha. Empresa proprietária, equipamento, pressões, laudo, datas
@@ -1160,6 +1167,11 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
         { rotulo: 'ULTRASSOM (MEDIÇÃO DE ESPESSURA)', feito: temUltrassom },
         { rotulo: 'LÍQUIDO PENETRANTE', feito: false },
         { rotulo: 'PARTÍCULA MAGNÉTICA', feito: false },
+        // 21/10/2026 · só CALDEIRA ganha a linha: em vaso e autoclave a grade
+        // continua com as mesmas seis, e o documento não muda.
+        ...(info.tipo === 'caldeira'
+          ? [{ rotulo: 'ENSAIO DE ACUMULAÇÃO', feito: !!inj.acumulacao && acumulacaoPreenchida(inj.acumulacao as Partial<DadosAcumulacao>) }]
+          : []),
       ],
       resultadoVisualExterno: rotuloResultado((inj.visual_externo as Record<string, unknown>)?.resultado as string),
       resultadoVisualInterno: rotuloResultado((inj.visual_interno as Record<string, unknown>)?.resultado as string),
@@ -1306,6 +1318,14 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
       desenho: [],
     },
     livro: livroDoModelo(tag, info, meta),
+    acumulacao:
+      info.tipo === 'caldeira'
+        ? modeloAcumulacao(
+            inj.acumulacao,
+            meta?.codigo,
+            numeroDoStorage(info.pmtaAdotadaMpa) ?? numeroDoStorage(calc.pmta),
+          )
+        : null,
   };
 }
 

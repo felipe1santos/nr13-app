@@ -31,6 +31,7 @@ import {
 import { medirFotos, montarModeloRelatorio, type FontesDoModelo, type FotoModelo, type ModeloRelatorio } from './modelo';
 import { baixarFoto, blobParaDataUrl } from '../../../services/fotos';
 import { TITULO_LIVRO, TITULO_REGISTRO, TITULO_TERMO, secaoLivroRegistro } from './livroRegistro';
+import { folhasAcumulacao } from './folhaAcumulacao';
 import { resolverPlacaReal } from '../placaIdentificacao';
 
 /**
@@ -234,6 +235,15 @@ function emitir(
       }
     }
   }
+  // 7.6 · 21/10/2026 — o Ensaio de Acumulação (só caldeira), logo depois do TH.
+  if (tem.acumulacao && m.acumulacao) {
+    const antes = doc.pdf.getNumberOfPages();
+    folhasAcumulacao(doc, m, true);
+    if (registrar) {
+      registrar.set('Ensaio de acumulação', antes + 1);
+      if (m.acumulacao.fotos.length > 0) registrar.set('Registro fotográfico — ensaio de acumulação', antes + 2);
+    }
+  }
   // 8.4 · Fase 5.2 — o Relatório de Imagens, pelo MESMO desenho do avulso
   // (`secaoRelatorioImagens` → `desenharFotosDescritas`), no cabeçalho, rodapé
   // e paginação deste documento. Depois dos ensaios e antes do parecer.
@@ -326,6 +336,10 @@ async function comFotosMedidas(m: ModeloRelatorio): Promise<ModeloRelatorio> {
     resolverFotos(m.visualInterno.fotos).then(medirFotos),
     resolverFotos(m.th.fotos).then(medirFotos),
   ]);
+  // 21/10/2026 · fotos da acumulação: só existe em caldeira; `null` não baixa nada.
+  const acumulacao = m.acumulacao
+    ? { ...m.acumulacao, fotos: await resolverFotos(m.acumulacao.fotos).then(medirFotos) }
+    : null;
   return {
     ...m,
     fotosDocumentacao: doc,
@@ -333,6 +347,7 @@ async function comFotosMedidas(m: ModeloRelatorio): Promise<ModeloRelatorio> {
     visualExterno: { ...m.visualExterno, fotos: ve },
     visualInterno: { ...m.visualInterno, fotos: vi },
     th: { ...m.th, fotos: th },
+    acumulacao,
   };
 }
 

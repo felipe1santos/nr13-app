@@ -1,5 +1,6 @@
 import type { RelatorioMeta } from './tipos';
 import { resolverValor, type MapaOverrides } from './overridesRelatorio';
+import { acumulacaoPreenchida, dadosPadraoAcumulacao, verificarAcumulacao, type DadosAcumulacao } from '../inspecoes/acumulacao';
 import { listaDeItens, precisaConfirmarSemantica } from '../inspecoes/formularios/semanticaNc';
 import { ITENS_VISUAL_EXTERNO } from '../inspecoes/formularios/FormularioVisualExterno';
 import { ITENS_VISUAL_INTERNO } from '../inspecoes/formularios/FormularioVisualInterno';
@@ -62,6 +63,11 @@ export interface EntradaValidacao {
    * pode ter sido escrita DENTRO do documento, e não no formulário — ela vale.
    */
   overrides?: MapaOverrides;
+  /**
+   * 21/10/2026 · PMTA do documento (adotada ?? calculada), em MPa — só o Ensaio
+   * de Acumulação a usa, para o ALERTA de 1,06 × PMTA. Ausente = sem alerta.
+   */
+  pmtaMpa?: number | null;
 }
 
 function vazio(v: string | undefined | null): boolean {
@@ -163,6 +169,25 @@ export function validarParaFinalizar(e: EntradaValidacao): ResultadoValidacao {
     // ser copiado do fluido de operação. Sem ele, avisa — não bloqueia.
     if (vazio(texto(th?.fluido))) {
       opcionais.push({ campo: 'th.fluido', texto: 'Fluido do teste hidrostático não informado', onde: 'Inspeção · Teste hidrostático' });
+    }
+  }
+
+  // 21/10/2026 · ENSAIO DE ACUMULAÇÃO (só caldeira oferece a folha). As regras
+  // são as do formulário (`verificarAcumulacao`): erro bloqueia — o laudo
+  // sairia contraditório —, alerta só avisa, porque a decisão é do PLH.
+  if (tem(e.documentos, 'ENSAIO-ACUMULACAO.html')) {
+    const onde = 'Inspeção · Ensaio de acumulação';
+    const bruto = bloco<Partial<DadosAcumulacao>>(e.dadosContainer, 'acumulacao');
+    if (!bruto || !acumulacaoPreenchida(bruto)) {
+      obrigatorios.push({ campo: 'acumulacao', texto: 'Ensaio de acumulação escolhido, mas não preenchido', onde });
+    } else {
+      const d = { ...dadosPadraoAcumulacao(''), ...bruto } as DadosAcumulacao;
+      for (const a of verificarAcumulacao(d, { pmtaMpa: e.pmtaMpa ?? null })) {
+        (a.nivel === 'erro' ? obrigatorios : opcionais).push({ campo: `acumulacao.${a.campo}`, texto: a.texto, onde });
+      }
+      if (vazio(texto(d.resultado))) {
+        opcionais.push({ campo: 'acumulacao.resultado', texto: 'Resultado do ensaio de acumulação não informado', onde });
+      }
     }
   }
 

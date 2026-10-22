@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Icone, type NomeIcone } from '../../components/Icone';
 import { listarContainers } from '../inspecoes/inspecaoService';
-import { ENSAIOS_DISPONIVEIS, FORM_POR_ENSAIO, type TipoEnsaio } from '../inspecoes/tipos';
+import { FORM_POR_ENSAIO, TODOS_ENSAIOS, type TipoEnsaio } from '../inspecoes/tipos';
 import '../equipamento/equipamento.css';
 
 interface Props {
@@ -18,10 +18,11 @@ const ICONE_ENSAIO: Record<TipoEnsaio, NomeIcone> = {
   visual_interno: 'search',
   teste_hidrostatico: 'cylinder',
   relatorio_imagens: 'camera',
+  acumulacao: 'manometro',
 };
 
 function rotuloEnsaio(e: TipoEnsaio): string {
-  return ENSAIOS_DISPONIVEIS.find((d) => d.value === e)?.label ?? e;
+  return TODOS_ENSAIOS.find((d) => d.value === e)?.label ?? e;
 }
 
 // dd/mm/aaaa para exibição; datas ISO dos inputs date (aaaa-mm-dd) são convertidas.

@@ -1,4 +1,5 @@
 import type { FormularioEnsaio } from './tipos';
+import { dadosPadraoAcumulacao, instrumentoDoEnsaio, pressaoNasCincoUnidades, type DadosAcumulacao } from './acumulacao';
 import FotoImg from '../../components/FotoImg';
 import { normalizarFotos, rotuloFoto } from './fotosDescritas';
 import { ehSistemaUnidade, rotuloPressao } from '../../calc/unidades';
@@ -497,6 +498,51 @@ interface Props {
   tag: string;
 }
 
+/** 21/10/2026 · Ensaio de Acumulação (só caldeira), somente leitura. */
+function ViewAcumulacao({ dados }: { dados: DadosAcumulacao }) {
+  const d = { ...dadosPadraoAcumulacao(''), ...dados };
+  const inst = instrumentoDoEnsaio(d);
+  const cinco = pressaoNasCincoUnidades(d);
+  const sn = (v: string) => (v === 'sim' ? 'SIM' : v === 'nao' ? 'NÃO' : undefined);
+  return (
+    <>
+      <SecaoViz titulo="Dados Gerais">
+        <Campo label="Contratante" valor={d.contratante} />
+        <Campo label="Endereço" valor={d.endereco} />
+        <Campo label="Data do ensaio" valor={d.dataEnsaio ? d.dataEnsaio.split('-').reverse().join('/') : undefined} />
+      </SecaoViz>
+      <SecaoViz titulo="Equipamento">
+        <Campo label="Identificação" valor={d.identificacao} />
+        <Campo label="Nº de série" valor={d.serie} />
+        <Campo label="Tipo" valor={d.tipoEquipamento} />
+        <Campo label="Fabricante" valor={d.fabricante} />
+      </SecaoViz>
+      <SecaoViz titulo="Parâmetros e Instrumento">
+        <Campo label="Procedimento" valor={d.procedimento} />
+        <Campo label="Normas" valor={d.normas} />
+        <Campo label="Instrumento" valor={[inst.instrumento, inst.fabricante, inst.tipo].filter(Boolean).join(' · ')} />
+        <Campo label="Identificação" valor={inst.identificacao} />
+        <Campo label="Escala" valor={inst.escala} />
+        <Campo label="Validade da calibração" valor={inst.validade} />
+      </SecaoViz>
+      <SecaoViz titulo="Dados do Teste">
+        <Campo label="Estabilização (min)" valor={d.tempoEstabilizacaoMin} />
+        <Campo label="Início / término" valor={[d.horaInicio, d.horaTermino].filter(Boolean).join(' – ')} />
+        <Campo label="Pressão máxima" valor={cinco ? `${cinco.MPa} MPa · ${cinco.kPa} kPa · ${cinco.psi} psi · ${cinco['kgf/cm²']} kgf/cm² · ${cinco.bar} bar` : undefined} />
+        <Campo label="Válvulas suficientes" valor={sn(d.valvulasSuficientes)} />
+        <Campo label="Não conformidade" valor={sn(d.ncEncontrada)} />
+        <Campo label="Justificativa" valor={d.justificativaNc} />
+      </SecaoViz>
+      <SecaoViz titulo="Laudo">
+        <Campo label="Laudo" valor={d.laudo} />
+        <Campo label="Resultado" valor={d.resultado ? d.resultado.toUpperCase() : undefined} />
+        <Campo label="Observações" valor={d.observacoes} />
+      </SecaoViz>
+      <GaleriaFotos fotos={d.fotos} />
+    </>
+  );
+}
+
 export default function VisualizadorFormulario({ formulario, dados }: Props) {
   if (!dados) return <p style={{ padding: 20, color: '#6b7280' }}>Nenhum dado registrado para este formulário.</p>;
 
@@ -511,6 +557,8 @@ export default function VisualizadorFormulario({ formulario, dados }: Props) {
       return <ViewUltrassom dados={dados as DadosUltrassom} />;
     case 'th':
       return <ViewTH dados={dados as DadosTH} />;
+    case 'acumulacao':
+      return <ViewAcumulacao dados={dados as DadosAcumulacao} />;
     case 'imagens': {
       const d = dados as { dataRegistro?: string; observacoes?: string; fotos?: unknown };
       return (

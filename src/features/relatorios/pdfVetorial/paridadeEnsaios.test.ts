@@ -224,6 +224,8 @@ const ESPERADO: Record<FormularioEnsaio, string[]> = {
   manometro: [],
   psv: [],
   imagens: [],
+  // Só caldeira; o fixture desta paridade é um vaso (ver ensaioAcumulacao.test.ts).
+  acumulacao: [],
 };
 
 /** Cabeçalhos que identificam a seção daquele ensaio nos dois documentos. */
@@ -236,6 +238,8 @@ const CABECALHOS: Record<FormularioEnsaio, string[]> = {
   manometro: [],
   psv: [],
   imagens: [],
+  // Só caldeira; o fixture desta paridade é um vaso (ver ensaioAcumulacao.test.ts).
+  acumulacao: [],
 };
 
 describe.each(ENSAIOS)('%s — o avulso e o relatório dizem a mesma coisa', (ensaio) => {

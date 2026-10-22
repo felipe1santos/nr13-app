@@ -54,7 +54,7 @@ const folhas = fonte('src/features/relatorios/pdfVetorial/folhas.ts');
  * vista e errado na página 8.
  */
 const CAMPOS: Array<{ controle: string; chave: string; leituras: number; onde: string }> = [
-  { controle: 'codigo', chave: 'codigo', leituras: 2, onde: 'capa + folha de exames' },
+  { controle: 'codigo', chave: 'codigo', leituras: 3, onde: 'capa + folha de exames + nº rastreável do ensaio de acumulação (código + /EA, só caldeira)' },
   { controle: 'emissao', chave: 'emissao', leituras: 1, onde: 'capa (só como reserva da execução)' },
   { controle: 'validade', chave: 'validade', leituras: 1, onde: 'capa + folha de datas' },
   { controle: 'execucaoInspecao', chave: 'execucaoInspecao', leituras: 4, onde: 'capa + datas + exames (início e término) + validade das calibrações do quadro 7.1.1' },

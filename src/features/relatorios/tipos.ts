@@ -38,7 +38,7 @@ export const DOCUMENTOS_DISPONIVEIS = [
  * iframe apontando para um arquivo inexistente seria uma página de erro
  * fotografada dentro do documento.
  */
-export const FOLHAS_SO_VETORIAIS: ReadonlySet<string> = new Set(['RELATORIO-IMAGENS.html']);
+export const FOLHAS_SO_VETORIAIS: ReadonlySet<string> = new Set(['RELATORIO-IMAGENS.html', 'ENSAIO-ACUMULACAO.html']);
 
 /** A folha tem template HTML para montar em iframe? */
 export function temTemplateHtml(doc: string): boolean {

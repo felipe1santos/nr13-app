@@ -21,8 +21,9 @@ const PREVIEW = readFileSync('src/features/inspecoes/PreviewDocumento.tsx', 'utf
 const MODULO = readFileSync('src/features/inspecoes/documentoVetorial.ts', 'utf8');
 
 describe('quais ensaios têm documento vetorial', () => {
-  it('os cinco ensaios do relatório — e só eles', () => {
-    expect(ENSAIOS_VETORIAIS).toEqual(['checklist', 'visual_externo', 'visual_interno', 'ultrassom', 'th']);
+  it('os ensaios do relatório — e só eles', () => {
+    // 21/10/2026 · + 'acumulacao' (só caldeira oferece o ensaio).
+    expect(ENSAIOS_VETORIAIS).toEqual(['checklist', 'visual_externo', 'visual_interno', 'ultrassom', 'th', 'acumulacao']);
     expect(temDocumentoVetorial('ultrassom')).toBe(true);
     // Certificado de calibração NÃO tem folha vetorial (§7-septies): ele é
     // montado num host isolado e rasterizado. Vetorizá-lo aqui seria criar o

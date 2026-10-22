@@ -39,16 +39,30 @@ const ICONES: Record<TipoEnsaio, React.ReactNode> = {
       <circle cx="12" cy="13" r="4"/>
     </svg>
   ),
+  // Manômetro: o ensaio de acumulação é a leitura da pressão máxima com as
+  // válvulas abertas.
+  acumulacao: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="13" r="8"/>
+      <path d="M12 13l3-3"/>
+      <path d="M12 2v3"/>
+    </svg>
+  ),
 };
 
 interface Props {
   onClose: () => void;
   onCriar: (ensaios: TipoEnsaio[], nome: string) => void;
+  /**
+   * Os ensaios que este equipamento oferece (`perfilEquipamento.ensaiosDoTipo`).
+   * Ausente = a lista de sempre — vaso e autoclave não mudam.
+   */
+  ensaios?: { value: TipoEnsaio; label: string }[];
   // ao só adicionar ensaios a um container existente, o nome já existe — não pedir de novo
   pedirNome?: boolean;
 }
 
-export default function ModalNovaInspecaoContainer({ onClose, onCriar, pedirNome = true }: Props) {
+export default function ModalNovaInspecaoContainer({ onClose, onCriar, pedirNome = true, ensaios = ENSAIOS_DISPONIVEIS }: Props) {
   const [marcados, setMarcados] = useState<TipoEnsaio[]>([]);
   const [nome, setNome] = useState('');
 
@@ -81,7 +95,7 @@ export default function ModalNovaInspecaoContainer({ onClose, onCriar, pedirNome
           )}
           <fieldset className="tipo-equipamento-fieldset">
             <legend>Ensaios a atribuir a este container</legend>
-            {ENSAIOS_DISPONIVEIS.map((e) => (
+            {ensaios.map((e) => (
               <label key={e.value} className="radio-card" style={{ cursor: 'pointer' }}>
                 <input type="checkbox" checked={marcados.includes(e.value)} onChange={() => toggle(e.value)} />
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

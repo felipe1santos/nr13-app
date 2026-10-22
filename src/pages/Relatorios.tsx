@@ -67,6 +67,7 @@ import { validarParaFinalizar, type LaudoConclusao, type ResultadoValidacao } fr
 import { salvarRascunho as gravarRascunho } from '../features/relatorios/historicoRelatorios';
 import { ehRascunhoConhecido } from '../features/relatorios/rascunhos';
 import { duplicarRelatorio } from '../features/relatorios/duplicarRelatorio';
+import { pmtaDoDocumentoMpa } from '../features/equipamento/perfilEquipamento';
 import { abrirRelatorio, avisoDaAbertura } from '../features/relatorios/aberturaRelatorio';
 import { ultimaLacrada, type LivroEntrada } from '../features/relatorios/livroLacre';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
@@ -1124,6 +1125,7 @@ function RelatoriosLegado() {
         laudo: ler<LaudoConclusao>(`nr13_laudo_${tag}`),
         dadosContainer,
         overrides,
+        pmtaMpa: pmtaDoDocumentoMpa(tag),
       }),
     );
   }
