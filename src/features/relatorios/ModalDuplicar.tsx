@@ -48,7 +48,8 @@ export default function ModalDuplicar({
             <Icone nome="copy" tam={18} />
             <div>
               Será criado um <b>novo rascunho</b>, editável, a partir de <b>{nome}</b>. O original{' '}
-              <b>não muda</b>: o PDF e o código de verificação continuam os mesmos. Na cópia, as datas da
+              <b>não muda</b>: o PDF e o código de verificação continuam os mesmos. A cópia recebe os seus
+              próprios dados de inspeção (medições, ensaios e fotos), copiados do original; a emissão, as datas da
               inspeção, a validade e a ART começam em branco.
             </div>
           </div>

@@ -33,7 +33,9 @@
  *
  * ## Datas
  *
- * - IDENTIDADE (novas): `emissao` e `data` = hoje, como num relatório novo.
+ * - IDENTIDADE: `data` (do registro) = hoje. A `emissao` nasce VAZIA
+ *   (22/10/2026): emissão é ato da finalização, e a finalização já exige a
+ *   data — a cópia não sai afirmando uma emissão que não aconteceu.
  * - DA INSPEÇÃO (vazias): `execucaoInspecao`, `validade`,
  *   `proximaInspecaoInterna/Externa`, `validadeValvula` e `art`. Copiá-las
  *   faria a cópia, meses depois, parecer a inspeção antiga emitida de novo.
@@ -41,13 +43,15 @@
  *
  * ## Fotos e anexos
  *
- * A cópia não copia arquivo nenhum: aponta para o MESMO container, cujas fotos
- * são referências ao bucket. Nenhum caminho do sistema apaga arquivo do bucket
+ * A cópia não copia arquivo nenhum: ganha um container PRÓPRIO, com os dados
+ * do original copiados, e as fotos continuam sendo referências ao MESMO arquivo
+ * no bucket. Nenhum caminho do sistema apaga arquivo do bucket
  * (§6-bis: remover foto tira só a referência), e o original finalizado é o seu
  * PDF arquivado — os bytes não dependem do container. Excluir a cópia apaga só
  * o registro e os overrides DELA.
  */
-import { ler } from '../../services/storage';
+import { ler, semearEquipamentoDetalhado } from '../../services/storage';
+import { copiarContainer } from '../inspecoes/inspecaoService';
 import { chaveRelatorio, salvarRascunho } from './historicoRelatorios';
 import { abrirRelatorio, type EstadoAbertura } from './aberturaRelatorio';
 import { carregarOverrides, gravarOverrides, type MapaOverrides } from './overridesRelatorio';
@@ -96,7 +100,7 @@ export function montarDuplicata(original: RelatorioSalvo, op: OpcoesDuplicata): 
   const m = original.meta;
   const meta: RelatorioMeta = {
     codigo: op.codigo,
-    emissao: op.hojeBr,
+    emissao: '',
     validade: '',
     execucaoInspecao: '',
     proximaInspecaoInterna: '',
@@ -161,6 +165,33 @@ export async function duplicarRelatorio(
     hojeBr: new Date(agora).toLocaleDateString('pt-BR'),
     modeloDocumento: modeloDaEmpresa(),
   });
+
+  // CONTAINER PRÓPRIO (22/10/2026). Antes a cópia apontava para o MESMO
+  // container do original: editar medição, acumulação ou foto na cópia mudava o
+  // registro de campo da inspeção original (tela de Inspeções e o relatório
+  // legado que se remonta dele). Agora a cópia ganha um container novo, com os
+  // dados copiados; os arquivos de foto são os mesmos (referência imutável).
+  const origemId = original.meta?.containerOrigemId;
+  if (origemId) {
+    let novo = await copiarContainer(tag, origemId);
+    if (!novo) {
+      // Cache sem a lista de containers (aparelho novo): busca só esta chave.
+      try {
+        await semearEquipamentoDetalhado([`nr13_docs_${tag}`]);
+      } catch {
+        /* a releitura abaixo decide */
+      }
+      novo = await copiarContainer(tag, origemId);
+    }
+    if (novo) copia.meta = { ...copia.meta, containerOrigemId: novo.id };
+    else {
+      // O container de origem não existe mais (excluído): a cópia nasce sem
+      // dados de campo — nunca apontando para um container alheio.
+      const { containerOrigemId: _sem, ...resto } = copia.meta;
+      void _sem;
+      copia.meta = resto;
+    }
+  }
 
   // As correções de texto vão para a chave da CÓPIA. A do original é só lida.
   const ovr = overridesDaCopia(carregarOverrides(original.meta?.codigo ?? original.id, tag));

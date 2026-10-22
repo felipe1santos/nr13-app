@@ -34,6 +34,36 @@ export async function criarContainer(tag: string, ensaios: TipoEnsaio[], nome?: 
   return novo;
 }
 
+/**
+ * COPIAR um container — usado pelo Duplicar relatório (22/10/2026).
+ *
+ * A cópia de um relatório ganha o SEU container: editar medição, ensaio ou foto
+ * na cópia não pode mexer no registro de campo da inspeção original (que a tela
+ * de Inspeções mostra e que o relatório legado, sem PDF arquivado, remonta).
+ *
+ * Só ACRESCENTA um item à lista — o original é lido, nunca regravado de outro
+ * jeito. Os dados vão por cópia profunda; as fotos continuam apontando para os
+ * MESMOS arquivos do bucket (referência, nunca cópia nem movimentação): nenhum
+ * caminho do sistema apaga arquivo do bucket (§6-bis), e remover uma foto da
+ * cópia tira só a referência dela.
+ *
+ * Devolve `null` quando o container de origem não está na lista.
+ */
+export async function copiarContainer(tag: string, origemId: string, nome?: string): Promise<ContainerInspecao | null> {
+  const atuais = containersBrutos(tag);
+  const origem = visiveis(atuais).find((c) => c.id === origemId);
+  if (!origem) return null;
+  const novo: ContainerInspecao = {
+    id: `cont${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
+    nome: (nome ?? '').trim() || `Cópia de ${origem.nome}`,
+    criadoEm: new Date().toLocaleDateString('pt-BR'),
+    ensaios: [...origem.ensaios],
+    dados: structuredClone(origem.dados ?? {}),
+  };
+  await salvar(chave(tag), [...atuais, novo]);
+  return novo;
+}
+
 export async function removerContainer(tag: string, id: string): Promise<void> {
   const atuais = containersBrutos(tag);
   await salvar(chave(tag), excluirPorId(atuais, id));

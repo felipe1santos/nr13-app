@@ -392,7 +392,7 @@ describe('o documento — prévia e emissão', () => {
 });
 
 describe('Duplicar relatório leva o ensaio de acumulação', () => {
-  it('a cópia mantém a folha e o MESMO container — o ensaio vem junto, sem copiar arquivo', async () => {
+  it('a montagem da cópia mantém a folha e a referência ao container (o serviço troca pelo container copiado)', async () => {
     const { montarDuplicata } = await import('../relatorios/duplicarRelatorio');
     const copia = montarDuplicata(
       {
