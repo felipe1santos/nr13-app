@@ -4,6 +4,8 @@ import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import { AvisoRevisaoNc, CabecalhoNaoConformidade, ItemNaoConformidade } from './ExameNaoConformidade';
 import { SEMANTICA_NC_ATUAL, carimboInicial, precisaConfirmarSemantica, type RespostaNc } from './semanticaNc';
 import { mesclarPreenchimento, prefillVisual } from './autoPreencher';
+import { CATALOGO_CALDEIRA, ITENS_VE_CALDEIRA, usaCatalogoCaldeira } from '../../caldeira/itensVisuaisCaldeira';
+import { ehCaldeira, tipoDaTag } from '../../equipamento/perfilEquipamento';
 import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
 import type { RefFoto } from '../../../services/fotos';
 import EditorFotosDescritas from '../EditorFotosDescritas';
@@ -65,6 +67,11 @@ interface DadosVisual {
    * respostas = preenchido antes; fica para revisão. Ver `semanticaNc.ts`.
    */
   semanticaNc?: number;
+  /**
+   * 22/10/2026 · catálogo de perguntas de CALDEIRA (`itensVisuaisCaldeira.ts`).
+   * Só existe em registro de caldeira; vaso e autoclave nunca o recebem.
+   */
+  catalogo?: string;
 }
 
 function dadosPadrao(): DadosVisual {
@@ -93,7 +100,11 @@ export default function FormularioVisualExterno({ tag, containerId }: { tag: str
     const mesclado = mesclarPreenchimento(dadosPadrao(), prefillVisual(tag), salvo);
     // O carimbo NÃO vem do padrão: registro antigo com respostas fica sem ele
     // até a revisão explícita (`AvisoRevisaoNc`).
-    return { ...mesclado, semanticaNc: carimboInicial(salvo) };
+    // Caldeira sem respostas ainda (ou já carimbada) usa as perguntas de
+    // caldeira; registro antigo respondido segue com a lista em que foi
+    // respondido — nunca se reinterpreta um número gravado.
+    const caldeira = usaCatalogoCaldeira(salvo, ehCaldeira(tipoDaTag(tag)));
+    return { ...mesclado, semanticaNc: carimboInicial(salvo), ...(caldeira ? { catalogo: CATALOGO_CALDEIRA } : {}) };
   });
   useAutosaveFormulario(tag, containerId, 'visual_externo', dados);
   // 10/09/2026 · o aviso de salvamento passou a ser UM componente do sistema
@@ -117,6 +128,8 @@ export default function FormularioVisualExterno({ tag, containerId }: { tag: str
   function setItemObs(n: number, val: string) {
     setDados((d) => ({ ...d, itemObs: { ...d.itemObs, [String(n)]: val } }));
   }
+
+  const itensDoRegistro = dados.catalogo === CATALOGO_CALDEIRA ? ITENS_VE_CALDEIRA : ITENS;
 
   async function salvar() {
     await salvamento.executar(() => salvarDadosFormulario(tag, containerId, 'visual_externo', dados));
@@ -152,9 +165,9 @@ export default function FormularioVisualExterno({ tag, containerId }: { tag: str
             Sem ela, SIM se lia "está ok"; no laudo, SIM é não conformidade. */}
         {precisaConfirmarSemantica(dados) && <AvisoRevisaoNc aoConfirmar={confirmarSemantica} />}
         <CabecalhoNaoConformidade
-          respostas={ITENS.map((_, idx) => (dados.itens[String(idx + 1)] ?? '') as RespostaNc)}
+          respostas={itensDoRegistro.map((_, idx) => (dados.itens[String(idx + 1)] ?? '') as RespostaNc)}
         />
-        {ITENS.map((item, idx) => {
+        {itensDoRegistro.map((item, idx) => {
           const n = idx + 1;
           return (
             <ItemNaoConformidade

@@ -10,6 +10,7 @@ import DadosEmpresa from '../features/equipamento/DadosEmpresa';
 import FotoIdentificacao from '../features/equipamento/FotoIdentificacao';
 import CategoriaNR13 from '../features/categoria/CategoriaNR13';
 import VidaRemanescente from '../features/equipamento/VidaRemanescente';
+import FichaCaldeira from '../features/caldeira/FichaCaldeira';
 import PressoesDocumentacao from '../features/equipamento/PressoesDocumentacao';
 import ProntuarioDoEquipamento from '../features/prontuarios/ProntuarioDoEquipamento';
 import { formatarValor, rotuloSistemaCompleto } from '../calc/unidades';
@@ -329,6 +330,15 @@ function EquipamentoView({ tag }: { tag: string }) {
             equipamento, a mesma que a Categoria NR-13 recebe na linha acima. */}
         <PressoesDocumentacao tag={tag} info={info} unidade={unidade} onSalvo={setInfo} />
       </section>
+
+      {/* 22/10/2026 · só CALDEIRA: construção, operação, controles e acessórios. */}
+      {info.tipo === 'caldeira' && (
+        <section className="equipamento-secao" data-secao="caldeira">
+          <div className="bloco-dados">
+            <FichaCaldeira tag={tag} />
+          </div>
+        </section>
+      )}
 
       <section className="equipamento-secao" data-secao="vida">
         <VidaRemanescente tag={tag} info={info} />

@@ -144,7 +144,8 @@ const LEITOR: Record<FormularioEnsaio, (d: Blob) => Omit<EnsaioResumido, 'ensaio
   visual_externo: (d) => lerVisual(d),
   visual_interno: (d) => lerVisual(d),
   ultrassom: (d) => {
-    const medicoes = contarMedicoes(d.medidas);
+    // 22/10/2026 · + a grade de CALDEIRA (`ultrassom.caldeira`), mesmo formato de dois níveis.
+    const medicoes = contarMedicoes(d.medidas) + contarMedicoes(d.caldeira);
     const resultado = txt(d.resultado);
     const conclusao = txt(d.observacoes);
     return {

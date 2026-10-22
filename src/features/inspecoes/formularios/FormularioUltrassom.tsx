@@ -4,6 +4,9 @@ import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import { mesclarPreenchimento, prefillUltrassom } from './autoPreencher';
 import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
 import FeedbackSalvamento, { useSalvamento } from '../../../components/FeedbackSalvamento';
+import GradeMedicaoCaldeira from '../../caldeira/GradeMedicaoCaldeira';
+import type { MedicaoCaldeira } from '../../caldeira/medicaoCaldeira';
+import { ehCaldeira, tipoDaTag } from '../../equipamento/perfilEquipamento';
 
 const ESTILO_DICA = { fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 } as const;
 const DICA_AUTO = 'Campos preenchidos automaticamente a partir do cadastro; edite se necessário.';
@@ -120,6 +123,8 @@ interface Dados {
   pontos: PontoME[];
   /** Nº de colunas (pontos na circunferência) por região. Ausente em dados antigos => 4. */
   colunas: ColunasME;
+  /** 22/10/2026 · a grade de CALDEIRA (corpo, fornalha, chaminé, reversão, espelhos). Só caldeira. */
+  caldeira?: MedicaoCaldeira;
 }
 
 function linhaVazia(colunas: number): Record<string, string> {
@@ -230,6 +235,11 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
   const salvamento = useSalvamento();
   const salvando = salvamento.salvando;
   const [removendo, setRemovendo] = useState<string | null>(null);
+
+  const ehCaldeiraTag = ehCaldeira(tipoDaTag(tag));
+  const gradeVasoTemValor = Object.values(dados.medidas ?? {}).some((linha) =>
+    Object.values(linha ?? {}).some((v) => typeof v === 'string' && v.trim() !== ''),
+  );
 
   function set(chave: keyof Dados, valor: string) {
     setDados((d) => ({ ...d, [chave]: valor }));
@@ -363,8 +373,15 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
         </div>
       </div>
 
+      {ehCaldeiraTag && (
+        <GradeMedicaoCaldeira valor={dados.caldeira} aoMudar={(caldeira) => setDados((d) => ({ ...d, caldeira }))} />
+      )}
+
+      {/* Na caldeira, a grade de tampos/casco só aparece se já tiver medidas
+          gravadas (registro anterior à grade de caldeira) — nunca se esconde dado. */}
+      {(!ehCaldeiraTag || gradeVasoTemValor) && (
       <div className="formulario-secao">
-        <h3>Medidas Encontradas (mm)</h3>
+        <h3>{ehCaldeiraTag ? 'Medidas no formato anterior (tampos e casco)' : 'Medidas Encontradas (mm)'}</h3>
         <p style={ESTILO_DICA}>
           Os pontos de cada região são distribuídos na circunferência: N pontos = ângulos de
           360°/N em 360°/N. Tampos têm uma linha só; o casco aceita mais linhas (Casco 1, 2...).
@@ -445,6 +462,7 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
           );
         })}
       </div>
+      )}
 
       <div className="formulario-secao">
         <h3>Observações / Conclusões do Ensaio</h3>

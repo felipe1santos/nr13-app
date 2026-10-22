@@ -6,6 +6,7 @@ import { ehSistemaUnidade, rotuloPressao } from '../../calc/unidades';
 import { UNIDADE_TH_LEGADA } from './formularios/unidadeTh';
 import { ITENS_VISUAL_EXTERNO } from './formularios/FormularioVisualExterno';
 import { ITENS_VISUAL_INTERNO } from './formularios/FormularioVisualInterno';
+import { itensDoExame } from '../caldeira/itensVisuaisCaldeira';
 import {
   PERGUNTA_NC,
   SIGNIFICADO_NC,
@@ -550,9 +551,9 @@ export default function VisualizadorFormulario({ formulario, dados }: Props) {
     case 'checklist':
       return <ViewChecklist dados={dados as DadosChecklist} />;
     case 'visual_externo':
-      return <ViewVisual dados={dados as DadosVisual} titulo="Inspeção Visual Externa" itens={ITENS_VE} />;
+      return <ViewVisual dados={dados as DadosVisual} titulo="Inspeção Visual Externa" itens={[...itensDoExame('externo', dados as DadosVisual, false, ITENS_VE)]} />;
     case 'visual_interno':
-      return <ViewVisual dados={dados as DadosVisual} titulo="Inspeção Visual Interna" itens={ITENS_VI} />;
+      return <ViewVisual dados={dados as DadosVisual} titulo="Inspeção Visual Interna" itens={[...itensDoExame('interno', dados as DadosVisual, false, ITENS_VI)]} />;
     case 'ultrassom':
       return <ViewUltrassom dados={dados as DadosUltrassom} />;
     case 'th':

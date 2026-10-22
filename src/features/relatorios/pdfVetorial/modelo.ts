@@ -20,6 +20,7 @@ import { INSTRUMENTOS_CHECKLIST, SECOES_CHECKLIST } from '../../inspecoes/formul
 import { linhaQuadro, type RefInstrumentoChecklist } from '../../calibracoes/quadroInstrumentos';
 import { ITENS_VISUAL_EXTERNO } from '../../inspecoes/formularios/FormularioVisualExterno';
 import { ITENS_VISUAL_INTERNO } from '../../inspecoes/formularios/FormularioVisualInterno';
+import { itensDoExame } from '../../caldeira/itensVisuaisCaldeira';
 import type { RefFoto } from '../../../services/fotos';
 import { normalizarFotos, type FotoDescrita } from '../../inspecoes/fotosDescritas';
 import type { RelatorioMeta } from '../tipos';
@@ -1201,11 +1202,19 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
     fotosChecklist: fotos(chk.fotos),
 
     visualExterno: {
-      ...exameVisual(inj.visual_externo as Record<string, unknown>, ITENS_VISUAL_EXTERNO),
+      // 22/10/2026 · a lista de perguntas sai do CATÁLOGO do registro (caldeira
+      // ou a de sempre) — nunca se reinterpreta um número já respondido.
+      ...exameVisual(
+        inj.visual_externo as Record<string, unknown>,
+        [...itensDoExame('externo', inj.visual_externo as Record<string, unknown>, info.tipo === 'caldeira', ITENS_VISUAL_EXTERNO)],
+      ),
       tag,
     },
     visualInterno: {
-      ...exameVisual(inj.visual_interno as Record<string, unknown>, ITENS_VISUAL_INTERNO),
+      ...exameVisual(
+        inj.visual_interno as Record<string, unknown>,
+        [...itensDoExame('interno', inj.visual_interno as Record<string, unknown>, info.tipo === 'caldeira', ITENS_VISUAL_INTERNO)],
+      ),
       tag,
     },
 

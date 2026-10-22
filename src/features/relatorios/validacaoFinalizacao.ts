@@ -4,6 +4,7 @@ import { acumulacaoPreenchida, dadosPadraoAcumulacao, verificarAcumulacao, type 
 import { listaDeItens, precisaConfirmarSemantica } from '../inspecoes/formularios/semanticaNc';
 import { ITENS_VISUAL_EXTERNO } from '../inspecoes/formularios/FormularioVisualExterno';
 import { ITENS_VISUAL_INTERNO } from '../inspecoes/formularios/FormularioVisualInterno';
+import { itensDoExame } from '../caldeira/itensVisuaisCaldeira';
 import { pendenciasParaEmissao } from '../inspecoes/fotosDescritas';
 import { FOLHA_RELATORIO_IMAGENS } from './relatorioImagensNoRelatorio';
 
@@ -192,12 +193,16 @@ export function validarParaFinalizar(e: EntradaValidacao): ResultadoValidacao {
   }
 
   // Exames visuais: a observação em branco é o exemplo que o dono deu.
-  for (const [arquivo, chave, rotulo, prefixo, itens] of [
+  for (const [arquivo, chave, rotulo, prefixo, itensDaLista] of [
     ['VISUAL-EXTERNO.html', 'visual_externo', 'exame externo', 'exameExterno', ITENS_VISUAL_EXTERNO],
     ['VISUAL-INTERNO.html', 'visual_interno', 'exame interno', 'exameInterno', ITENS_VISUAL_INTERNO],
+    // (o 5º elemento é a lista PADRÃO; a efetiva sai do catálogo do registro)
   ] as const) {
+    const itensPadrao = itensDaLista;
     if (!tem(e.documentos, arquivo)) continue;
     const v = bloco<Record<string, unknown>>(e.dadosContainer, chave);
+    // 22/10/2026 · as perguntas do CATÁLOGO do registro (caldeira ou a de sempre).
+    const itens = itensDoExame(chave === 'visual_externo' ? 'externo' : 'interno', v, false, itensPadrao);
     const onde = `Inspeção · Visual ${chave === 'visual_externo' ? 'externo' : 'interno'}`;
 
     // ── 18/09/2026 · a pergunta de não conformidade ─────────────────────────
