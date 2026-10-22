@@ -46,7 +46,10 @@ import {
   filtrarPorEmpresa,
   type MapaEmpresas,
 } from './empresasPorTag';
-import { filtrarRascunhos, listarRascunhos, type RascunhoItem } from './rascunhos';
+import { filtrarRascunhos, listarRascunhos, resumirRascunho, type RascunhoItem } from './rascunhos';
+import { duplicarRelatorio } from './duplicarRelatorio';
+import { avisoDaAbertura } from './aberturaRelatorio';
+import ModalDuplicar from './ModalDuplicar';
 import {
   proximaInspecaoIso,
   qualProxima,
@@ -281,6 +284,8 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
    */
   const [renomeando, setRenomeando] = useState<{ id: string; tag: string; nome: string } | null>(null);
   const [arquivando, setArquivando] = useState<ItemRelatorio | null>(null);
+  // DUPLICAR (21/10/2026) — o relatório que vai ganhar uma cópia em rascunho.
+  const [duplicando, setDuplicando] = useState<ItemRelatorio | null>(null);
   /** Rascunho escolhido para exclusão DEFINITIVA. */
   const [excluindoRascunho, setExcluindoRascunho] = useState<RascunhoItem | null>(null);
   const [ocupadoAcao, setOcupadoAcao] = useState(false);
@@ -548,6 +553,30 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
       setArquivando(null);
     } catch (e) {
       setErroAcao(`Não foi possível arquivar: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setOcupadoAcao(false);
+    }
+  }
+
+  /**
+   * Cria a cópia (rascunho gravado, com id novo) e abre o EDITOR nela — pelo
+   * mesmo caminho de "Continuar editando". O original só é lido.
+   */
+  async function confirmarDuplicar() {
+    if (!duplicando) return;
+    setOcupadoAcao(true);
+    setErroAcao('');
+    try {
+      const r = await duplicarRelatorio(duplicando.relatorioId, duplicando.tag);
+      if (!r.relatorio) {
+        setErroAcao(avisoDaAbertura(r.estado));
+        return;
+      }
+      setDuplicando(null);
+      setRascunhos(listarRascunhos());
+      aoContinuarRascunho?.(resumirRascunho(r.relatorio));
+    } catch (e) {
+      setErroAcao(`Não foi possível duplicar: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setOcupadoAcao(false);
     }
@@ -907,6 +936,19 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
         />
       )}
 
+      {duplicando && (
+        <ModalDuplicar
+          nome={ou(duplicando.nome ?? duplicando.codigo)}
+          ocupado={ocupadoAcao}
+          erro={erroAcao}
+          aoFechar={() => {
+            setDuplicando(null);
+            setErroAcao('');
+          }}
+          aoConfirmar={() => void confirmarDuplicar()}
+        />
+      )}
+
       {arquivando && (
         <ModalRemocao
           modo="arquivar"
@@ -1150,6 +1192,22 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                       onClick={() => setRenomeando({ id: r.relatorioId, tag: r.tag, nome: r.nome ?? r.codigo ?? '' })}
                     >
                       <Icone nome="pencil" tam={14} />
+                    </button>
+                    {/* DUPLICAR (21/10/2026): o botão existia no histórico por
+                        equipamento e não veio para esta lista quando ela virou a
+                        entrada única. A cópia nasce RASCUNHO, com id novo; o
+                        original — PDF, SHA, pdfRef — não é tocado. */}
+                    <button
+                      type="button"
+                      className="btn-icone"
+                      title="Duplicar relatório"
+                      aria-label={`Duplicar ${ou(r.nome ?? r.codigo)}`}
+                      onClick={() => {
+                        setErroAcao('');
+                        setDuplicando(r);
+                      }}
+                    >
+                      <Icone nome="copy" tam={14} />
                     </button>
                     {/* Relatório FINALIZADO não tem excluir: ele é um arquivo com
                         SHA que alimenta vencimento, Portal e Livro. O que existe é

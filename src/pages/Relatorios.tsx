@@ -26,7 +26,6 @@ import { fluxoDaTela, montaIframes, motorPossivel, papelDaPrevia,
 import {
   carregarOverrides,
   contarOverrides,
-  copiarOverrides,
   gravarOverrides,
   semOverride,
   type MapaOverrides,
@@ -67,6 +66,7 @@ import PainelPiloto from '../features/relatorios/pdfVetorial/PainelPiloto';
 import { validarParaFinalizar, type LaudoConclusao, type ResultadoValidacao } from '../features/relatorios/validacaoFinalizacao';
 import { salvarRascunho as gravarRascunho } from '../features/relatorios/historicoRelatorios';
 import { ehRascunhoConhecido } from '../features/relatorios/rascunhos';
+import { duplicarRelatorio } from '../features/relatorios/duplicarRelatorio';
 import { abrirRelatorio, avisoDaAbertura } from '../features/relatorios/aberturaRelatorio';
 import { ultimaLacrada, type LivroEntrada } from '../features/relatorios/livroLacre';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
@@ -940,60 +940,23 @@ function RelatoriosLegado() {
     return true;
   }
 
+  /**
+   * DUPLICAR — a mesma regra da lista principal (`duplicarRelatorio.ts`,
+   * 21/10/2026): a cópia é gravada como RASCUNHO, com id novo, sem PDF/SHA e
+   * com as datas da inspeção em branco; o original só é lido. Depois ela abre
+   * pelo caminho de qualquer rascunho.
+   *
+   * Até aqui esta função montava a cópia só no estado da tela, herdando as
+   * datas e a ART do documento de origem, e nada era gravado até o "Salvar
+   * rascunho" — um F5 perdia a cópia.
+   */
   async function duplicar(item: RelatorioIndiceItem) {
-    const r = carregarRelatorio(item.id, item.tagVaso);
-    if (!r) return;
-    // Regrava as chaves de campo do container de origem (ou limpa): senão o duplicado renderiza os
-    // dados de ensaio do último relatório que esteve nas chaves nr13_inspecao_atual/nr13_injecao_atual.
-    const dadosContainer = r.meta.containerOrigemId
-      ? (carregarContainer(r.tagVaso, r.meta.containerOrigemId)?.dados ?? {})
-      : {};
-    // Filtra folhas de fotos sem imagem e reexpande conforme a contagem ATUAL do container (a lista
-    // salva não passa pela auto-injeção que gateia isso — mesmo motivo de visualizar()).
-    const docsFiltrados = expandirFolhasUltrassom(
-      r.tagVaso,
-      expandirFolhasFoto(filtrarFolhasFotoVazias(r.documentos, dadosContainer), dadosContainer),
-      dadosContainer,
-    );
-    // Duplicado é relatório NOVO: nasce com o modelo ATUAL da empresa, não com o
-    // do relatório de origem — mesma regra dos snapshots de empresa/assinantes.
-    const novaMeta: RelatorioMeta = {
-      ...r.meta,
-      modeloDocumento: modeloDaEmpresa(),
-      codigo: `REL-${Date.now()}`,
-      emissao: hoje(),
-      documentos: docsFiltrados,
-    };
-    // Regrava nr13_assinantes_rel_<TAG> antes de remontar os iframes (motor de assinatura).
-    {
-      const funcs = listarFuncionarios();
-      setFuncionarios(funcs);
-      const a = carregarAssinantesRel(r.tagVaso, funcs);
-      // Duplicado é um relatório NOVO — refaz os snapshots com a empresa/assinantes/
-      // calibrações ATUAIS (não herda os congelados do relatório de origem).
-      novaMeta.empresa = snapshotEmpresa();
-      novaMeta.assinantes = snapshotAssinantes(a, funcs);
-      novaMeta.certCalibracoes = snapshotCalibracoesDosDocs(docsFiltrados);
-      novaMeta.rastreabIds = rastreabilidadesParaRelatorio(docsFiltrados).map((x) => x.id);
+    const r = await duplicarRelatorio(item.id, item.tagVaso);
+    if (!r.relatorio) {
+      setErroSalvar(avisoDaAbertura(r.estado));
+      return;
     }
-    await gravarInspecaoOrigemAtual(dadosContainer);
-    await gravarMetaAtual(novaMeta);
-    // 13D-bis · DUPLICAR LEVA AS CORREÇÕES DE TEXTO (decisão de 05/09/2026).
-    // Duplicar existe para emitir a próxima versão daquele documento; jogar os
-    // overrides fora obrigaria a refazer campo a campo, e o desfecho provável
-    // seria emitir de novo com o texto que já tinha sido corrigido.
-    setOverrides(await copiarOverrides(r.meta.codigo, r.tagVaso, novaMeta.codigo, r.tagVaso));
-    setDocumentos(docsFiltrados);
-    setMeta(novaMeta);
-    setSomenteLeitura(false);
-    // O rótulo NÃO vem junto: o duplicado é outro documento, e herdar o nome
-    // deixaria dois relatórios com a mesma etiqueta na lista.
-    setNomeEscolhido(null);
-    // Duplicado é relatório NOVO: nasce rascunho, como qualquer outro.
-    setModoRascunho(true);
-    setRelatorioArquivado(null);
-    setVersao((v) => v + 1);
-    setTela('visualizador');
+    await visualizar({ id: r.relatorio.id, tagVaso: r.relatorio.tagVaso } as RelatorioIndiceItem);
   }
 
   // Sem "excluir" aqui (19/09/2026): toda linha desta lista é relatório
@@ -1540,6 +1503,16 @@ function RelatoriosLegado() {
             {modoRascunho && !somenteLeitura && (
               <span className="rel-chip-rascunho" title="Documento em edição: ainda não gera PDF, vencimento nem entrada no Livro.">
                 <Icone nome="pencil" tam={12} /> Rascunho
+              </span>
+            )}
+            {/* 21/10/2026 · a cópia diz que é cópia: quem duplicou um documento
+                assinado precisa ver que está editando o NOVO, não o original. */}
+            {modoRascunho && !somenteLeitura && meta?.duplicadoDe && (
+              <span
+                className="rel-chip-rascunho"
+                title={`Cópia de ${meta.duplicadoDe}. O relatório original não muda.`}
+              >
+                <Icone nome="copy" tam={12} /> Cópia de {meta.duplicadoDe}
               </span>
             )}
             {/* 12B · qual placa a folha de identificação vai levar. Em documento

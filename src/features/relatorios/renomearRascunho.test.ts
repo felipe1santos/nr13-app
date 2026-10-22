@@ -65,8 +65,12 @@ describe('gate · o nome escolhido volta com o documento', () => {
 
   it('relatório NOVO e DUPLICADO nascem sem rótulo herdado', () => {
     expect(tela).toContain('// Nome AUTOMÁTICO: relatório novo não herda o rótulo de nenhum outro.');
-    expect(tela).toContain('// O rótulo NÃO vem junto: o duplicado é outro documento, e herdar o nome');
-    // Três chamadas: a de abrir e as duas que zeram.
-    expect((tela.match(/setNomeEscolhido\(/g) ?? []).length).toBeGreaterThanOrEqual(3);
+    // 21/10/2026 · o DUPLICADO não herda o rótulo igual: nasce "Cópia de …"
+    // (`nomeDaCopia`), um nome DIFERENTE do original, gravado no rascunho e
+    // recuperado ao abrir como o de qualquer rascunho. Dois documentos com a
+    // mesma etiqueta na lista continua não acontecendo.
+    expect(tela).toContain('await duplicarRelatorio(item.id, item.tagVaso)');
+    // Duas chamadas: a de abrir e a do relatório novo.
+    expect((tela.match(/setNomeEscolhido\(/g) ?? []).length).toBeGreaterThanOrEqual(2);
   });
 });

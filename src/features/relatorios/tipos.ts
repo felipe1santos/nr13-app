@@ -147,6 +147,12 @@ export interface RelatorioMeta {
    * outra — sem isso, a divergência pareceria defeito do sistema.
    */
   overrides?: Record<string, unknown>;
+  /**
+   * 21/10/2026 · este rascunho nasceu de "Duplicar" o relatório com este id.
+   * Só rastreabilidade e aviso na tela ("você está editando uma CÓPIA"): a
+   * cópia não lê nada do original por ele, e o original não sabe da cópia.
+   */
+  duplicadoDe?: string;
 }
 
 /**
