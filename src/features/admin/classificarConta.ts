@@ -202,3 +202,25 @@ export function somarMensalidades(
     mrr: pagantes.reduce((s, c) => s + mensalidadeDaConta(c, padrao), 0),
   };
 }
+
+// ── ORDEM DA LISTA DO PAINEL (24/10/2026) ───────────────────────────────────
+
+/**
+ * A ordem dos grupos na lista de Clientes: primeiro as contas da casa, depois
+ * as cortesias, depois quem paga e, por último, quem perdeu o acesso.
+ *
+ * Suspenso vai para o fim porque é a conta que menos se consulta — e é o único
+ * grupo que a tela deixa esconder.
+ */
+export const ORDEM_TAG: readonly TagConta[] = ['interna', 'vitalicio', 'pagante', 'suspenso'];
+
+/**
+ * Agrupa as contas pela tag, na `ORDEM_TAG`. Dentro de cada grupo preserva a
+ * ordem recebida (quem chama decide o critério secundário). Grupo vazio não
+ * aparece — um cabeçalho "Internas (0)" seria uma linha a mais para nada.
+ */
+export function agruparPorTag<T extends { tag: TagConta }>(contas: readonly T[]): { tag: TagConta; contas: T[] }[] {
+  return ORDEM_TAG.map((tag) => ({ tag, contas: contas.filter((c) => c.tag === tag) })).filter(
+    (g) => g.contas.length > 0,
+  );
+}

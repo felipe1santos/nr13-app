@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { rotuloStatusAssinatura } from '../../services/assinatura';
 import { fmtBytes, fmtPercentual, fracaoBase64, ordenarPorConsumo, type StorageStats, type UsoStats } from '../../pages/adminMetricas';
 import { fmtBRL, type Faturamento } from './painelAdmin';
-import { ROTULO_TAG, type TagConta } from './classificarConta';
+import { ROTULO_TAG, agruparPorTag, type TagConta } from './classificarConta';
 import { fracaoDaBarra, nivelDeOcupacao, rotuloDeOcupacao } from './coresPainel';
 import type { InfraSupabase } from './infraSupabase';
 
@@ -60,6 +60,36 @@ export interface MetricaSessao {
   sessoesTotal: number;
 }
 
+/** Plural do cabeçalho de cada grupo da lista. */
+const TITULO_GRUPO: Record<TagConta, string> = {
+  interna: 'Contas internas',
+  vitalicio: 'Vitalícias',
+  pagante: 'Pagantes',
+  suspenso: 'Suspensas',
+};
+
+/**
+ * Esconder as suspensas é preferência de VISUALIZAÇÃO, como o tema: fica no
+ * aparelho, e um storage bloqueado só faz a lista voltar a mostrar tudo.
+ */
+const CHAVE_OCULTAR_SUSPENSAS = 'nr13_admin_ocultar_suspensas';
+
+function lerOcultarSuspensas(): boolean {
+  try {
+    return localStorage.getItem(CHAVE_OCULTAR_SUSPENSAS) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function gravarOcultarSuspensas(v: boolean): void {
+  try {
+    localStorage.setItem(CHAVE_OCULTAR_SUSPENSAS, v ? '1' : '0');
+  } catch {
+    /* preferência não persistida — a sessão atual segue com a escolha */
+  }
+}
+
 function data(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -77,6 +107,7 @@ export default function PainelClientes({
   busca,
   onBusca,
   onEditar,
+  onExcluir,
   onNovoCliente,
   infra,
 }: {
@@ -91,11 +122,19 @@ export default function PainelClientes({
   onBusca: (v: string) => void;
   /** Abre o modal daquela conta — a lista é só leitura. */
   onEditar: (c: ContaCliente) => void;
+  /** Exclusão completa (conta + dados). A confirmação é da página. */
+  onExcluir: (c: ContaCliente) => void;
   onNovoCliente: () => void;
   /** Cotas REAIS do plano, para a ocupação ter cor. `null` = sem a Edge. */
   infra: InfraSupabase | null;
 }) {
   const [consumoDe, setConsumoDe] = useState<ContaCliente | null>(null);
+  const [ocultarSuspensas, setOcultarSuspensas] = useState(lerOcultarSuspensas);
+  function alternarSuspensas() {
+    const novo = !ocultarSuspensas;
+    setOcultarSuspensas(novo);
+    gravarOcultarSuspensas(novo);
+  }
 
   // ── OCUPAÇÃO DO SERVIDOR, em seis quadros compactos ───────────────────────
   const ocupacao = useMemo(() => {
@@ -118,6 +157,7 @@ export default function PainelClientes({
     const q = busca.trim().toLowerCase();
     return q ? contas.filter((c) => (c.email ?? '').toLowerCase().includes(q)) : contas;
   }, [contas, busca]);
+  const grupos = useMemo(() => agruparPorTag(visiveis), [visiveis]);
 
   return (
     <section className="adm-faturamento adm-clientes">
@@ -232,77 +272,108 @@ export default function PainelClientes({
             </tr>
           </thead>
           <tbody>
-            {visiveis.map((c) => {
-              const u = uso.get(c.id);
-              const st = storage.get(c.id);
-              const equipamentos = (u?.equip_vaso ?? 0) + (u?.equip_caldeira ?? 0) + (u?.equip_autoclave ?? 0);
-              const consumo = (u?.bytes_total ?? 0) + (st?.bytes ?? 0);
+            {grupos.map((g) => {
+              const escondido = g.tag === 'suspenso' && ocultarSuspensas;
               return (
-                <tr key={c.id} className={ocupado === c.id ? 'ocupado' : ''}>
-                  <td data-label="Conta" className="admin-email">
-                    {c.email}
-                    {!c.ativo && <span className="adm-inline-sub">acesso bloqueado</span>}
-                  </td>
-                  {/* ETIQUETA, não seletor: a lista é lida muito mais do que
-                      alterada, e um clique errado no seletor trocava a
-                      classificação de um cliente direto no banco. */}
-                  <td data-label="Tag">
-                    <span
-                      className={`adm-tag adm-tag-${c.tag}`}
-                      title={c.classificacao ? 'Definida manualmente' : 'Deduzida dos dados da conta'}
-                    >
-                      {ROTULO_TAG[c.tag]}
-                    </span>
-                  </td>
-                  {/* Só quem paga mostra valor. "R$ 197,00" ao lado de uma conta
-                      vitalícia é a linha exata que faria alguém somar errado. */}
-                  <td data-label="Mensalidade">
-                    {c.tag === 'pagante' ? (
-                      <span className="adm-valor">
-                        {fmtBRL(c.valor_mensal ?? faturamento.mensalidade)}
-                        {c.valor_mensal == null && (
-                          <i className="adm-tag-auto" title="usando o valor padrão do painel">
-                            padrão
-                          </i>
-                        )}
-                      </span>
-                    ) : (
-                      <span className="adm-inline-muted">—</span>
-                    )}
-                  </td>
-                  <td data-label="Status">
-                    {/* Selo com a cor do estado: texto puro deixava "Somente
-                        leitura" com o mesmo peso de "Ativa". */}
-                    <span className={`admin-badge-assinatura ${c.assinatura_status ?? 'sem'}`}>
-                      {rotuloStatusAssinatura(c.assinatura_status ?? null)}
-                    </span>
-                  </td>
-                  <td data-label="Cliente desde">{data(c.criado_em)}</td>
-                  <td data-label="Último acesso">{data(metas.get(c.id)?.last_sign_in_at ?? null)}</td>
-                  <td data-label="Acessos">{metricas.get(c.id)?.sessoesTotal ?? 0}</td>
-                  <td data-label="Equip.">{u ? equipamentos : '—'}</td>
-                  <td data-label="Relatórios">{u ? u.relatorios : '—'}</td>
-                  <td data-label="Consumo">
-                    <button
-                      type="button"
-                      className="adm-consumo-btn"
-                      onClick={() => setConsumoDe(c)}
-                      title="Ver o consumo detalhado desta conta"
-                    >
-                      {u || st ? fmtBytes(consumo) : '—'}
-                    </button>
-                  </td>
-                  <td data-label="Ações" className="admin-acoes">
-                    <button
-                      type="button"
-                      className="adm-btn-editar"
-                      disabled={ocupado === c.id}
-                      onClick={() => onEditar(c)}
-                    >
-                      {ocupado === c.id ? 'Salvando…' : 'Editar'}
-                    </button>
-                  </td>
-                </tr>
+                <Fragment key={g.tag}>
+                  <tr className={`adm-grupo adm-grupo-${g.tag}`}>
+                    <td colSpan={11}>
+                      <span className={`adm-tag adm-tag-${g.tag}`}>{TITULO_GRUPO[g.tag]}</span>
+                      <span className="adm-grupo-qtd">{g.contas.length}</span>
+                      {g.tag === 'suspenso' && (
+                        <button type="button" className="adm-grupo-alternar" onClick={alternarSuspensas}>
+                          {escondido ? 'Mostrar' : 'Esconder'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  {!escondido && g.contas.map((c) => {
+                    const u = uso.get(c.id);
+                    const st = storage.get(c.id);
+                    const equipamentos = (u?.equip_vaso ?? 0) + (u?.equip_caldeira ?? 0) + (u?.equip_autoclave ?? 0);
+                    const consumo = (u?.bytes_total ?? 0) + (st?.bytes ?? 0);
+                    return (
+                      <tr key={c.id} className={ocupado === c.id ? 'ocupado' : ''}>
+                        <td data-label="Conta" className="admin-email">
+                          {c.email}
+                          {!c.ativo && <span className="adm-inline-sub">acesso bloqueado</span>}
+                        </td>
+                        {/* ETIQUETA, não seletor: a lista é lida muito mais do que
+                            alterada, e um clique errado no seletor trocava a
+                            classificação de um cliente direto no banco. */}
+                        <td data-label="Tag">
+                          <span
+                            className={`adm-tag adm-tag-${c.tag}`}
+                            title={c.classificacao ? 'Definida manualmente' : 'Deduzida dos dados da conta'}
+                          >
+                            {ROTULO_TAG[c.tag]}
+                          </span>
+                        </td>
+                        {/* Só quem paga mostra valor. "R$ 197,00" ao lado de uma conta
+                            vitalícia é a linha exata que faria alguém somar errado. */}
+                        <td data-label="Mensalidade">
+                          {c.tag === 'pagante' ? (
+                            <span className="adm-valor">
+                              {fmtBRL(c.valor_mensal ?? faturamento.mensalidade)}
+                              {c.valor_mensal == null && (
+                                <i className="adm-tag-auto" title="usando o valor padrão do painel">
+                                  padrão
+                                </i>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="adm-inline-muted">—</span>
+                          )}
+                        </td>
+                        <td data-label="Status">
+                          {/* Selo com a cor do estado: texto puro deixava "Somente
+                              leitura" com o mesmo peso de "Ativa". */}
+                          <span className={`admin-badge-assinatura ${c.assinatura_status ?? 'sem'}`}>
+                            {rotuloStatusAssinatura(c.assinatura_status ?? null)}
+                          </span>
+                        </td>
+                        <td data-label="Cliente desde">{data(c.criado_em)}</td>
+                        <td data-label="Último acesso">{data(metas.get(c.id)?.last_sign_in_at ?? null)}</td>
+                        <td data-label="Acessos">{metricas.get(c.id)?.sessoesTotal ?? 0}</td>
+                        <td data-label="Equip.">{u ? equipamentos : '—'}</td>
+                        <td data-label="Relatórios">{u ? u.relatorios : '—'}</td>
+                        <td data-label="Consumo">
+                          <button
+                            type="button"
+                            className="adm-consumo-btn"
+                            onClick={() => setConsumoDe(c)}
+                            title="Ver o consumo detalhado desta conta"
+                          >
+                            {u || st ? fmtBytes(consumo) : '—'}
+                          </button>
+                        </td>
+                        <td data-label="Ações" className="admin-acoes">
+                          <button
+                            type="button"
+                            className="adm-btn-editar"
+                            disabled={ocupado === c.id}
+                            onClick={() => onEditar(c)}
+                          >
+                            {ocupado === c.id ? 'Salvando…' : 'Editar'}
+                          </button>
+                          {/* Só a suspensa ganha o atalho: é a conta que se limpa. Nas
+                              outras, excluir continua dentro do Editar, longe do clique. */}
+                          {c.tag === 'suspenso' && (
+                            <button
+                              type="button"
+                              className="adm-btn-editar adm-btn-perigo"
+                              disabled={ocupado === c.id}
+                              onClick={() => onExcluir(c)}
+                              title="Excluir a conta e todos os dados dela"
+                            >
+                              Excluir
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </Fragment>
               );
             })}
             {visiveis.length === 0 && (

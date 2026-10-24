@@ -770,6 +770,7 @@ export default function Admin() {
           busca={busca}
           onBusca={setBusca}
           onEditar={(c) => setEditando(c)}
+          onExcluir={(c) => void excluir(perfilDe(c))}
           onNovoCliente={() => setModalNovo(true)}
           infra={infra}
         />

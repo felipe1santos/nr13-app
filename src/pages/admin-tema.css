@@ -1154,3 +1154,166 @@
     min-height: 40px;
   }
 }
+
+/* ── MODAIS DO PAINEL (24/10/2026) ──────────────────────────────────────────
+   A caixa `.fj-modal-box` vem do Forja com `background: var(--panel)` — branco
+   — e o texto herdava `--adm-txt`, cinza-claro do tema escuro: o modal de
+   Editar cliente abria branco sobre branco, ilegível. Aqui a caixa, os campos
+   e os botões passam a usar os tokens do painel, então funcionam nos dois
+   temas (Editar, Novo cliente e Consumo compartilham esta caixa). */
+.admin-standalone .fj-modal-overlay {
+  background: rgba(0, 0, 0, 0.6);
+}
+.admin-standalone .fj-modal-box {
+  background: var(--adm-card);
+  color: var(--adm-txt);
+  border: 1px solid var(--adm-borda);
+}
+.admin-standalone .fj-modal-head {
+  border-bottom-color: var(--adm-borda);
+}
+.admin-standalone .fj-modal-head h2 {
+  color: var(--adm-txt);
+}
+.admin-standalone .fj-modal-box .fj-eyebrow {
+  color: var(--adm-verde);
+}
+.admin-standalone .fj-modal-close {
+  border-color: var(--adm-borda-forte);
+  color: var(--adm-txt-2);
+}
+.admin-standalone .fj-modal-close:hover {
+  background: var(--adm-card-2);
+  color: var(--adm-txt);
+}
+.admin-standalone .fj-modal-box label {
+  color: var(--adm-txt);
+}
+.admin-standalone .fj-modal-box small,
+.admin-standalone .fj-modal-box .adm-inline-muted,
+.admin-standalone .fj-modal-box .adm-modal-secao-rot,
+.admin-standalone .fj-modal-box .admin-nota {
+  color: var(--adm-txt-3);
+}
+.admin-standalone .fj-modal-box input,
+.admin-standalone .fj-modal-box select,
+.admin-standalone .fj-modal-box textarea {
+  background: var(--adm-bg-2);
+  border: 1px solid var(--adm-borda-forte);
+  color: var(--adm-txt);
+}
+.admin-standalone .fj-modal-box input::placeholder {
+  color: var(--adm-txt-3);
+}
+.admin-standalone .fj-modal-box input:disabled,
+.admin-standalone .fj-modal-box select:disabled {
+  opacity: 0.55;
+}
+.admin-standalone .fj-modal-box input:focus,
+.admin-standalone .fj-modal-box select:focus {
+  border-color: var(--adm-verde);
+  box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.14);
+  outline: none;
+}
+.admin-standalone .fj-modal-box option {
+  background: var(--adm-card);
+  color: var(--adm-txt);
+}
+.admin-standalone .fj-modal-box .fj-btn:not(.fj-btn-primary) {
+  background: var(--adm-card-2);
+  border: 1px solid var(--adm-borda-forte);
+  color: var(--adm-txt);
+}
+.admin-standalone .fj-modal-box .fj-btn:not(.fj-btn-primary):hover:not(:disabled) {
+  border-color: var(--adm-verde);
+}
+.admin-standalone .fj-modal-box .fj-btn:disabled {
+  opacity: 0.5;
+}
+.admin-standalone .fj-modal-box .adm-modal-secao {
+  border-top-color: var(--adm-borda);
+}
+.admin-standalone .adm-btn-perigo,
+.admin-standalone .fj-modal-box .fj-btn.adm-btn-perigo {
+  color: var(--adm-vermelho);
+  border-color: var(--adm-vermelho);
+}
+.admin-standalone .adm-btn-perigo:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.12);
+  color: var(--adm-vermelho);
+  border-color: var(--adm-vermelho);
+}
+.admin-standalone .admin-tabela-consumo th,
+.admin-standalone .admin-tabela-consumo td {
+  border-color: var(--adm-borda);
+  color: var(--adm-txt-2);
+}
+.admin-standalone .adm-linha-alvo td {
+  background: var(--adm-card-2);
+  color: var(--adm-txt);
+}
+
+/* ── GRUPOS DA LISTA: interna → vitalícia → pagante → suspensa ───────────── */
+.admin-standalone .adm-clientes .admin-tabela tbody tr.adm-grupo,
+.admin-standalone .adm-clientes .admin-tabela tbody tr.adm-grupo:hover {
+  background: var(--adm-bg-2);
+}
+.admin-standalone .adm-clientes .admin-tabela tr.adm-grupo td {
+  padding: 12px 12px 6px;
+  border-bottom: 1px solid var(--adm-borda-forte);
+}
+.admin-standalone .adm-grupo-qtd {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--adm-txt-3);
+}
+.admin-standalone .adm-grupo-alternar {
+  margin-left: 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  min-height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--adm-borda-forte);
+  background: transparent;
+  color: var(--adm-txt-2);
+  cursor: pointer;
+}
+.admin-standalone .adm-grupo-alternar:hover {
+  color: var(--adm-txt);
+  border-color: var(--adm-verde);
+}
+.admin-standalone .admin-acoes .adm-btn-perigo {
+  margin-left: 6px;
+}
+
+/* No celular a linha de grupo é um título entre os cartões, não um cartão. */
+@media (max-width: 860px) {
+  .admin-standalone .admin-tabela tr.adm-grupo,
+  .admin-standalone .adm-clientes .admin-tabela tbody tr.adm-grupo:nth-child(even) {
+    background: transparent;
+    border: 0;
+    padding: 10px 2px 2px;
+    margin-bottom: 4px;
+  }
+  .admin-standalone .admin-tabela tr.adm-grupo td {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    border: 0;
+    padding: 0;
+  }
+  .admin-standalone .admin-tabela tr.adm-grupo td::before {
+    content: none;
+  }
+  .admin-standalone .adm-grupo-alternar {
+    margin-left: auto;
+    min-height: 36px;
+  }
+  .admin-standalone .admin-acoes .adm-btn-perigo {
+    margin-left: 0;
+    margin-top: 6px;
+  }
+}
