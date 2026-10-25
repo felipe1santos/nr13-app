@@ -308,3 +308,18 @@
   .portal-topbar { padding: 0 14px; }
   .portal-email { display: none; }
 }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.portal-tabela th {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}
+.portal-badge {
+  border-radius: var(--r-xs);
+}

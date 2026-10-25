@@ -992,3 +992,141 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ============================================================================
+   IDENTIDADE (1ª prévia + paleta B "Aço Frio", 25/10/2026) — CLAUDE.md §15
+   ----------------------------------------------------------------------------
+   Continua dentro do escopo da ficha (o teste da Fase 4 exige). Ação é o
+   acento; azul só no selo "Adotado" (informação); TAG em mono na cor do texto;
+   rótulos em 12px caixa normal; sem filete de cor nos títulos.
+   ============================================================================ */
+.equipamento-page .equipamento-tag-titulo {
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: var(--font-base);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--texto-3);
+}
+.equipamento-page .equipamento-tag-titulo span {
+  font-family: var(--font-mono);
+  font-size: var(--fs-20);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--texto-1);
+}
+.equipamento-page .bloco-categoria h3::before,
+.equipamento-page .bloco-dados h3::before { display: none; }
+.equipamento-page .bloco-categoria h3,
+.equipamento-page .bloco-dados h3 {
+  font-family: var(--font-base);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.equipamento-page .bloco-dados-split h4,
+.equipamento-page .ficha-grupo-titulo,
+.equipamento-page .lbl-view,
+.equipamento-page .memorial-resumo-grid .lbl-view,
+.equipamento-page .unidade-equip-rotulo {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--texto-3);
+}
+.equipamento-page .ficha-grupo-titulo { font-weight: 600; color: var(--texto-2); }
+.equipamento-page .memorial-resumo-grid .val-view.accent { color: var(--texto-1); }
+
+/* Selo de natureza: CALCULADO neutro, ADOTADO info — texto E cor. */
+.ficha-natureza {
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--r-xs);
+  font-family: var(--font-base);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.ficha-natureza-calculado { background: var(--superficie-3); color: var(--texto-2); }
+.ficha-natureza-adotado { background: var(--st-info-bg); color: var(--st-info); }
+
+/* Chips de TIPO e UNIDADE: dado, não cor — selo neutro com rótulo apagado. */
+.equipamento-page .ficha-chip,
+.equipamento-page .ficha-chip-tipo-vaso,
+.equipamento-page .ficha-chip-tipo-autoclave,
+.equipamento-page .ficha-chip-tipo-caldeira,
+.equipamento-page .ficha-chip-unidade { border-color: transparent; border-radius: var(--r-xs); background: var(--superficie-3); }
+.equipamento-page .ficha-chip-rotulo,
+.equipamento-page .ficha-chip-tipo-vaso .ficha-chip-rotulo,
+.equipamento-page .ficha-chip-tipo-autoclave .ficha-chip-rotulo,
+.equipamento-page .ficha-chip-tipo-caldeira .ficha-chip-rotulo,
+.equipamento-page .ficha-chip-unidade .ficha-chip-rotulo {
+  padding: 4px 0 4px 6px;
+  background: none;
+  font-size: var(--fs-12);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--texto-3);
+}
+.equipamento-page .ficha-chip-valor,
+.equipamento-page .ficha-chip-tipo-vaso .ficha-chip-valor,
+.equipamento-page .ficha-chip-tipo-autoclave .ficha-chip-valor,
+.equipamento-page .ficha-chip-tipo-caldeira .ficha-chip-valor,
+.equipamento-page .ficha-chip-unidade .ficha-chip-valor {
+  padding: 4px 6px;
+  background: none;
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--texto-1);
+}
+
+.ficha-resumo { background: var(--superficie-2); border-color: var(--fio); border-radius: var(--r-md); }
+.ficha-resumo dt { font-size: var(--fs-12); font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--texto-3); }
+.ficha-resumo-categoria dd { color: var(--texto-1); }
+
+/* Memorial: "Ver Memorial Salvo" é a ação principal (acento); editar é secundário. */
+.equipamento-page .bloco-memorial-resumo .btn-ver-memorial,
+.equipamento-page .btn-mem-edit.btn-mem-edit-principal {
+  min-height: var(--h-ctl);
+  padding: 5px 12px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--acao);
+  color: var(--acao-texto);
+  font-size: var(--fs-13);
+}
+.equipamento-page .bloco-memorial-resumo .btn-ver-memorial:hover,
+.equipamento-page .btn-mem-edit.btn-mem-edit-principal:hover { background: var(--acao-hover); }
+.equipamento-page .btn-mem-edit {
+  min-height: var(--h-ctl);
+  padding: 5px 12px;
+  border: 1px solid var(--fio-campo);
+  border-radius: var(--r-sm);
+  color: var(--texto-1);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  box-shadow: var(--sh-1);
+}
+.equipamento-page .btn-mem-edit:hover { background: var(--superficie-2); }
+.equipamento-page .bloco-memorial-resumo .btn-ver-memorial:focus-visible,
+.equipamento-page .btn-mem-edit:focus-visible,
+.equipamento-page .btn-editar-pencil:focus-visible { outline-color: var(--foco); }
+
+.equipamento-page .btn-editar-pencil { border: 0; border-radius: var(--r-sm); background: none; color: var(--texto-2); }
+.equipamento-page .btn-editar-pencil:hover { color: var(--texto-1); border-color: transparent; background: var(--superficie-3); }
+
+.equipamento-page .ficha-pressoes { border-left: 1px solid var(--fio); background: var(--superficie); }
+.equipamento-page .ficha-pressoes .bloco-header-acoes h3 { color: var(--texto-1); }
+
+/* Edição: contorno no tom do foco, não azul. */
+.equipamento-page .ficha-editando { border-color: var(--foco); box-shadow: 0 0 0 3px var(--amber-bg); }
+.equipamento-page .ficha-editando-sub { outline-color: var(--foco); }

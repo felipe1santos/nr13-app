@@ -703,3 +703,18 @@
 
   .info-faq summary { min-height: 52px; }
 }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.info-hero-eyebrow,
+.info-jor-eyebrow,
+.info-cat-topo h3,
+.info-modal-corpo h3 {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}

@@ -782,3 +782,49 @@
   .livro-timeline-acoes .btn-icone { width: 44px; height: 44px; flex: 0 0 auto; }
   .livro-timeline-acoes .fj-btn { flex: 0 0 auto; width: auto; }
 }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.reg-metrica small,
+.livro-timeline-lacre,
+.livro-timeline-rascunho,
+.livro-topo-cat,
+.livro-resumo-num small,
+.livro-timeline-tipo,
+.livro-timeline-laudo,
+.livro-timeline-origem {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}
+.livro-timeline-lacre,
+.livro-timeline-rascunho,
+.livro-resumo-cadeia {
+  border-radius: var(--r-xs);
+}
+
+/* ============================================================================
+   IDENTIDADE · cores (1ª prévia + paleta B, 25/10/2026) — CLAUDE.md §15
+   Número é dado (cor de texto); ícone de seção é neutro; hover sem azul.
+   O lacre é integridade verificada: selo ok.
+   ============================================================================ */
+.reg-card { border-radius: var(--r-md); }
+.reg-card:hover { border-color: var(--fio); box-shadow: none; background: var(--superficie-2); }
+.reg-card:focus-visible { outline-color: var(--foco); }
+.reg-card-ic,
+.reg-vazio-ic,
+.reg-hero-ic { background: var(--superficie-3); color: var(--texto-2); border-color: transparent; border-radius: var(--r-sm); }
+.reg-metrica b,
+.livro-resumo-num b { color: var(--texto-1); font-weight: 600; }
+.livro-timeline-lacre { background: var(--st-ok-bg); color: var(--st-ok); border-color: transparent; font-weight: 500; }
+.livro-timeline-item:hover .fj-btn-ghost { background: var(--superficie-2); color: var(--texto-1); border-color: var(--fio-campo); }
+/* O lacre continua sendo o cadeado verde SEM cápsula (decisão de 09/2026). */
+.livro-timeline-lacre {
+  background: none;
+  color: var(--ok, #1fa971);
+  padding: 0;
+}

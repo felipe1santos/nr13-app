@@ -621,3 +621,45 @@
 /* A confirmação é `position: absolute` sobre a caixa — que precisa ser o
    contexto de posicionamento dela. */
 .reg-modal { position: relative; }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.reg-modal-prefill label,
+.reg-modal-grupo h3,
+.ficha-reg-eyebrow,
+.ficha-reg-selo,
+.ficha-reg-dado small,
+.ficha-reg-bloco h4,
+.ficha-reg-pes small {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}
+.reg-modal-form .fj-field > label em {
+  border-radius: var(--r-xs);
+}
+
+/* ============================================================================
+   IDENTIDADE · cores (1ª prévia + paleta B, 25/10/2026) — CLAUDE.md §15
+   O painel de apoio e a oferta de pré-preenchimento são superfícies neutras;
+   a nota é informação (info). Número de passo e lacre seguem a regra: passo
+   neutro, lacre = ok. Sem filete colorido nos títulos.
+   ============================================================================ */
+.reg-modal-lado { border-left-color: var(--fio); background: var(--superficie-2); }
+.reg-modal-figura { border-color: var(--fio); border-radius: var(--r-md); }
+.reg-modal-passos li::before { background: var(--superficie-3); color: var(--texto-1); }
+.reg-modal-nota { background: var(--st-info-bg); border-color: transparent; color: var(--st-info); border-radius: var(--r-sm); }
+.reg-modal-prefill { border-color: var(--fio); background: var(--superficie-2); border-radius: var(--r-md); }
+.reg-modal-prefill label { color: var(--texto-2); }
+.reg-modal-prefill select { border-color: var(--fio-campo); }
+.reg-ajuda-btn { border-color: var(--fio-campo); color: var(--texto-2); }
+.reg-ajuda-btn:hover { background: var(--superficie-3); color: var(--texto-1); }
+.reg-ajuda-pop { border-color: var(--fio); border-radius: var(--r-sm); }
+.reg-modal-grupo h3::before { display: none; }
+.ficha-reg-selo.lacrado { background: var(--st-ok-bg); color: var(--st-ok); }
+.ficha-reg-data { color: var(--texto-1); }
+.ficha-reg-tipo { color: var(--texto-1); }

@@ -26,40 +26,30 @@
   overflow: hidden;
   margin-bottom: 18px;
 }
-/* Cabeçalho do painel com um fundo levemente quente e um filete âmbar à
-   esquerda: a tela era branco sobre branco e nada separava o cabeçalho do
-   conteúdo além de um fio de 1px. */
+/* Cabeçalho do painel (identidade, 1ª prévia): branco, 44px, fio embaixo.
+   O filete âmbar e o degradê quente saíram — cor de acento é só ação. */
 .fj-panel-head {
   position: relative;
-  padding: 16px 20px;
+  min-height: 44px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, #FCFBF9 0%, var(--panel) 100%);
+  background: var(--panel);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
 }
-.fj-panel-head::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--amber);
-}
 .fj-eyebrow {
-  font-size: 10.5px;
-  letter-spacing: 1.1px;
-  color: var(--amber-deep);
-  font-weight: 700;
-  text-transform: uppercase;
+  font-size: var(--fs-12);
+  color: var(--texto-3);
+  font-weight: 500;
 }
 .fj-panel-head h2 {
-  font-family: var(--font-display);
-  font-size: 16px;
-  margin: 4px 0 0;
+  font-family: var(--font-base);
+  font-size: var(--fs-14);
+  line-height: var(--lh-14);
+  margin: 2px 0 0;
   font-weight: 600;
 }
 .fj-panel-foot {
@@ -70,9 +60,9 @@
   font-size: 12px;
 }
 .fj-link {
-  color: var(--link); /* azul escuro — todo texto clicável (decisão do usuário) */
-  font-size: 12.5px;
-  font-weight: 600;
+  color: var(--link); /* tom escuro do acento — todo texto clicável */
+  font-size: var(--fs-13);
+  font-weight: 500;
   text-decoration: none;
   cursor: pointer;
   display: inline-flex;
@@ -91,117 +81,123 @@
      famílias aparecem lado a lado — em Prontuários, na barra de ações do
      relatório. Medido em headless com o CSS de produção. */
   border: 1px solid transparent;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 12.5px;
-  padding: 9px 15px;
+  /* Identidade (1ª prévia): controle de 32px, raio 6, texto 13px. */
+  min-height: var(--h-ctl);
+  border-radius: var(--r-sm);
+  font-weight: 500;
+  font-size: var(--fs-13);
+  line-height: var(--lh-13);
+  padding: 5px 12px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--s-2);
   font-family: var(--font-base);
   transition: background var(--t-fast), color var(--t-fast);
 }
-.fj-btn-primary { background: var(--amber); color: var(--amber-txt); }
+.fj-btn-primary { background: var(--amber); color: var(--amber-txt); font-weight: 600; }
 .fj-btn-primary:hover { background: var(--amber-deep); }
 .fj-btn-primary:disabled { background: var(--bg-soft); color: var(--text-faint); cursor: not-allowed; }
-.fj-btn-ghost { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
-.fj-btn-ghost:hover { background: var(--steel); }
+/* Secundário: branco, fio de campo (3:1) e sombra leve — o `.btn-sec` da prévia. */
+.fj-btn-ghost { background: var(--panel); color: var(--text); border: 1px solid var(--fio-campo); box-shadow: var(--sh-1); }
+.fj-btn-ghost:hover { background: var(--bg-faint); }
 .fj-btn-danger { background: var(--crit-bg); color: var(--crit); }
 .fj-btn-danger:hover { background: var(--crit); color: #fff; }
 
-/* ===== Badges ===== */
+/* ===== Selos (identidade: retos, raio 4, 12px, caixa normal, sem borda) ===== */
 .fj-badge {
-  font-size: 10.5px;
-  font-weight: 700;
-  padding: 3px 9px;
-  border-radius: 20px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  font-size: var(--fs-12);
+  font-weight: 500;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: var(--r-xs);
+  text-transform: none;
+  letter-spacing: 0;
   white-space: nowrap;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .fj-badge.crit { background: var(--crit-bg); color: var(--crit); }
 .fj-badge.warn { background: var(--warn-bg); color: var(--warn); }
 .fj-badge.ok { background: var(--ok-bg); color: var(--ok); }
-.fj-badge.neutro { background: var(--steel); color: var(--muted); }
+.fj-badge.neutro { background: var(--bg-soft); color: var(--texto-2); }
 .fj-badge.info { background: var(--blue-bg); color: var(--blue); }
 .fj-badge.info2 { background: var(--blue2-bg); color: var(--blue2); }
 .fj-badge.crypto { background: var(--purple-bg); color: var(--purple); }
 
-/* badge de tipo (equipamento / inspeção) — cantos 7px, não pill */
+/* Selo de TIPO (equipamento / inspeção). Tipo é CATEGORIA, não status: neutro.
+   As cores por tipo saíram — vermelho em "caldeira" lia como alerta. */
 .fj-type-badge {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  padding: 5px 10px;
-  border-radius: 7px;
-  text-transform: uppercase;
+  font-size: var(--fs-12);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  padding: 4px 6px;
+  border-radius: var(--r-xs);
+  text-transform: none;
   display: inline-block;
   white-space: nowrap;
+  background: var(--bg-soft);
+  color: var(--texto-2);
 }
-.fj-type-badge.vaso { background: var(--purple-bg); color: var(--purple); }
-.fj-type-badge.caldeira { background: var(--crit-bg); color: var(--crit); }
-.fj-type-badge.tubulacao { background: var(--blue-bg); color: var(--blue); }
-.fj-type-badge.autoclave { background: var(--warn-bg); color: var(--warn); }
-.fj-type-badge.periodica { background: var(--blue2-bg); color: var(--blue2); }
-.fj-type-badge.externa { background: var(--purple-bg); color: var(--purple); }
-.fj-type-badge.hidro { background: var(--warn-bg); color: var(--warn); }
 
-/* chip de TAG (azul) */
+/* TAG: mono na cor do texto (1ª prévia). Era um chip azul em pílula. */
 .fj-tag-chip {
   font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 12px;
-  color: var(--blue);
-  background: var(--blue-bg);
-  border: 1px solid var(--blue-line);
-  padding: 5px 11px;
-  border-radius: 20px;
+  font-weight: 500;
+  font-size: var(--fs-13);
+  color: var(--texto-1);
+  background: var(--bg-soft);
+  border: 0;
+  padding: 2px 6px;
+  border-radius: var(--r-xs);
   white-space: nowrap;
 }
 .fj-tag-mini {
   font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 12px;
-  color: var(--blue);
+  font-weight: 500;
+  font-size: var(--fs-13);
+  color: var(--texto-1);
 }
 
 /* ===== Campos ===== */
 .fj-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .fj-field > label {
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--muted);
-  font-weight: 600;
+  font-size: var(--fs-12);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--texto-1);
+  font-weight: 500;
 }
-.fj-field .hint { font-size: 10.5px; color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+.fj-field .hint { font-size: var(--fs-12); color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+/* Campo (identidade): branco, fio de 1px com 3:1, raio 6, 32px. */
 .fj-field input,
 .fj-field select,
 .fj-field textarea {
   width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 9px 11px;
-  font-size: 13px;
-  font-family: var(--font-mono);
+  border: 1px solid var(--fio-campo);
+  border-radius: var(--r-sm);
+  padding: 5px 12px;
+  min-height: var(--h-ctl);
+  font-size: var(--fs-13);
+  font-family: var(--font-base);
   color: var(--text);
-  background: var(--steel);
+  background: var(--panel);
 }
-.fj-field input::placeholder { color: #AEB4B9; font-family: var(--font-base); }
+.fj-field input::placeholder { color: var(--texto-3); font-family: var(--font-base); }
 .fj-field input:focus, .fj-field select:focus, .fj-field textarea:focus {
-  outline: 2px solid var(--amber);
-  outline-offset: 0;
-  border-color: var(--amber);
+  outline: 2px solid var(--foco);
+  outline-offset: 1px;
+  border-color: var(--foco);
   box-shadow: none;
 }
 .fj-fgroup-label {
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--muted);
+  font-size: var(--fs-12);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--texto-2);
   font-weight: 600;
   margin: 18px 0 10px;
 }
@@ -209,31 +205,34 @@
 
 /* select de filtro (toolbar) */
 .fj-fselect {
-  border: 1px solid var(--line);
-  background: var(--steel);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 12.5px;
+  border: 1px solid var(--fio-campo);
+  background: var(--panel);
+  border-radius: var(--r-sm);
+  min-height: var(--h-ctl);
+  padding: 5px 12px;
+  font-size: var(--fs-13);
   color: var(--text);
   font-weight: 500;
   cursor: pointer;
   font-family: var(--font-base);
 }
-.fj-fselect:focus { outline: 2px solid var(--amber); outline-offset: 0; }
+.fj-fselect:focus { outline: 2px solid var(--foco); outline-offset: 1px; }
 
 /* busca */
 .fj-search-box {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--steel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid var(--fio-campo);
+  border-radius: var(--r-sm);
+  min-height: var(--h-ctl);
+  padding: 0 12px;
   min-width: 200px;
   flex: 1;
-  color: var(--muted);
+  color: var(--texto-3);
 }
+.fj-search-box:focus-within { outline: 2px solid var(--foco); outline-offset: 1px; }
 .fj-search-box input {
   border: none;
   background: transparent;
@@ -243,17 +242,17 @@
   width: 100%;
   font-family: var(--font-base);
 }
-.fj-search-box input::placeholder { color: #AEB4B9; }
+.fj-search-box input::placeholder { color: var(--texto-3); }
 
 /* toolbar de filtros */
 .fj-toolbar {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 14px 16px;
+  padding: 8px 16px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 16px;
 }
@@ -261,27 +260,32 @@
 /* ===== Tabela ===== */
 .fj-table-wrap { overflow-x: auto; }
 .fj-table { width: 100%; border-collapse: collapse; }
+/* Tabela (identidade): cabeçalho de 36px em 12px caixa normal, linha de 40px. */
 .fj-table thead th {
   text-align: left;
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--muted);
+  height: 36px;
+  font-size: var(--fs-12);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--texto-2);
   font-weight: 600;
-  padding: 10px 20px;
+  padding: 0 12px;
   border-bottom: 1px solid var(--line);
-  background: #FBFAF7;
+  background: var(--bg-faint);
   white-space: nowrap;
 }
 .fj-table tbody td {
-  padding: 12px 20px;
+  height: var(--h-row);
+  padding: 6px 12px;
   border-bottom: 1px solid var(--line);
-  font-size: 13px;
+  font-size: var(--fs-13);
   vertical-align: middle;
 }
+.fj-table thead th:first-child,
+.fj-table tbody td:first-child { padding-left: 16px; }
 .fj-table tbody tr:last-child td { border-bottom: none; }
-.fj-table tbody tr:hover { background: #FBFAF7; }
-.fj-dash { color: #C9C5B8; }
+.fj-table tbody tr:hover { background: var(--bg-faint); }
+.fj-dash { color: var(--text-faint); }
 
 /* Lista de vencimentos: a primeira coluna (ícone + tag + "tipo · pertence a X")
    quebrava em três linhas enquanto as colunas de data ocupavam uma só, e a
@@ -302,29 +306,30 @@
 .fj-table tbody td.mono,
 .fj-table tbody td.fj-days { white-space: nowrap; }
 .fj-tag-ico {
-  width: 30px; height: 30px;
-  border-radius: 7px;
-  background: var(--steel);
+  width: 28px; height: 28px;
+  border-radius: var(--r-sm);
+  background: var(--bg-soft);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   color: var(--muted);
 }
-.fj-tag-code { font-family: var(--font-mono); font-weight: 600; font-size: 12.5px; }
-.fj-eq-name { color: var(--muted); font-size: 11.5px; margin-top: 1px; }
-.fj-days { font-family: var(--font-mono); font-size: 12px; }
+.fj-tag-code { font-family: var(--font-mono); font-weight: 500; font-size: var(--fs-13); }
+.fj-eq-name { color: var(--texto-3); font-size: var(--fs-12); margin-top: 1px; }
+.fj-days { font-family: var(--font-mono); font-size: var(--fs-12); }
 .fj-days.crit { color: var(--crit); font-weight: 600; }
-.fj-days.warn { color: #DC2626; font-weight: 700; } /* vermelho forte: item próximo de vencer */
+.fj-days.warn { color: var(--crit); font-weight: 600; } /* item próximo de vencer */
 
 /* Prazo com mais de 60 dias: selo azul. O vermelho já marca o que urge; sem um
    sinal para o outro extremo, a coluna vira uma lista de datas todas iguais e o
    olho tem que ler cada uma para saber o que pode esperar. */
 .fj-prazo.folgado {
   display: inline-block;
-  padding: 3px 9px;
-  border-radius: 20px;
+  padding: 4px 6px;
+  border-radius: var(--r-xs);
   background: var(--blue2-bg);
   color: var(--blue2);
-  font-weight: 700;
+  font-weight: 500;
+  line-height: 1;
   white-space: nowrap;
 }
 
@@ -361,17 +366,17 @@
   color: var(--muted);
 }
 .fj-kpi-label {
-  font-size: 10.5px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 700;
+  font-size: var(--fs-12);
+  color: var(--texto-2);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
   line-height: 1.25;
 }
 .fj-kpi-value {
   font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 700;
+  font-size: var(--fs-20);
+  font-weight: 600;
   margin-top: 1px;
   line-height: 1.1;
   letter-spacing: -0.5px;
@@ -434,7 +439,7 @@
 }
 .fj-modal-box {
   background: var(--panel);
-  border-radius: 14px;
+  border-radius: var(--r-md);
   width: 100%;
   max-width: 880px;
   max-height: 88vh;
@@ -445,15 +450,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 24px;
+  min-height: 56px;
+  padding: 10px 20px;
   border-bottom: 1px solid var(--line);
   gap: 12px;
 }
-.fj-modal-head h2 { font-family: var(--font-display); font-size: 18px; margin: 0; }
+.fj-modal-head h2 { font-family: var(--font-display); font-size: var(--fs-16); margin: 0; }
 .fj-modal-close {
-  width: 30px; height: 30px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
+  width: 32px; height: 32px;
+  border-radius: var(--r-sm);
+  border: 0;
   background: transparent;
   cursor: pointer;
   color: var(--muted);
@@ -509,7 +515,7 @@
 .fj-link:focus-visible,
 .fj-fselect:focus-visible,
 .fj-modal-close:focus-visible {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--foco);
   outline-offset: 2px;
   box-shadow: none;
 }
@@ -689,25 +695,18 @@
   min-height: min(58vh, 520px);
 }
 
-/* O cabeçalho da lista: filete âmbar, nome da seção e a contagem à direita. */
+/* O cabeçalho da lista (identidade): branco, nome da seção e a contagem à
+   direita. O filete âmbar e o degradê saíram. */
 .painel-lista-head {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px 14px 11px 16px;
-  border-bottom: 1px solid var(--border-solid, #e4e1d8);
-  background: linear-gradient(180deg, #fcfbf9 0%, var(--panel, #fff) 100%);
-}
-.painel-lista-head::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--amber, #ff7a1a);
+  min-height: 44px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-solid);
+  background: var(--panel);
 }
 .painel-lista-titulo {
   display: flex;
@@ -716,28 +715,28 @@
   min-width: 0;
 }
 .painel-lista-titulo strong {
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--text-main, #2d3339);
+  font-family: var(--font-base);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text-main);
 }
 .painel-lista-titulo span {
-  font-size: 11px;
-  color: var(--text-muted, #6b7280);
+  font-size: var(--fs-12);
+  color: var(--texto-3);
 }
 /* A contagem é badge, não texto solto: é o número que o olho procura. */
 .painel-lista-contagem {
   flex: 0 0 auto;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 3px 9px;
-  border-radius: 20px;
-  background: #f1ecfb;
-  color: #5b21b6;
-  border: 1px solid #ddd0f5;
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 4px 6px;
+  border-radius: var(--r-xs);
+  background: var(--bg-soft);
+  color: var(--texto-2);
+  border: 0;
   white-space: nowrap;
 }
 
@@ -764,12 +763,10 @@
 .fj-panel > .busca-lista { padding: 12px 20px 0; margin-bottom: 10px; }
 .fj-panel > .busca-lista .busca-lista-campo {
   background: var(--panel);
-  border-color: var(--line);
-  caret-color: var(--amber-deep);
+  border-color: var(--fio-campo);
 }
 .fj-panel > .busca-lista .busca-lista-campo:focus-within {
-  border-color: var(--amber-deep);
-  box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.16);
+  border-color: var(--foco);
 }
 
 
@@ -892,3 +889,35 @@
   /* A gaveta lateral: 35 px por item, num alvo que se usa com o polegar. */
   .nav-item { min-height: 44px; }
 }
+
+/* ============================================================================
+   IDENTIDADE (1ª prévia + paleta B "Aço Frio", 25/10/2026) — CLAUDE.md §15
+   KPI não é bloco de cor: filete, ícone e número coloridos ficam só no que é
+   STATUS (vermelho = vencido). Os KPIs informativos ficam neutros.
+   ============================================================================ */
+.fj-kpi { border-left: 1px solid var(--line); border-radius: var(--r-md); }
+.fj-kpi.k-azul,
+.fj-kpi.k-ambar,
+.fj-kpi.k-verde { border-left-color: var(--line); }
+.fj-kpi.k-azul .fj-kpi-value,
+.fj-kpi.k-ambar .fj-kpi-value,
+.fj-kpi.k-verde .fj-kpi-value { color: var(--texto-1); }
+.fj-kpi.k-azul .fj-kpi-icon,
+.fj-kpi.k-ambar .fj-kpi-icon,
+.fj-kpi.k-verde .fj-kpi-icon { background: var(--bg-soft); color: var(--texto-2); }
+.fj-kpi.k-vermelho { border-left-color: var(--line); }
+.fj-kpi.k-vermelho .fj-kpi-value { color: var(--crit); }
+.fj-kpi-icon { border-radius: var(--r-sm); }
+/* Botão destrutivo pequeno (Excluir): texto vermelho sem fundo, tinta no hover.
+   `button.` para vencer as folhas de tela carregadas depois desta. */
+button.btn-remover,
+button.btn-danger-sm {
+  background: none;
+  border: 0;
+  border-radius: var(--r-sm);
+  color: var(--st-crit);
+  font-weight: 600;
+  box-shadow: none;
+}
+button.btn-remover:hover:not(:disabled),
+button.btn-danger-sm:hover:not(:disabled) { background: var(--st-crit-bg); color: var(--st-crit); }

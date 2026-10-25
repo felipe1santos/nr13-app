@@ -3225,3 +3225,179 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
   .predef-rev-troca { grid-template-columns: minmax(0, 1fr); }
   .predef-rev-troca > svg { transform: rotate(90deg); justify-self: center; }
 }
+
+/* ============================================================================
+   IDENTIDADE (1ª prévia + paleta B "Aço Frio", 25/10/2026) — CLAUDE.md §15
+   ----------------------------------------------------------------------------
+   Fica no FIM de propósito: este arquivo acumulou camadas de ajuste desde
+   setembro, e a regra que vale é a última. Cor de status só em selo, com texto
+   em caixa normal; tipo e TAG são dado, não cor; ação é o acento.
+   ============================================================================ */
+
+/* Botão só-de-ícone (todas as telas que importam esta folha): o `btn-fan` da
+   prévia — sem borda, cinza, fundo neutro no hover, sem pulo. As cores por
+   função (azul, verde, roxo) saíram; só o destrutivo fica vermelho. */
+.btn-icone { border: 0; border-radius: var(--r-sm); color: var(--texto-2); }
+.btn-icone:hover { background: var(--superficie-3); border-color: transparent; color: var(--texto-1); transform: none; }
+.btn-icone.cor-cinza,
+.btn-icone.cor-azul,
+.btn-icone.cor-verde,
+.btn-icone.cor-roxo { color: var(--texto-2); }
+.btn-icone.cor-azul:hover { background: var(--superficie-3); border-color: transparent; }
+.btn-icone.cor-vermelho { color: var(--st-crit); }
+.btn-icone.cor-vermelho:hover { background: var(--st-crit-bg); }
+
+/* Lista de relatórios */
+.rel-linha-cabecalho {
+  font-size: var(--fs-12);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--texto-2);
+}
+.rel-page .rel-linha-rascunho,
+.rel-page .rel-linha-arquivada { border-left-color: transparent; }
+.rel-page .rel-cel-nome { font-weight: 500; color: var(--texto-1); }
+.rel-page .rel-cel-codigo { font-size: var(--fs-12); color: var(--texto-3); }
+.rel-page .rel-cel-tag,
+.tag-cel-link { font-family: var(--font-mono); font-weight: 500; font-size: var(--fs-13); color: var(--texto-1); }
+/* TIPO é dado, não cor. */
+.rel-page .rel-cel-tipo,
+.rel-page .rel-linha .badge-tipo-inspecao { font-size: var(--fs-13); font-weight: 400; color: var(--texto-2); }
+.badge-tipo-inspecao {
+  background: var(--superficie-3);
+  color: var(--texto-2);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 4px 6px;
+  border-radius: var(--r-xs);
+}
+.rel-marca-rascunho,
+.rel-page .rel-marca-rascunho { border-color: var(--fio); background: var(--superficie); color: var(--texto-2); }
+
+/* Selos: 12px, caixa normal, raio 4, sem borda. O rascunho é a exceção que
+   pede ação e fica com o único selo da linha (alerta, como na barra do
+   documento); finalizado e arquivado são a regra: texto cinza, sem fundo. */
+.rel-selo,
+.rel-page .rel-selo,
+.rel-selo-excluido {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-12);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--r-xs);
+}
+.rel-selo-rascunho,
+.rel-page .rel-selo-rascunho { background: var(--st-warn-bg); color: var(--st-warn); }
+.rel-selo-finalizado,
+.rel-page .rel-selo-finalizado,
+.rel-selo-arquivado,
+.rel-page .rel-selo-arquivado { background: none; padding: 0; color: var(--texto-3); }
+.rel-selo-sem-arquivo,
+.rel-page .rel-selo-sem-arquivo,
+.rel-selo-excluido { background: var(--st-warn-bg); color: var(--st-warn); }
+
+/* Cartão de equipamento das listas (Calibrações, modal de criar relatório…):
+   TAG em mono na cor do texto, rótulos em caixa normal, contagem neutra. */
+.card-equipamento-horiz { border-radius: var(--r-md); padding: 8px 16px; gap: 16px; transition: background var(--t-fast); }
+.card-equipamento-horiz:hover { border-color: var(--fio); box-shadow: none; background: var(--superficie-2); }
+.card-equipamento-horiz.selecionado { border-color: var(--acao); background: var(--amber-bg); }
+.card-eq-img { width: 44px; height: 44px; border-radius: var(--r-sm); background: var(--superficie-3); border-color: var(--fio); }
+.card-eq-img-vazio { font-size: var(--fs-12); font-weight: 600; color: var(--texto-3); }
+.eq-tag { font-family: var(--font-mono); font-size: var(--fs-14); font-weight: 500; color: var(--texto-1); }
+.eq-tipo { font-size: var(--fs-12); font-weight: 400; color: var(--texto-3); text-transform: none; }
+.eq-label { font-size: var(--fs-12); font-weight: 500; color: var(--texto-3); text-transform: none; }
+.eq-value { font-size: var(--fs-13); }
+.badge-relatorios {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: var(--r-xs);
+  background: var(--superficie-3);
+  color: var(--texto-2);
+}
+/* Contagem é dado, não status: o verde de "tem" saiu. */
+.badge-relatorios.tem { background: var(--superficie-3); color: var(--texto-1); }
+
+/* Tabela antiga (meta-table) no mesmo desenho das outras. */
+.meta-table thead { background: var(--superficie-2); }
+.meta-table th { font-size: var(--fs-12); font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--texto-2); vertical-align: middle; }
+
+/* Trilha "← Voltar › TAG": a TAG em mono na cor do texto, sem chip azul. */
+.crumb-tag-chip {
+  font-weight: 500;
+  color: var(--texto-1);
+  background: var(--superficie-3);
+  border: 0;
+  padding: 2px 6px;
+  border-radius: var(--r-xs);
+}
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.meta-barra-campo label,
+.card-eq-img-vazio,
+.eq-tipo,
+.eq-label,
+.meta-table th,
+.badge-tipo-inspecao,
+.relatorios-page .meta-table td::before,
+.filter-menu .fm-label,
+.rel-linha-cabecalho,
+.rel-selo-excluido,
+.rel-page .rel-linha [data-rot]::before,
+.rel-rascunhos-titulo,
+.rel-chip-rascunho,
+.livro-rascunhos > h3,
+.previa-pend-lista h5,
+.predef-selo,
+.predef-bloco legend,
+.predef-grupo h5,
+.predef-resumo-lista dt,
+.predef-rev-troca span {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}
+.rel-selo-excluido,
+.predef-como,
+.predef-selo,
+.predef-rev-contagem li {
+  border-radius: var(--r-xs);
+}
+
+/* Identidade: "Salvar" é a ação principal da barra antiga — acento, não azul. */
+.barra-btn-salvar { background: var(--acao); color: var(--acao-texto); border-radius: var(--r-sm); }
+.barra-btn-salvar:hover:not(:disabled) { background: var(--acao-hover); }
+.predef-passo-n { background: var(--superficie-3); color: var(--texto-1); }
+
+/* Celular: o rótulo de cada célula (Criação, Validade, Próxima) vai ACIMA do
+   valor, em 11px e caixa normal. Inline, em 12px, não cabia nos 90px da célula. */
+@media (max-width: 720px) {
+  .rel-page .rel-linha [data-rot]::before {
+    display: block;
+    font-size: var(--fs-11);
+    line-height: var(--lh-11);
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--texto-3);
+  }
+}
+@media (max-width: 720px) {
+  /* Com o rótulo acima do valor, as datas ocupam a linha inteira: as ações
+     descem para uma linha própria, à direita, em vez de cobrir "Sem data". */
+  .rel-page .rel-cel-acoes { grid-row: 5; grid-column: 2 / -1; justify-content: flex-end; }
+}

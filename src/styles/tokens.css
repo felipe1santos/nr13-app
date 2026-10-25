@@ -286,9 +286,9 @@ h1, h2, h3, h4, .titulo-display {
 
 /* ── Foco acessível e premium em toda a app ── */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--accent-ring);
-  border-radius: var(--radius-sm);
+  /* Identidade: anel de 2px na cor do acento (4,69:1 no branco). */
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
 }
 
 /* ── Inputs / selects / textarea — base coerente ── */

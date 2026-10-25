@@ -102,3 +102,15 @@
   .mfr-acoes-dir { display: grid; grid-template-columns: 1fr 1fr; }
   .mfr-datas { grid-template-columns: 1fr; }
 }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.mfr-secao h3 {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}

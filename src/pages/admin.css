@@ -1336,3 +1336,32 @@
    cartão sólido + faixa de cor por token, em admin-tema.css, igual nos dois
    temas. As regras `.adm-quadro.nivel-*` acima seguem valendo fora do painel. */
 [data-tema='escuro'] .adm-btn-editar { background: transparent; color: inherit; }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.admin-novo-titulo,
+.admin-tabela thead th,
+.admin-super-dados span,
+.admin-email-label,
+.admin-card-metrica .rot,
+.adm-ocupacao-rot,
+.adm-modal-secao-rot {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}
+.admin-badge,
+.admin-badge-trial,
+.admin-super-btn,
+.admin-dias,
+.admin-badge-papel,
+.admin-badge-origem,
+.admin-badge-assinatura,
+.adm-tag,
+.adm-barra i {
+  border-radius: var(--r-xs);
+}

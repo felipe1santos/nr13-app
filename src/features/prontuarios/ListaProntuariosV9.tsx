@@ -249,14 +249,14 @@ function LinhaGrupo({
       <span className="pront-linha-situacao">
         {vigente ? (
           <span className={`pront-selo ${anexado ? 'pront-selo-anexado' : 'pront-selo-emitido'}`}>
-            {anexado ? 'PDF ANEXADO' : 'EMITIDO'}
+            {anexado ? 'PDF anexado' : 'Emitido'}
           </span>
         ) : null}
         {/* Rascunho é trabalho em aberto: NÃO substitui o vigente, só avisa. */}
-        {rascunho && <span className="pront-selo pront-selo-rascunho">RASCUNHO</span>}
+        {rascunho && <span className="pront-selo pront-selo-rascunho">Rascunho</span>}
         {vigente?.pdfPendente && (
           <span className="pront-selo pront-selo-pendente" title="O arquivo ainda não subiu para o servidor">
-            NO APARELHO
+            No aparelho
           </span>
         )}
       </span>

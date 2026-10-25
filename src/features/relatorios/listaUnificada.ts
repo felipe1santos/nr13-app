@@ -60,10 +60,11 @@ export function situacaoDaLinha(linha: LinhaRelatorio, arquivados: Set<string>):
 }
 
 const ROTULOS: Record<SituacaoLinha, string> = {
-  rascunho: 'RASCUNHO',
-  arquivado: 'ARQUIVADO',
-  finalizado: 'FINALIZADO',
-  'sem-arquivo': 'SEM ARQUIVO',
+  // Caixa normal (identidade, CLAUDE.md §15): o selo é texto, não letreiro.
+  rascunho: 'Rascunho',
+  arquivado: 'Arquivado',
+  finalizado: 'Finalizado',
+  'sem-arquivo': 'Sem arquivo',
 };
 
 export function rotuloSituacao(s: SituacaoLinha): string {

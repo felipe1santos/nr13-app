@@ -348,16 +348,21 @@
    só as medidas divergiam. */
 .btn-primario,
 .btn-secundario {
+  /* Identidade (1ª prévia, 25/10/2026): controle de 32px, raio 6, 13px —
+     a mesma métrica do `.fj-btn` (forja.css), para as duas famílias
+     continuarem idênticas lado a lado. */
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 9px 15px;
-  border-radius: 8px;
+  gap: var(--s-2);
+  min-height: var(--h-ctl);
+  padding: 5px 12px;
+  border-radius: var(--r-sm);
   font-family: var(--font-base);
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: var(--fs-13);
+  line-height: var(--lh-13);
+  font-weight: 500;
+  letter-spacing: 0;
   cursor: pointer;
   border: 1px solid transparent;
   transition: transform var(--t-fast), box-shadow var(--t-fast), background var(--t-fast), border-color var(--t-fast), filter var(--t-fast);
@@ -366,6 +371,7 @@
 .btn-primario {
   background: var(--amber);
   color: var(--amber-txt);
+  font-weight: 600;
   box-shadow: none;
 }
 
@@ -390,15 +396,12 @@
 .btn-secundario {
   background: var(--bg-card);
   color: var(--text-main);
-  border-color: var(--border-solid);
-  box-shadow: var(--shadow-xs);
+  border-color: var(--fio-campo);
+  box-shadow: var(--sh-1);
 }
 
 .btn-secundario:hover:not(:disabled) {
-  background: var(--bg-soft);
-  border-color: #cbd5e1;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  background: var(--bg-faint);
 }
 
 .btn-secundario:active:not(:disabled) {
@@ -507,32 +510,25 @@
   background: var(--bg-card);
   border: 1px solid var(--border-solid);
   border-radius: var(--radius-lg);
-  padding: 20px;
+  padding: 16px;
   box-shadow: var(--shadow-card);
 }
 
-/* Marca âmbar antes do título da seção: com o fio cinza sozinho, blocos
-   empilhados viravam uma parede branca sem hierarquia. */
+/* Título da seção (identidade, 1ª prévia): 14px, fio embaixo. A marca âmbar
+   antes do título saiu — acento é cor de AÇÃO, não de enfeite. */
 .bloco-dados h3 {
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-family: var(--font-display);
-  font-size: 15px;
+  gap: var(--s-2);
+  font-family: var(--font-base);
+  font-size: var(--fs-14);
+  line-height: var(--lh-14);
   color: var(--text-main);
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  letter-spacing: 0;
   border-bottom: 1px solid var(--border-solid);
   padding-bottom: 10px;
   margin-bottom: 16px;
-}
-.bloco-dados h3::before {
-  content: '';
-  width: 4px;
-  height: 15px;
-  border-radius: 2px;
-  background: var(--amber);
-  flex-shrink: 0;
 }
 
 .bloco-dados-split {
@@ -1229,3 +1225,72 @@
   }
   .equip-visao-btn { width: 40px; height: 38px; }
 }
+
+/* ============================================================================
+   IDENTIDADE (1ª prévia + paleta B "Aço Frio", 25/10/2026) — CLAUDE.md §15
+   ============================================================================ */
+/* Rótulo de dado: 12px, caixa normal (era 10px em CAIXA ALTA). */
+.lbl-view {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--texto-3);
+}
+/* Barra de "Equipamentos": branca, sem faixa âmbar degradê nem filete. */
+.fj-page-head.equip-head {
+  padding: 8px 16px;
+  border-left: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--panel);
+}
+/* "Acessar" no cartão: o botão secundário da prévia, sem texto âmbar. */
+.plate-btn-acessar {
+  min-height: var(--h-ctl);
+  padding: 5px 12px;
+  background: var(--panel);
+  border: 1px solid var(--fio-campo);
+  border-radius: var(--r-sm);
+  box-shadow: var(--sh-1);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  color: var(--texto-1);
+}
+.plate-card:hover .plate-btn-acessar { background: var(--bg-faint); }
+/* Rótulos dos cartões de equipamento: 12px, caixa normal. */
+.spec-label,
+.card-unidade-lbl,
+.bloco-dados-split h4,
+.plate-uom-label,
+.plate-meta-k,
+.plate-life-label {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--texto-3);
+}
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.spec-label,
+.card-unidade-lbl,
+.bloco-dados-split h4,
+.lbl-view,
+.plate-uom-label,
+.plate-meta-k,
+.plate-life-label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}
+.plate-tag-chip,
+.plate-pendente {
+  border-radius: var(--r-xs);
+}
+/* Área de anexar foto: secundário (fio de campo), não âmbar. */
+.gallery-add-dropzone { border: 1px dashed var(--fio-campo); color: var(--texto-1); background: var(--panel); }

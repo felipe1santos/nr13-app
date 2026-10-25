@@ -81,3 +81,16 @@
   .det-grid { grid-template-columns: 1fr; }
   .det-corpo { max-height: 68vh; }
 }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.det-secao-titulo,
+.det-doc-status {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}

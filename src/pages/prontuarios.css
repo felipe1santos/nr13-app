@@ -826,3 +826,84 @@
   font-weight: 700;
   line-height: 1;
 }
+
+/* ============================================================================
+   IDENTIDADE (1ª prévia + paleta B "Aço Frio", 25/10/2026) — CLAUDE.md §15
+   ----------------------------------------------------------------------------
+   A lista vira TABELA: linhas de 40px separadas por fio, sem cartão por linha e
+   sem filete colorido à esquerda (a situação já está no selo). Selos em caixa
+   normal, 12px. No fim do arquivo: é a regra que vale sobre as camadas acima.
+   ============================================================================ */
+.pront-linha {
+  min-height: var(--h-row);
+  margin-bottom: 0;
+  border: 0;
+  border-bottom: 1px solid var(--fio);
+  border-left: 0;
+  border-radius: 0;
+  background: var(--superficie);
+}
+.pront-linha:hover { background: var(--superficie-2); }
+.pront-linha-icone { color: var(--texto-3); }
+.pront-linha-cabecalho {
+  min-height: 36px;
+  background: var(--superficie-2);
+  border-radius: 0;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--texto-2);
+}
+.pront-linha-cabecalho:hover { background: var(--superficie-2); }
+.pront-selo {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-12);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--r-xs);
+}
+/* EMITIDO continua o único com fundo de "ok"; o anexado é documento válido de
+   outro emitente: neutro. Rascunho e "no aparelho" são aviso. */
+.pront-selo-emitido { background: var(--st-ok-bg); color: var(--st-ok); }
+.pront-selo-anexado { background: var(--superficie-3); color: var(--texto-2); }
+.pront-selo-rascunho,
+.pront-selo-salvo { color: var(--st-warn); }
+.pront-selo-pendente { background: var(--st-warn-bg); color: var(--st-warn); }
+.pront-selo-sem { color: var(--texto-3); }
+.pront-form-secao-titulo,
+.pront-campo label,
+.pront-assinante-campo label,
+.pront-dimensoes-tabela th,
+.pront-resumo b {
+  font-size: var(--fs-12);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.pront-form-secao-titulo { font-weight: 600; color: var(--texto-2); }
+.pront-campo label,
+.pront-assinante-campo label { font-weight: 500; color: var(--texto-1); }
+.pront-selo-auto { font-size: var(--fs-11); text-transform: none; letter-spacing: 0; }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.pront-form-secao-titulo,
+.pront-campo label,
+.pront-dimensoes-tabela th,
+.pront-assinante-campo label,
+.pront-linha-cabecalho,
+.pront-selo-auto,
+.pront-resumo b {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}

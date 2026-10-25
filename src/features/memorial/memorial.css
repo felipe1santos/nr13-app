@@ -1570,3 +1570,23 @@
   .memorial-log-vazio { padding: 22px 14px 26px; min-height: 0; }
   .memorial-vazio-fig { width: min(190px, 60%); margin-bottom: 8px; }
 }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.calc-orientacao-btn,
+.calc-equip-label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}
+.resultado-final-badge,
+.calc-progress i,
+.calc-terminal-section::-webkit-scrollbar-thumb,
+.mista-chip,
+.term-status {
+  border-radius: var(--r-xs);
+}

@@ -231,3 +231,6 @@
   .cal-card-info .eq-col:nth-child(3) { display: flex; }
   .cal-instrucao { font-size: 11px; }
 }
+
+/* Identidade (25/10/2026): instrução é texto de apoio, não roxo de destaque. */
+.cal-instrucao { font-size: var(--fs-12); font-weight: 400; letter-spacing: 0; color: var(--texto-3); }

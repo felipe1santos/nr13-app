@@ -132,3 +132,7 @@
   }
   .categoria-specs-grid-secundaria .lbl-view { font-size: 10px; }
 }
+
+/* Identidade (25/10/2026): categoria é DADO — cor do texto, não acento. */
+.bloco-categoria h3 { color: var(--texto-1); }
+.categoria-valor-grande.accent { color: var(--texto-1); }

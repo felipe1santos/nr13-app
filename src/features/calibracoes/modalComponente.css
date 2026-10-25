@@ -175,3 +175,16 @@
 /* Fase 2 (D) · calibração de terceiro */
 .terc-erro { color: var(--crit, #b91c1c); font-weight: 600; margin-top: 8px; }
 .terc-arquivo { margin-top: 6px; word-break: break-all; }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.mcomp-campo > span,
+.mcomp-bloco-titulo {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}

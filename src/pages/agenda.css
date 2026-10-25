@@ -376,3 +376,47 @@
   .ag-serv-head { flex-direction: column; }
   .ag-serv-valor { text-align: left; }
 }
+
+/* ============================================================================
+   IDENTIDADE (1ª prévia + paleta B "Aço Frio", 25/10/2026) — CLAUDE.md §15
+   Sem filete colorido nos KPIs e nos serviços: a situação do serviço já está
+   no selo, com texto. Rótulos em caixa normal, 12px. Valores na cor do texto.
+   ============================================================================ */
+.ag-kpi.previsto,
+.ag-kpi.realizado,
+.ag-resumo-item.previsto,
+.ag-resumo-item.realizado { border-left: 1px solid var(--fio); }
+.ag-kpi.previsto .ag-kpi-valor,
+.ag-kpi.realizado .ag-kpi-valor { color: var(--texto-1); }
+.ag-serv,
+.ag-serv.concluido,
+.ag-serv.cancelado { border-left: 1px solid var(--fio); }
+.ag-serv.concluido .ag-serv-valor-num { color: var(--texto-1); }
+.ag-kpi-label,
+.ag-serv-valor-rot,
+.ag-serv-dados dt,
+.ag-form label,
+.ag-resumo-rot {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--texto-2);
+}
+.ag-form label { color: var(--texto-1); }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.ag-kpi-label,
+.ag-serv-valor-rot,
+.ag-serv-dados dt,
+.ag-form label,
+.ag-resumo-rot {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}

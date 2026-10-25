@@ -215,3 +215,31 @@
   }
 }
 
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.viz-secao-titulo,
+.viz-label,
+.viz-table th {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}
+
+/* Identidade (25/10/2026): "Ver documento"/"Ver preenchido" são ações
+   secundárias — fio de campo e texto neutro, não contorno âmbar. */
+.btn-visualizar {
+  min-height: var(--h-ctl);
+  border: 1px solid var(--fio-campo);
+  color: var(--texto-1);
+  background: var(--superficie);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  box-shadow: var(--sh-1);
+}
+.btn-visualizar:hover { background: var(--superficie-2); }

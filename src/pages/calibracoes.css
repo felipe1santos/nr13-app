@@ -960,3 +960,49 @@
 @media (max-width: 640px) {
   .cal-faixa .cal-btn-nova { margin-left: 0; width: 100%; min-height: 44px; }
 }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.cal-form-secao-titulo,
+.cal-campo label,
+.cal-tabela-resultados th,
+.cal-subtabela-titulo,
+.cal-historico-table th,
+.badge-cal-tipo,
+.badge-cal-status,
+.cal-filtro-campo label,
+.cal-historico-table td::before,
+.cal-acessorio-lista dt,
+.cal-ctx em,
+.cal-secao-fonte,
+.cal-status-cert {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}
+.cal-res-erro,
+.cal-secao-fonte,
+.cal-status-cert {
+  border-radius: var(--r-xs);
+}
+
+/* ============================================================================
+   IDENTIDADE · cores (1ª prévia + paleta B, 25/10/2026) — CLAUDE.md §15
+   Tipo de instrumento é CATEGORIA (neutro). Situação do certificado é STATUS:
+   emitido = ok; externo = info (outro emitente, não alerta).
+   ============================================================================ */
+.badge-cal-tipo,
+.badge-cal-tipo.manometro,
+.badge-cal-tipo.psv { background: var(--superficie-3); color: var(--texto-2); border-radius: var(--r-xs); font-weight: 500; }
+.badge-cal-status { font-weight: 500; border-radius: var(--r-xs); }
+.cal-add-card-icone,
+.cal-add-card.psv .cal-add-card-icone { background: var(--superficie-3); color: var(--texto-2); border-color: var(--fio); }
+.cal-status-cert { font-weight: 500; }
+.cal-status-cert.emitido { background: var(--st-ok-bg); color: var(--st-ok); }
+.cal-status-cert.externo { background: var(--st-info-bg); color: var(--st-info); }
+.cal-emissao-selo { color: var(--texto-2); }
+.cal-emissao-resp > span { font-size: var(--fs-12); font-weight: 500; }

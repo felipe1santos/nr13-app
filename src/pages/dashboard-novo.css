@@ -779,3 +779,35 @@
   .pc-link { min-height: var(--h-toque); }
   .pc-painel-hd { padding: var(--s-2) var(--s-3); }
 }
+
+/* ============================================================================
+   IDENTIDADE (1ª prévia + paleta B "Aço Frio", 25/10/2026) — CLAUDE.md §15
+   Vale para Vencimentos e Registros de Segurança, que usam esta folha.
+   ORIGEM é categoria, não status: selo neutro, caixa normal. Rótulos em 12px.
+   ============================================================================ */
+.orig-chip,
+.orig-inspecao,
+.orig-calibracao,
+.orig-certificado {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: var(--superficie-3);
+  color: var(--texto-2);
+}
+.alist-badge {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  text-transform: none;
+  padding: 4px 6px;
+  border-radius: var(--r-xs);
+}
+.selo-flat.manual { font-size: var(--fs-12); text-transform: none; letter-spacing: 0; color: var(--texto-3); }
+.lrhist-linha:hover { border-left-color: transparent; }
+.lrhist-rot { font-size: var(--fs-12); text-transform: none; letter-spacing: 0; color: var(--texto-3); }
+.lrhist-forte { color: var(--texto-1); }

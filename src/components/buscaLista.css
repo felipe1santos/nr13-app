@@ -114,3 +114,13 @@
   /* No celular a linha já quebra; a contagem volta a ocupar a largura toda. */
   .busca-lista-info { flex: 1 1 100%; order: 3; }
 }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.busca-lista-selo {
+  border-radius: var(--r-xs);
+}

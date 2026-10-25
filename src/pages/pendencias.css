@@ -275,3 +275,18 @@
    alteração contra uma exclusão. Faixa âmbar, e não vermelha, porque nada foi
    perdido: as duas saídas (recriar ou descartar) são legítimas. */
 .conflito--sem-lado { border-left-color: var(--warn); }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.pendencias-hero-eyebrow,
+.pendencia__estado,
+.pendencia__detalhes dt,
+.conflito__rot {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}

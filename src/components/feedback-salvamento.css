@@ -107,3 +107,6 @@
   .fbs-caixa,
   .fbs-marca { animation: none; }
 }
+
+/* Identidade (25/10/2026): a ação forte do aviso é o acento, não azul. */
+.fbs-btn-forte { border-color: var(--acao); background: var(--acao); color: var(--acao-texto); }

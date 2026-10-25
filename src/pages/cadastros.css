@@ -1182,3 +1182,90 @@
   }
   .verfunc-cab-txt h3 { font-size: 15px; }
 }
+
+/* ============================================================================
+   IDENTIDADE (1ª prévia + paleta B "Aço Frio", 25/10/2026) — CLAUDE.md §15
+   Minha Empresa, Funcionários, Acessos e o cadastro de empresa do equipamento.
+   Rótulos em 12px caixa normal; campo branco com fio de 1px (3:1), raio 6;
+   tipo de profissional é categoria (selo neutro), não azul/verde.
+   ============================================================================ */
+.cad-secao-titulo,
+.cad-campo label,
+.cad-upload-label,
+.emp-cliente-selector label,
+.acesso-permissoes-label,
+.cli-det-grid span,
+.cad-tabela th,
+.verfunc-secao h4,
+.verfunc-dados dt {
+  font-size: var(--fs-12);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.cad-secao-titulo { font-weight: 600; color: var(--texto-2); }
+.cad-campo label,
+.emp-cliente-selector label { font-weight: 500; color: var(--texto-1); }
+.cli-det-grid span,
+.verfunc-dados dt { font-weight: 500; color: var(--texto-3); }
+.cad-tabela th { font-weight: 600; color: var(--texto-2); }
+
+.cad-campo input,
+.cad-campo select {
+  min-height: var(--h-ctl);
+  padding: 5px 12px;
+  border: 1px solid var(--fio-campo);
+  border-radius: var(--r-sm);
+  background: var(--superficie);
+}
+.cad-campo input:focus,
+.cad-campo select:focus { outline: 2px solid var(--foco); outline-offset: 1px; border-color: var(--foco); box-shadow: none; }
+
+.badge-func-tipo,
+.badge-func-tipo.eng,
+.badge-func-tipo.tec {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: var(--r-xs);
+  text-transform: none;
+  letter-spacing: 0;
+  background: var(--superficie-3);
+  color: var(--texto-2);
+}
+.acesso-ultimo.recente { color: var(--texto-1); }
+
+.btn-secundario-sm {
+  min-height: 28px;
+  border: 1px solid var(--fio-campo);
+  border-radius: var(--r-sm);
+  background: var(--superficie);
+  color: var(--texto-1);
+}
+.btn-editar-pencil { border-radius: var(--r-sm); color: var(--texto-2); }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.cad-secao-titulo,
+.cad-campo label,
+.cad-upload-label,
+.badge-func-tipo,
+.emp-cliente-selector label,
+.acesso-permissoes-label,
+.cli-det-grid span,
+.cad-tabela th,
+.cad-tabela td::before,
+.verfunc-secao h4,
+.verfunc-dados dt {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}
+.badge-func-tipo,
+.verfunc-contagem {
+  border-radius: var(--r-xs);
+}

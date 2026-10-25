@@ -242,3 +242,6 @@
   .ajuda-arte { order: -1; justify-self: center; width: 100%; max-width: 240px; padding: 8px; }
   .ajuda-passos-base { grid-template-columns: minmax(0, 1fr); gap: 14px; }
 }
+
+/* Identidade (25/10/2026): número de passo neutro. */
+.ajuda-num { background: var(--superficie-3); color: var(--texto-1); }

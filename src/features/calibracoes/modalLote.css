@@ -278,3 +278,20 @@
 .mlote-selo.emitido { background: #eff6ff; color: #1d4ed8; }
 .mlote-selo.externo { background: #f5f3ff; color: #6d28d9; }
 .mlote-visor-arquivo { padding: 0; background: transparent; }
+
+
+/* ============================================================================
+   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
+   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
+   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   ============================================================================ */
+.mlote-itens-topo h3,
+.mlote-selo,
+.mlote-det-dados dt {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-12);
+}
+.mlote-selo {
+  border-radius: var(--r-xs);
+}
