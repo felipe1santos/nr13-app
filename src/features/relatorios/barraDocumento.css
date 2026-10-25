@@ -1,0 +1,326 @@
+/* ============================================================================
+   DOCUMENTO ABERTO — barra única de 44px + PDF na altura restante
+   (redesign Forja Compacto, 25/10/2026 · docs/design/direcao.md)
+   ============================================================================ */
+
+.barra-doc {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: var(--h-toolbar);
+  padding: 0 var(--s-3) 0 var(--s-2);
+  background: var(--superficie);
+  border-bottom: 1px solid var(--fio);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.barra-doc-voltar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-ctl);
+  height: var(--h-ctl);
+  flex-shrink: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--texto-2);
+  cursor: pointer;
+}
+.barra-doc-voltar:hover { background: var(--superficie-3); color: var(--texto-1); }
+
+.barra-doc-id {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+  flex: 0 0 auto;
+  max-width: 280px;
+}
+/* Abaixo de 1600px o detalhe (TAG · tipo · data) fica só na dica: o código do
+   documento é o que identifica, e a largura vai para os controles. */
+@media (max-width: 1599px) {
+  .barra-doc-detalhe { display: none; }
+  .barra-doc-btn .so-desktop { display: none; }
+}
+.barra-doc-titulo {
+  font-size: var(--fs-13);
+  line-height: var(--lh-13);
+  font-weight: 600;
+  color: var(--texto-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.barra-doc-detalhe {
+  font-size: var(--fs-12);
+  line-height: var(--lh-12);
+  color: var(--texto-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Selo de estado: rascunho/cópia. Caixa normal, ícone + texto. */
+.barra-doc .rel-chip-rascunho {
+  flex-shrink: 0;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--r-xs);
+  font-size: var(--fs-12);
+  line-height: var(--lh-12);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  background: var(--st-warn-bg);
+  color: var(--st-warn);
+}
+
+/* O MEIO: destino da barra do visualizador (portal). Rola na horizontal
+   quando falta espaço; as ações da direita nunca saem da vista. */
+.barra-doc-meio {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-left: 1px solid var(--fio);
+  padding-left: var(--s-2);
+}
+.barra-doc-meio::-webkit-scrollbar { display: none; }
+.barra-doc-meio:empty { border-left: 0; }
+
+.barra-doc .vpdf-barra {
+  flex: 1 0 auto;
+  flex-wrap: nowrap;
+  gap: var(--s-1);
+  padding: 0;
+  min-height: 0;
+}
+/* Controles do documento: fantasmas, sem âmbar. O âmbar é só do primário. */
+.barra-doc .vpdf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--h-ctl-sm);
+  min-width: var(--h-ctl-sm);
+  justify-content: center;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  font-size: var(--fs-12);
+  font-weight: 500;
+  color: var(--texto-2);
+}
+.barra-doc .vpdf-btn:hover { background: var(--superficie-3); color: var(--texto-1); border-color: transparent; }
+.barra-doc .vpdf-btn.is-ativo { background: var(--superficie-3); color: var(--texto-1); border-color: var(--fio); }
+.barra-doc .vpdf-btn:disabled { opacity: 0.5; cursor: default; }
+.barra-doc .vpdf-btn:focus-visible,
+.barra-doc-voltar:focus-visible,
+.barra-doc-btn:focus-visible { outline: 2px solid var(--foco); outline-offset: 1px; }
+.barra-doc .vpdf-zoom { gap: 0; }
+/* Página e zoom primeiro: são os controles do documento, e não podem ser os
+   que rolam para fora da vista quando a linha aperta. */
+.barra-doc .vpdf-barra > * { order: 2; }
+.barra-doc .vpdf-barra > .vpdf-nucleo { order: 1; }
+.barra-doc .vpdf-barra > .vpdf-nucleo + :not(.vpdf-nucleo) { margin-left: var(--s-2); }
+.barra-doc .vpdf-barra > .vpdf-selo,
+.barra-doc .vpdf-barra > .vpdf-btn-aba { order: 3; }
+/* Compacto: o texto vira dica e nome acessível; fica o ícone. */
+.barra-doc .vpdf-rotulo,
+.barra-doc .vpdf-selo-longo { display: none; }
+.barra-doc .vpdf-selo-curto,
+.barra-doc .vpdf-ic { display: inline; }
+/* Com o selo "Rascunho" na barra, o "Prévia" do visualizador diria a mesma
+   coisa duas vezes (não é o documento emitido): fica só um. */
+.barra-doc:has(.rel-chip-rascunho) .vpdf-selo { display: none; }
+.barra-doc .vpdf-selo-curto {
+  padding: 2px 6px;
+  border-radius: var(--r-xs);
+  background: var(--superficie-3);
+  color: var(--texto-2);
+}
+.barra-doc .vpdf-contador { min-width: 0; padding: 0 var(--s-1); color: var(--texto-2); }
+.barra-doc .vpdf-selo {
+  margin-left: auto;
+  padding-left: var(--s-2);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  color: var(--texto-3);
+}
+.barra-doc .previa-atrasada,
+.barra-doc .previa-manuais {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: var(--r-xs);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.barra-doc .previa-atrasada { background: var(--st-warn-bg); color: var(--st-warn); }
+.barra-doc .previa-manuais { background: var(--st-info-bg); color: var(--st-info); }
+
+/* AÇÕES: secundário contornado, primário âmbar (o ÚNICO âmbar da barra). */
+.barra-doc-fim { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.barra-doc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--h-ctl);
+  padding: 0 10px;
+  border: 1px solid var(--fio-campo);
+  border-radius: var(--r-sm);
+  background: var(--superficie);
+  box-shadow: var(--sh-1);
+  font-family: var(--font-base);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  color: var(--texto-1);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.barra-doc-btn:hover:not(:disabled) { background: var(--superficie-2); }
+.barra-doc-btn.primaria {
+  border-color: transparent;
+  background: var(--acao);
+  color: var(--acao-texto);
+  font-weight: 600;
+  box-shadow: none;
+}
+.barra-doc-btn.primaria:hover:not(:disabled) { background: var(--acao-hover); }
+.barra-doc-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.barra-doc-btn.btn-bloqueado { opacity: 0.7; }
+
+/* O "⋯" fica sempre à vista aqui: as ações de uma vez por documento moram nele
+   em qualquer largura (MenuMais só aparece no celular por padrão). */
+.barra-doc .mmais { display: inline-flex; }
+.barra-doc .mmais-botao {
+  width: var(--h-ctl);
+  height: var(--h-ctl);
+  min-height: var(--h-ctl);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  box-shadow: none;
+  color: var(--texto-2);
+}
+.barra-doc .mmais-botao:hover { background: var(--superficie-3); }
+/* Somente leitura: imprimir e baixar já estão à vista; o "⋯" só no celular. */
+.barra-doc .mmais.so-movel { display: none; }
+@media (max-width: 640px) {
+  .barra-doc .mmais.so-movel { display: inline-flex; }
+}
+
+/* ── A página em modo documento: barra + PDF ocupando o resto da altura ──
+   A altura vem do layout (coluna flex), não de um `calc(100dvh - 190px)`:
+   barra de trial, aviso de expiração e cabeçalho deixam de ser números
+   mágicos para acertar. */
+.main-content > .route-wrapper:has(.tela-documento) { height: 100%; }
+.tela-documento {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.relatorios-page.tela-documento,
+.rel-page.tela-documento {
+  padding: 0;
+  gap: 0;
+  max-width: none;
+  margin: 0;
+}
+.tela-documento .vpdf,
+.tela-documento .previa {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+}
+.tela-documento .previa-corpo {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  gap: 0;
+}
+.tela-documento .previa-quadro { min-height: 0; }
+.tela-documento .previa-quadro .vpdf { height: auto; }
+.tela-documento .vpdf-corpo,
+.tela-documento .vpdf-iframe {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  gap: 0;
+}
+.tela-documento .vpdf-area {
+  border: 0;
+  border-radius: 0;
+  background: var(--fundo-documento);
+  padding: var(--s-4) 0;
+  gap: var(--s-4);
+}
+.tela-documento .vpdf-miniaturas,
+.tela-documento .previa-painel {
+  border: 0;
+  border-right: 1px solid var(--fio);
+  border-radius: 0;
+  background: var(--superficie-2);
+}
+/* Rollback em iframes (`?previa=iframe`): as folhas rolam dentro da área. */
+.tela-documento .relatorio-preview { flex: 1 1 auto; min-height: 0; overflow: auto; border-radius: 0; }
+.tela-documento .relatorio-preview:empty { display: none; }
+
+/* Prova de integridade do arquivo: uma linha fina sob o documento. */
+.tela-documento .vpdf-rodape,
+.tela-documento .rel-doc-rodape {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 4px var(--s-3);
+  border-top: 1px solid var(--fio);
+  background: var(--superficie);
+  font-size: var(--fs-11);
+  line-height: var(--lh-11);
+  color: var(--texto-3);
+}
+.tela-documento > [role='alert'],
+.tela-documento > [role='status'],
+.tela-documento > .rel-aviso-erro { margin: var(--s-2) var(--s-3) 0; flex-shrink: 0; }
+
+/* ── Celular: 52px de barra e alvos de 44px ── */
+@media (max-width: 640px) {
+  .barra-doc { height: 52px; padding: 0 var(--s-1); gap: var(--s-1); }
+  .barra-doc-voltar,
+  .barra-doc-btn,
+  .barra-doc .mmais-botao { height: var(--h-toque); min-height: var(--h-toque); }
+  .barra-doc-voltar,
+  .barra-doc .mmais-botao { width: var(--h-toque); }
+  .barra-doc .vpdf-btn { height: 40px; }
+  /* Título some: a lista de onde se veio já disse qual é o documento, e a
+     largura vai para as ações. O estado (rascunho) continua à vista. */
+  .barra-doc-id { display: none; }
+  .barra-doc-meio { border-left: 0; padding-left: 0; }
+  .barra-doc .vpdf-selo { display: none; }
+  .barra-doc-btn .so-desktop { display: none; }
+  .barra-doc .rel-chip-rascunho .so-desktop { display: none; }
+  /* Rascunho, Laudo e Salvar viram só ícone: o texto sai da VISTA, mas fica
+     para o leitor de tela (não é display:none). Finalizar continua com texto —
+     é a ação principal. */
+  .barra-doc .rotulo-compacto {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .barra-doc-btn:has(.rotulo-compacto) { width: var(--h-toque); padding: 0; }
+  .barra-doc .rel-chip-rascunho { padding: 4px; }
+  .tela-documento .vpdf-area { padding: var(--s-2) 0; gap: var(--s-2); }
+}

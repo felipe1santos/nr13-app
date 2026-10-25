@@ -199,6 +199,7 @@
   --superficie-3: var(--bg-soft);  /* #F2EFE7 — trilho de segmentos, chip neutro */
   --fio: var(--line);              /* #E4E1D8 — separação, decorativo */
   --fio-campo: #8E897E;            /* contorno de input: 3,48:1 no branco */
+  --fundo-documento: #DAD7CF;      /* mesa onde o PDF aberto é desenhado */
 
   /* ── Texto: todos ≥ 4,5:1 no branco E no fundo ── */
   --texto-1: #1C2227;              /* 16,1:1 */

@@ -69,9 +69,15 @@ export default function PreviaVetorial({
   idRelatorio,
   onIrPara,
   onOverrides,
+  barraEm,
 }: {
   tag: string;
   documentos: string[];
+  /**
+   * Onde desenhar a barra do visualizador — com os controles da prévia dentro.
+   * Ver `DestinoBarra` em `VisualizadorPdf`: o editor junta tudo numa linha só.
+   */
+  barraEm?: HTMLElement | null;
   /** Muda a cada edição salva — é o que marca a prévia como atrasada. */
   versaoDados: number;
   /**
@@ -263,7 +269,12 @@ export default function PreviaVetorial({
   const controles = (
     <>
       <button type="button" className={`vpdf-btn${gerando ? ' is-loading' : ''}`} onClick={() => void gerar()} disabled={gerando}>
-        <Icone nome="sliders" tam={13} /> {gerando ? 'Gerando…' : 'Atualizar prévia'}
+        <Icone nome="sliders" tam={13} />{' '}
+        {gerando ? 'Gerando…' : (
+          <>
+            Atualizar<span className="vpdf-rotulo"> prévia</span>
+          </>
+        )}
       </button>
       <button
         type="button"
@@ -280,12 +291,13 @@ export default function PreviaVetorial({
         type="button"
         className="vpdf-btn"
         onClick={() => setModalPredef(true)}
-        title="Conjuntos de campos guardados para reusar em qualquer relatório"
+        title="Predefinições: conjuntos de campos guardados para reusar em qualquer relatório"
+        aria-label={`Predefinições (${listaComSistema(predefinicoes).length})`}
       >
         {/* O número conta o que o MODAL lista — o conjunto do sistema incluído.
             Contar só os gravados faria o botão dizer "Predefinições" a uma
             organização nova e abrir com um item dentro. */}
-        <Icone nome="book" tam={13} /> Predefinições ({listaComSistema(predefinicoes).length})
+        <Icone nome="book" tam={13} /> <span className="vpdf-rotulo">Predefinições </span>({listaComSistema(predefinicoes).length})
       </button>
       {manuais > 0 && (
         <span className="previa-manuais" title="Campos com texto alterado manualmente neste relatório">
@@ -389,7 +401,9 @@ export default function PreviaVetorial({
               paginas={paginas}
               nomeArquivo={`previa-${tag}.pdf`}
               extras={controles}
+              barraEm={barraEm}
               selo="Prévia — não é o documento emitido"
+              seloCurto="Prévia"
               irParaPonto={irParaPonto ?? undefined}
               sobreposicao={(pagina, largura, altura) => (
                 <div className="previa-camada">

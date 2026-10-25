@@ -112,3 +112,53 @@ describe('Dashboard: um KPI dominante, quatro secundários, sem bloco colorido',
     expect(DASH).toContain("navigate('/certificados')");
   });
 });
+
+describe('visualizador de Relatórios: uma barra de 44px, PDF no resto da altura', () => {
+  const REL = ler('src/pages/Relatorios.tsx');
+  const V9 = ler('src/features/relatorios/RelatoriosV9.tsx');
+  const VIS = ler('src/components/VisualizadorPdf.tsx');
+  const PREVIA = ler('src/features/relatorios/PreviaVetorial.tsx');
+  const BARRA_CSS = ler('src/features/relatorios/barraDocumento.css');
+
+  it('rascunho e finalizado usam a MESMA barra', () => {
+    expect(REL).toContain('<BarraDocumento');
+    expect(V9).toContain('<BarraDocumento');
+    // A faixa de ações antiga e a barra "Voltar à busca" separada saíram.
+    expect(REL).not.toContain('className="meta-barra-fixa');
+    expect(V9).not.toContain('className="rel-doc-barra');
+  });
+
+  it('página e zoom entram na barra por portal, sem estado duplicado', () => {
+    expect(VIS).toContain('createPortal(barra, barraEm)');
+    expect(REL).toContain('barraEm={slotBarra}');
+    expect(V9).toContain('barraEm={slotBarra}');
+    expect(PREVIA).toContain('barraEm={barraEm}');
+  });
+
+  it('sem `barraEm`, todo outro visualizador continua desenhando a barra no lugar de sempre', () => {
+    expect(VIS).toContain('barraEm === undefined ? barra');
+  });
+
+  it('a barra mede o token de 44px e a altura do PDF vem do layout, não de um calc mágico', () => {
+    expect(BARRA_CSS).toMatch(/\.barra-doc \{[^}]*height: var\(--h-toolbar\);/);
+    expect(BARRA_CSS).toContain('.tela-documento .vpdf-corpo');
+    expect(BARRA_CSS).not.toMatch(/\.tela-documento[^{]*\{[^}]*calc\(100dvh/);
+  });
+
+  it('um primário só, âmbar: Finalizar', () => {
+    expect(REL.match(/barra-doc-btn primaria/g)).toHaveLength(1);
+    expect(REL).toContain('onClick={abrirFinalizacao}');
+  });
+
+  it('imprimir, baixar e configurar continuam alcançáveis (no ⋯)', () => {
+    const menu = REL.slice(REL.indexOf('<MenuMais'), REL.indexOf('<MenuMais') + 1600);
+    expect(menu).toContain('prepararEImprimir');
+    expect(menu).toContain('baixarPdf');
+    expect(menu).toContain('setModalConfig(true)');
+  });
+
+  it('no celular o rótulo sai da vista mas fica para o leitor de tela', () => {
+    expect(BARRA_CSS).toContain('clip: rect(0 0 0 0)');
+    expect(BARRA_CSS).not.toMatch(/\.rotulo-compacto \{[^}]*display: none/);
+  });
+});

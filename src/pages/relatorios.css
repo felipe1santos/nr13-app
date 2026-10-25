@@ -1501,6 +1501,11 @@
   white-space: nowrap;
 }
 .vpdf-btn-aba { flex-shrink: 0; }
+/* Versões compactas (selo curto, ícone ↗): só a barra única do documento as
+   mostra — ver features/relatorios/barraDocumento.css. Aqui ficam ocultas e
+   todo outro visualizador continua exatamente como era. */
+.vpdf-selo-curto,
+.vpdf-ic { display: none; }
 
 .vpdf-corpo {
   display: flex;

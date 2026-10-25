@@ -39,6 +39,7 @@ import {
 } from '../../services/buscaRelatorios';
 import { contarLocais, relatoriosLocais } from '../../services/relatoriosLocais';
 import VisualizadorPdf from '../../components/VisualizadorPdf';
+import BarraDocumento from './BarraDocumento';
 import { artefatoDoItemBuscado } from './artefatoRelatorio';
 import {
   MAPA_VAZIO,
@@ -270,6 +271,8 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
    */
   const [aberto, setAberto] = useState<ItemRelatorio | null>(null);
   const [erroDoc, setErroDoc] = useState<string | null>(null);
+  // Destino da barra do visualizador dentro da BarraDocumento (portal).
+  const [slotBarra, setSlotBarra] = useState<HTMLDivElement | null>(null);
   /** Mapa TAG → empresa. Só é buscado quando o painel de filtros abre. */
   const [mapaEmpresas, setMapaEmpresas] = useState<MapaEmpresas>(MAPA_VAZIO);
   const [carregandoEmpresas, setCarregandoEmpresas] = useState(false);
@@ -703,18 +706,16 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
   const artefatoAberto = aberto ? artefatoDoItemBuscado(aberto) : null;
   if (aberto && artefatoAberto) {
     return (
-      <div className="rel-page rel-doc-aberto">
-        <div className="rel-doc-barra no-print">
-          <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setAberto(null)}>
-            <Icone nome="arrowleft" tam={14} /> Voltar à busca
-          </button>
-          <div className="rel-doc-titulo">
-            <b>{ou(aberto.nome ?? aberto.codigo)}</b>
-            <span>
-              {aberto.tag} · {ou(aberto.tipo)} · emissão {dataBr(aberto.emissao)}
-            </span>
-          </div>
-        </div>
+      // Forja Compacto (25/10/2026): uma barra de 44px com voltar, título,
+      // páginas/zoom (do visualizador, por portal) — e o PDF no resto da altura.
+      <div className="rel-page rel-doc-aberto tela-documento">
+        <BarraDocumento
+          rotuloVoltar="Voltar à busca"
+          onVoltar={() => setAberto(null)}
+          titulo={ou(aberto.nome ?? aberto.codigo)}
+          detalhe={`${aberto.tag} · ${ou(aberto.tipo)} · emissão ${dataBr(aberto.emissao)}`}
+          onSlot={setSlotBarra}
+        />
 
         {erroDoc && (
           <div className="rel-aviso-erro" role="status">
@@ -726,6 +727,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
           artefato={artefatoAberto}
           nomeArquivo={aberto.nome ?? aberto.codigo ?? aberto.tag}
           onErro={setErroDoc}
+          barraEm={slotBarra}
         />
 
         {/* O SHA-256 é o que permite provar depois que o arquivo não foi

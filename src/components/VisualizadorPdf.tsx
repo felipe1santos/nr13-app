@@ -1,5 +1,18 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { baixarArtefato, chaveDoArtefato, type PdfArtefato } from '../features/relatorios/artefatoRelatorio';
+
+/**
+ * Onde a barra do visualizador é desenhada (redesign Forja Compacto, 25/10/2026).
+ *
+ * `undefined` (o padrão): logo acima do documento, como sempre — Portal,
+ * Prontuários e Certificados não mudam. Um elemento: a barra vai para DENTRO
+ * dele por portal, e é assim que o Relatórios junta "voltar + título + páginas +
+ * zoom + ações" numa linha só, sem duplicar o estado de página e zoom, que
+ * continua morando aqui. `null`: o elemento ainda não montou — não desenha a
+ * barra em lugar nenhum por um quadro, em vez de piscar no lugar antigo.
+ */
+type DestinoBarra = HTMLElement | null | undefined;
 
 /**
  * Mostra o PDF ARQUIVADO de um documento finalizado.
@@ -45,10 +58,12 @@ export default function VisualizadorPdf({
   artefato,
   nomeArquivo,
   onErro,
+  barraEm,
 }: {
   artefato: PdfArtefato;
   nomeArquivo: string;
   onErro?: (mensagem: string) => void;
+  barraEm?: DestinoBarra;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
@@ -110,7 +125,7 @@ export default function VisualizadorPdf({
     return <div className="vpdf-aviso vpdf-aviso-erro">Não foi possível abrir o PDF deste documento.</div>;
   }
 
-  return <QuadroPdf url={url} bytes={bytes} nomeArquivo={nomeArquivo} paginas={artefato.paginas} />;
+  return <QuadroPdf url={url} bytes={bytes} nomeArquivo={nomeArquivo} paginas={artefato.paginas} barraEm={barraEm} />;
 }
 
 /**
@@ -135,12 +150,18 @@ export function VisualizadorPdfBytes({
   selo,
   sobreposicao,
   irParaPonto,
+  barraEm,
+  seloCurto,
 }: {
   bytes: Uint8Array;
   nomeArquivo: string;
   paginas: number;
   extras?: ReactNode;
   selo?: string;
+  /** Ver `QuadroPdf`. */
+  seloCurto?: string;
+  /** Ver `DestinoBarra`. */
+  barraEm?: DestinoBarra;
   /**
    * 13D-bis · a camada de EDIÇÃO sobre a página desenhada.
    *
@@ -186,6 +207,8 @@ export function VisualizadorPdfBytes({
       selo={selo}
       sobreposicao={sobreposicao}
       irParaPonto={irParaPonto}
+      barraEm={barraEm}
+      seloCurto={seloCurto}
     />
   );
 }
@@ -200,11 +223,16 @@ function QuadroPdf({
   paginas: paginasDoRegistro,
   extras,
   selo = 'Documento arquivado',
+  seloCurto = 'Arquivado',
   sobreposicao,
   irParaPonto,
+  barraEm,
 }: {
   url: string;
   bytes: ArrayBuffer | null;
+  barraEm?: DestinoBarra;
+  /** O selo na barra compacta; o texto inteiro fica na dica. */
+  seloCurto?: string;
   nomeArquivo: string;
   extras?: ReactNode;
   selo?: string;
@@ -330,28 +358,33 @@ function QuadroPdf({
 
   const total = paginas.length || paginasDoRegistro || 0;
 
-  return (
-    <div className="vpdf">
+  const barra = (
       <div className="vpdf-barra no-print">
         {extras}
+        {/* `vpdf-nucleo`: página e zoom. Na barra única do Relatórios eles vêm
+            ANTES dos extras (CSS `order`), para não serem os que rolam para
+            fora da vista. `vpdf-rotulo`: texto que a barra compacta esconde,
+            deixando o ícone — o nome continua no aria-label. */}
         {!semPdfJs && (
           <button
             type="button"
-            className={`vpdf-btn${miniaturas ? ' is-ativo' : ''}`}
+            className={`vpdf-btn vpdf-nucleo${miniaturas ? ' is-ativo' : ''}`}
             onClick={() => setMiniaturas((v) => !v)}
             aria-pressed={miniaturas}
+            aria-label="Páginas"
             title="Mostrar ou esconder as miniaturas das páginas"
           >
-            ☰ Páginas
+            <span aria-hidden="true">☰</span>
+            <span className="vpdf-rotulo"> Páginas</span>
           </button>
         )}
         {!semPdfJs && total > 0 && (
-          <span className="vpdf-contador">
+          <span className="vpdf-contador vpdf-nucleo">
             {atual} / {total}
           </span>
         )}
         {!semPdfJs && (
-          <span className="vpdf-zoom">
+          <span className="vpdf-zoom vpdf-nucleo">
             <button type="button" className="vpdf-btn" onClick={() => setZoom((z) => Math.max(0.4, +(z - 0.2).toFixed(2)))} title="Diminuir">
               −
             </button>
@@ -363,13 +396,29 @@ function QuadroPdf({
             </button>
           </span>
         )}
-        <span className="vpdf-selo" title="Este documento não é remontado: são os bytes arquivados na emissão.">
-          {selo}
+        <span
+          className="vpdf-selo"
+          title={selo === 'Documento arquivado' ? 'Este documento não é remontado: são os bytes arquivados na emissão.' : selo}
+        >
+          <span className="vpdf-selo-longo">{selo}</span>
+          <span className="vpdf-selo-curto" aria-hidden="true">{seloCurto ?? selo}</span>
         </span>
-        <button type="button" className="vpdf-btn vpdf-btn-aba" onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}>
-          Abrir em outra aba
+        <button
+          type="button"
+          className="vpdf-btn vpdf-btn-aba"
+          onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+          aria-label="Abrir em outra aba"
+          title="Abrir em outra aba"
+        >
+          <span className="vpdf-ic" aria-hidden="true">↗</span>
+          <span className="vpdf-rotulo">Abrir em outra aba</span>
         </button>
       </div>
+  );
+
+  return (
+    <div className="vpdf">
+      {barraEm === undefined ? barra : barraEm ? createPortal(barra, barraEm) : null}
 
       {semPdfJs ? (
         // Fallback: o leitor do navegador. Os parâmetros são um PEDIDO — cada

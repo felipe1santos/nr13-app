@@ -15,6 +15,7 @@ import { paramsSomenteLeitura, travarIframeSomenteLeitura } from '../features/do
 import { acompanharCamposVazios } from '../features/documentos/camposVazios';
 import CardPlacaIdentificacao from '../features/relatorios/CardPlacaIdentificacao';
 import MenuMais from '../components/MenuMais';
+import BarraDocumento from '../features/relatorios/BarraDocumento';
 import ModalMedicoes from '../features/relatorios/ModalMedicoes';
 import ModalLaudo from '../features/relatorios/ModalLaudo';
 import { CAMPOS_SO_DO_PAINEL } from '../features/relatorios/destinoPendencia';
@@ -242,6 +243,8 @@ function RelatoriosLegado() {
   // Relatório finalizado sendo VISTO pelo arquivo (não remontado). Null = fluxo
   // legado. Declarado aqui em cima porque o palco depende dele.
   const [relatorioArquivado, setRelatorioArquivado] = useState<RelatorioSalvo | null>(null);
+  // Destino da barra do visualizador dentro da BarraDocumento (portal).
+  const [slotBarra, setSlotBarra] = useState<HTMLDivElement | null>(null);
   // 13C · qual superfície edita os dois campos que a folha gravava. `iframe` é o
   // padrão; `react` liga os painéis e trava as folhas correspondentes.
   const superficieEdicao = edicaoAtual(window.location.search);
@@ -1275,7 +1278,7 @@ function RelatoriosLegado() {
   }
 
   return (
-    <div className="relatorios-page">
+    <div className={`relatorios-page${tela === 'visualizador' && meta && documentos ? ' tela-documento' : ''}`}>
       {/* MONTANDO · a criação chegou decidida de `/relatorios`.
           Existe para que o fundo NUNCA seja o seletor de equipamento num fluxo
           que já escolheu o equipamento — a duplicidade que esta tela tinha. */}
@@ -1499,29 +1502,41 @@ function RelatoriosLegado() {
               {erroSalvar}
             </div>
           )}
-          <div className="meta-barra-fixa no-print">
-            <button type="button" className="btn-secundario barra-btn" onClick={voltarParaHistorico}>
-              ← Voltar
-            </button>
-            {/* O estado do documento fica À VISTA enquanto ele é editado: um
-                relatório em rascunho não produz vencimento, não entra no Livro
-                e não aparece no Portal, e quem está com ele aberto precisa
-                saber disso sem abrir a lista. */}
-            {modoRascunho && !somenteLeitura && (
-              <span className="rel-chip-rascunho" title="Documento em edição: ainda não gera PDF, vencimento nem entrada no Livro.">
-                <Icone nome="pencil" tam={12} /> Rascunho
-              </span>
-            )}
-            {/* 21/10/2026 · a cópia diz que é cópia: quem duplicou um documento
-                assinado precisa ver que está editando o NOVO, não o original. */}
-            {modoRascunho && !somenteLeitura && meta?.duplicadoDe && (
-              <span
-                className="rel-chip-rascunho"
-                title={`Cópia de ${meta.duplicadoDe}. O relatório original não muda.`}
-              >
-                <Icone nome="copy" tam={12} /> Cópia de {meta.duplicadoDe}
-              </span>
-            )}
+          {/* Forja Compacto (25/10/2026): UMA barra de 44px. Voltar, título e
+              estado à esquerda; páginas, zoom e os controles da prévia no meio
+              (o visualizador desenha a barra dele ali, por portal); as ações à
+              direita. Antes eram duas faixas e o PDF começava a ~193px. */}
+          <BarraDocumento
+            rotuloVoltar="Voltar"
+            onVoltar={voltarParaHistorico}
+            titulo={meta?.codigo ?? 'Relatório'}
+            detalhe={tag || undefined}
+            onSlot={setSlotBarra}
+            selos={
+              <>
+                {/* O estado do documento fica À VISTA enquanto ele é editado: um
+                    relatório em rascunho não produz vencimento, não entra no Livro
+                    e não aparece no Portal, e quem está com ele aberto precisa
+                    saber disso sem abrir a lista. */}
+                {modoRascunho && !somenteLeitura && (
+                  <span className="rel-chip-rascunho" title="Documento em edição: ainda não gera PDF, vencimento nem entrada no Livro.">
+                    <Icone nome="pencil" tam={12} /> <span className="rotulo-compacto">Rascunho</span>
+                  </span>
+                )}
+                {/* 21/10/2026 · a cópia diz que é cópia: quem duplicou um documento
+                    assinado precisa ver que está editando o NOVO, não o original. */}
+                {modoRascunho && !somenteLeitura && meta?.duplicadoDe && (
+                  <span
+                    className="rel-chip-rascunho"
+                    title={`Cópia de ${meta.duplicadoDe}. O relatório original não muda.`}
+                  >
+                    <Icone nome="copy" tam={12} /> <span className="so-desktop">Cópia de {meta.duplicadoDe}</span>
+                  </span>
+                )}
+              </>
+            }
+            acoes={
+            <>
             {/* 12B · qual placa a folha de identificação vai levar. Em documento
                 salvo o card só INFORMA — trocar a placa mudaria um documento
                 assinado (§7-ter).
@@ -1550,7 +1565,7 @@ function RelatoriosLegado() {
                 mesmo número. O botão continua no rollback `?previa=iframe`,
                 onde a grade vive dentro do iframe. */}
             {superficieEdicao === 'react' && !somenteLeitura && fonteDeImpressao(relatorioArquivado) !== 'arquivo' && papelDaPrevia(fluxo) !== 'previa-vetorial' && (
-              <button type="button" className="btn-secundario barra-btn" onClick={() => setModalMedicoes(true)}>
+              <button type="button" className="barra-doc-btn" onClick={() => setModalMedicoes(true)}>
                 <Icone nome="sliders" tam={14} /> Medições
               </button>
             )}
@@ -1559,11 +1574,10 @@ function RelatoriosLegado() {
                 botão o APTO/INAPTO não teria onde ser marcado — que é o que
                 travava a finalização na configuração padrão (13E). */}
             {precisaPainelDeLaudo(fluxo, superficieEdicao) && !somenteLeitura && fonteDeImpressao(relatorioArquivado) !== 'arquivo' && (
-              <button type="button" className="btn-secundario barra-btn" onClick={() => setModalLaudo(true)}>
-                <Icone nome="filetext" tam={14} /> Laudo
+              <button type="button" className="barra-doc-btn" onClick={() => setModalLaudo(true)}>
+                <Icone nome="checkcircle" tam={14} /> <span className="rotulo-compacto">Laudo</span>
               </button>
             )}
-            <div className="meta-barra-acoes">
               {/* `gerando`: enquanto o contador de folhas está na cara do botão, ele ocupa a
                   linha inteira no celular — truncar "Gerando PDF 3/27..." tiraria justamente
                   o sinal de que o app não travou. */}
@@ -1573,24 +1587,24 @@ function RelatoriosLegado() {
               {!somenteLeitura && (
                 <button
                   type="button"
-                  className={`btn-secundario barra-btn${salvandoRascunho ? ' is-loading' : ''}`}
+                  className={`barra-doc-btn${salvandoRascunho ? ' is-loading' : ''}`}
                   onClick={salvarRascunhoAtual}
                   disabled={salvandoRascunho || salvando}
                 >
-                  <Icone nome="filetext" tam={14} />{' '}
+                  <Icone nome="cloudcheck" tam={14} />
                   {salvandoRascunho ? (
-                    'Salvando…'
+                    <span className="rotulo-compacto">Salvando…</span>
                   ) : (
-                    <>
-                      Salvar<span className="barra-btn-extra"> rascunho</span>
-                    </>
+                    <span className="rotulo-compacto">
+                      Salvar<span className="so-desktop"> rascunho</span>
+                    </span>
                   )}
                 </button>
               )}
               {!somenteLeitura && (
                 <button
                   type="button"
-                  className={`barra-btn barra-btn-salvar${salvando ? ' is-loading' : ''}${progressoPdf ? ' gerando' : ''}`}
+                  className={`barra-doc-btn primaria${salvando ? ' is-loading' : ''}${progressoPdf ? ' gerando' : ''}`}
                   onClick={abrirFinalizacao}
                   disabled={salvando || salvandoRascunho}
                 >
@@ -1603,46 +1617,41 @@ function RelatoriosLegado() {
                       ? 'Finalizando...'
                       : (
                           <>
-                            Finalizar<span className="barra-btn-extra"> relatório</span>
+                            Finalizar<span className="so-desktop"> relatório</span>
                           </>
                         )}
                 </button>
               )}
-              {/* 10/09/2026 · no celular estes três descem para o "⋯". A barra
-                  media 140 px em TRÊS linhas (388 px de viewport), sobre 49 px
-                  de topbar: 189 px de moldura antes do documento, num aparelho
-                  de 841 px. Voltar, salvar e finalizar continuam à vista;
-                  imprimir, baixar e configurar são de uma vez por documento. */}
-              <button
-                type="button"
-                className={`btn-secundario barra-btn mmais-oculto-movel${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
-                onClick={prepararEImprimir}
-                disabled={imprimindo}
-              >
-                {documentosBloqueados() && <Icone nome="cadeado" tam={13} />}{' '}
-                {imprimindo ? 'Preparando…' : rotuloImpressao(fonteDeImpressao(relatorioArquivado))}
-              </button>
-              <button
-                type="button"
-                className={`barra-btn barra-btn-pdf mmais-oculto-movel${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
-                onClick={baixarPdf}
-                disabled={exportando}
-              >
-                {documentosBloqueados() ? <Icone nome="cadeado" tam={14} /> : <Icone nome="download" tam={14} />}{' '}
-                {exportando ? 'Gerando PDF…' : 'Baixar PDF'}
-              </button>
-              {/* Documento ARQUIVADO não tem o que configurar: a meta está congelada
-                  e todo campo do modal abre bloqueado. O botão só tomava espaço
-                  da barra que agora precisa caber numa linha. */}
-              {fonteDeImpressao(relatorioArquivado) !== 'arquivo' && (
-                <button type="button" className="btn-secundario barra-btn mmais-oculto-movel" onClick={() => setModalConfig(true)}>
-                  <Icone nome="sliders" tam={14} /> Configurações
-                </button>
+              {/* Documento SOMENTE LEITURA: imprimir e baixar são as ações dele,
+                  então ficam à vista (no celular descem para o "⋯"). Em edição,
+                  são de uma vez por documento e moram no "⋯" em qualquer largura
+                  — é o que deixa a barra caber numa linha. */}
+              {somenteLeitura && (
+                <>
+                  <button
+                    type="button"
+                    className={`barra-doc-btn mmais-oculto-movel${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                    onClick={prepararEImprimir}
+                    disabled={imprimindo}
+                  >
+                    {documentosBloqueados() && <Icone nome="cadeado" tam={13} />}
+                    {imprimindo ? 'Preparando…' : rotuloImpressao(fonteDeImpressao(relatorioArquivado))}
+                  </button>
+                  <button
+                    type="button"
+                    className={`barra-doc-btn mmais-oculto-movel${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                    onClick={baixarPdf}
+                    disabled={exportando}
+                  >
+                    {documentosBloqueados() ? <Icone nome="cadeado" tam={14} /> : <Icone nome="download" tam={14} />}
+                    {exportando ? 'Gerando PDF…' : 'Baixar PDF'}
+                  </button>
+                </>
               )}
-              {/* O "⋯" só existe abaixo de 640px (regra no CSS do componente):
-                  em tela larga a barra cabe inteira, e esconder ação onde há
-                  espaço é trocar clareza por nada. */}
+              {/* Configurações só existe para documento NÃO arquivado: a meta do
+                  arquivado está congelada e todo campo do modal abre bloqueado. */}
               <MenuMais
+                className={somenteLeitura ? 'so-movel' : ''}
                 acoes={[
                   {
                     rotulo: imprimindo ? 'Preparando…' : rotuloImpressao(fonteDeImpressao(relatorioArquivado)),
@@ -1667,8 +1676,9 @@ function RelatoriosLegado() {
                     : []),
                 ]}
               />
-            </div>
-          </div>
+            </>
+            }
+          />
 
           {modalMedicoes && (
             <ModalMedicoes
@@ -1750,6 +1760,7 @@ function RelatoriosLegado() {
                 }}
                 nomeArquivo={relatorioArquivado.nome}
                 onErro={setErroSalvar}
+                barraEm={slotBarra}
               />
               <p className="no-print vpdf-rodape">
                 Arquivado em {relatorioArquivado.geradoEm?.slice(0, 10) ?? '—'} ·{' '}
@@ -1771,6 +1782,7 @@ function RelatoriosLegado() {
               aplicadoEm={aplicadoEm}
               idRelatorio={meta?.codigo}
               onOverrides={setOverrides}
+              barraEm={slotBarra}
               onIrPara={(destino, campo) => {
                 if (destino === 'medicoes') setModalMedicoes(true);
                 else if (destino === 'laudo') setModalLaudo(true);
