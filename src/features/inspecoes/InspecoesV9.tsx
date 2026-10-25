@@ -31,7 +31,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import BuscaLista from '../../components/BuscaLista';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
-import FotoImg from '../../components/FotoImg';
 import * as buscaIndex from '../../services/buscaIndex';
 import { rotuloInspecoes } from '../../services/buscaIndex';
 import type { Contagem, FiltrosBusca, ItemCatalogo } from '../../services/buscaIndex';
@@ -50,6 +49,7 @@ import type { ContainerInspecao, TipoEnsaio } from './tipos';
 import './visualizador.css';
 import '../../pages/relatorios.css';
 import '../../pages/inspecoes.css';
+import './inspecoesLista.css';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -58,7 +58,15 @@ const ROTULO_TIPO: Record<string, string> = {
 };
 
 /** Altura estimada de uma linha; corrigida por medição no primeiro quadro. */
-const ALT_LINHA = 92;
+const ALT_LINHA = 40;
+
+/** Abas da lista: o recorte por tipo que o catálogo do servidor já filtra. */
+const ABAS_TIPO: { valor: string; rotulo: string }[] = [
+  { valor: '', rotulo: 'Todos' },
+  { valor: 'vaso', rotulo: 'Vasos' },
+  { valor: 'caldeira', rotulo: 'Caldeiras' },
+  { valor: 'autoclave', rotulo: 'Autoclaves' },
+];
 
 export default function InspecoesV9() {
   const [params, setParams] = useSearchParams();
@@ -67,6 +75,7 @@ export default function InspecoesV9() {
   // container e compartilhar continuam no mesmo lugar.
   const termo = params.get('q') ?? '';
   const tag = params.get('tag') ?? '';
+  const tipo = params.get('tipo') ?? '';
 
   const [itens, setItens] = useState<ItemCatalogo[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -92,7 +101,7 @@ export default function InspecoesV9() {
   const [renomeando, setRenomeando] = useState<ContainerInspecao | null>(null);
   const [ajudaAberta, setAjudaAberta] = useState(false);
 
-  const filtros: FiltrosBusca = useMemo(() => ({ termo }), [termo]);
+  const filtros: FiltrosBusca = useMemo(() => ({ termo, tipo }), [termo, tipo]);
 
   /** A resposta antiga não pode sobrescrever a nova — igual à 9C/9E. */
   const geracao = useRef(0);
@@ -308,107 +317,124 @@ export default function InspecoesV9() {
     );
   }
 
-  // ── TELA DA LISTA ──────────────────────────────────────────────────────────
+  // ── TELA DA LISTA (v4, 25/10/2026) ─────────────────────────────────────────
+  // Tabela de 40px por linha dentro de UM cartão, com a barra de ferramentas no
+  // topo dele (busca + tipo). As abas filtram por TIPO porque é o recorte que o
+  // servidor sabe fazer (`p_tipo`); a prévia da v4 desenhava abas de situação
+  // ("Em andamento", "Vencidas"), e o catálogo não tem esse dado por linha —
+  // derivar aqui seria afirmar um prazo que nenhuma regra do sistema calculou.
   return (
-    <div className="inspecoes-page">
+    <div className="inspecoes-page iv4">
       {/* O <h1> saiu: a topbar já mostra o título da seção. */}
-
-      <BuscaLista
-        valor={termo}
-        aoMudar={(t) => trocarParam('q', t)}
-        placeholder="Buscar por TAG, equipamento, fabricante ou cliente…"
-        carregando={carregando}
-        contagem={contagem}
-        offline={offline}
-      />
-
-      {erro && (
-        <div className="rel-aviso-erro" role="status">
-          {erro}
-          <button type="button" className="fj-btn fj-btn-ghost" onClick={() => void buscar()}>
-            Tentar de novo
-          </button>
+      <section className="iv4-painel" aria-label="Equipamentos para inspeção">
+        <div className="iv4-barra">
+          <BuscaLista
+            valor={termo}
+            aoMudar={(t) => trocarParam('q', t)}
+            placeholder="Buscar por TAG, equipamento, fabricante ou cliente…"
+            carregando={carregando}
+            contagem={contagem}
+            offline={offline}
+            compacto
+          >
+            <div className="iv4-seg" role="group" aria-label="Tipo de equipamento">
+              {ABAS_TIPO.map((a) => (
+                <button
+                  key={a.valor || 'todos'}
+                  type="button"
+                  aria-pressed={tipo === a.valor}
+                  onClick={() => trocarParam('tipo', a.valor)}
+                >
+                  {a.rotulo}
+                </button>
+              ))}
+            </div>
+          </BuscaLista>
         </div>
-      )}
 
-      <div className="bloco-dados painel-lista">
-        {/* Mesmo cabeçalho de /relatorios e /prontuarios: filete âmbar, nome da
-            seção e a contagem. Com poucos equipamentos a caixa branca continua
-            tendo presença, em vez de virar uma faixa curta num vão cinza. */}
-        <div className="painel-lista-head" role="presentation">
-          <span className="painel-lista-titulo">
-            <strong>Equipamentos</strong>
-            <span>Escolha um para ver e preencher as inspeções dele</span>
-          </span>
-          <span className="painel-lista-contagem">
-            {itens.length} {itens.length === 1 ? 'equipamento' : 'equipamentos'}
-          </span>
-        </div>
+        {erro && (
+          <div className="rel-aviso-erro" role="status">
+            {erro}
+            <button type="button" className="fj-btn fj-btn-ghost" onClick={() => void buscar()}>
+              Tentar de novo
+            </button>
+          </div>
+        )}
+
         {!carregando && itens.length === 0 && !erro ? (
-          <p className="dashboard-vazio">
-            {termo ? `Nenhum equipamento encontrado para ${termo}.` : 'Nenhum equipamento cadastrado ainda.'}
+          <p className="iv4-vazio">
+            {termo
+              ? `Nenhum equipamento encontrado para ${termo}.`
+              : tipo
+                ? 'Nenhum equipamento deste tipo.'
+                : 'Nenhum equipamento cadastrado ainda.'}
           </p>
         ) : (
-          <ListaVirtualizada
-            itens={itens}
-            chaveDe={(i) => i.tag}
-            alturaEstimada={ALT_LINHA}
-            classeGrade="lista-cards-horiz"
-            // Busca nova é lista nova: a rolagem volta ao começo. Sem isto, quem
-            // busca com a lista rolada fica olhando para o vazio enquanto o
-            // cabeçalho anuncia resultados — medido no gate com 50.000.
-            chaveDoConjunto={termo}
-            aoChegarNoFim={carregarMais}
-            rodape={
-              carregandoMais ? (
-                <div className="rel-rodape-carregando" role="status">
-                  Carregando mais…
-                </div>
-              ) : null
-            }
-            desenhar={(item) => (
-              <button
-                type="button"
-                className="card-equipamento-horiz"
-                onClick={() => trocarParam('tag', item.tag)}
-              >
-                <div className="card-eq-img">
-                  {item.fotoRef ? (
-                    <FotoImg foto={{ ref: item.fotoRef }} alt={item.tag} variante="thumb" />
-                  ) : (
-                    <span className="card-eq-img-vazio">{item.tag.slice(0, 2)}</span>
-                  )}
-                </div>
-                <div className="card-eq-info">
-                  <div className="eq-col">
-                    <span className="eq-tag">{item.tag}</span>
-                    <span className="eq-tipo">{item.tipo ? ROTULO_TIPO[item.tipo] ?? item.tipo : '—'}</span>
+          <>
+            {/* Cabeçalho visual da tabela. Cada linha é um BOTÃO com o texto
+                inteiro, então o leitor de tela não precisa dele. */}
+            <div className="iv4-linha iv4-cab" aria-hidden="true">
+              <span>TAG</span>
+              <span>Equipamento</span>
+              <span>Cliente</span>
+              <span>Categoria</span>
+              <span className="num">PMTA</span>
+              <span className="num">Inspeções</span>
+              <span />
+            </div>
+            <ListaVirtualizada
+              itens={itens}
+              chaveDe={(i) => i.tag}
+              alturaEstimada={ALT_LINHA}
+              classeGrade="iv4-linhas"
+              // Busca nova é lista nova: a rolagem volta ao começo. Sem isto, quem
+              // busca com a lista rolada fica olhando para o vazio enquanto o
+              // cabeçalho anuncia resultados — medido no gate com 50.000.
+              chaveDoConjunto={`${termo}|${tipo}`}
+              aoChegarNoFim={carregarMais}
+              rodape={
+                carregandoMais ? (
+                  <div className="rel-rodape-carregando" role="status">
+                    Carregando mais…
                   </div>
-                  <div className="eq-col">
-                    <span className="eq-label">Categoria</span>
-                    <span className="eq-value">{item.categoria ?? '—'}</span>
-                  </div>
-                  <div className="eq-col">
-                    <span className="eq-label">PMTA</span>
-                    <span className="eq-value">
+                ) : null
+              }
+              desenhar={(item) => {
+                const rotuloTipo = item.tipo ? ROTULO_TIPO[item.tipo] ?? item.tipo : '—';
+                // O número SOME quando a contagem é desconhecida: "0" ali seria
+                // afirmar um fato que ninguém mediu (ver `rotuloInspecoes`).
+                const qtd = rotuloInspecoes(item.inspecoes) ? String(item.inspecoes) : '—';
+                return (
+                  <button type="button" className="iv4-linha" onClick={() => trocarParam('tag', item.tag)}>
+                    <span className="iv4-tag">{item.tag}</span>
+                    <span className="iv4-eq">{item.descricao || rotuloTipo}</span>
+                    <span className="iv4-sub iv4-col-cli">
+                      {item.clienteNome
+                        ? `${item.clienteNome}${item.clienteCidade ? ` · ${item.clienteCidade}` : ''}`
+                        : '—'}
+                    </span>
+                    <span className="iv4-col-cat">
+                      <span className="iv4-rot-m">Categoria </span>
+                      {item.categoria ?? '—'}
+                    </span>
+                    <span className="num iv4-mono iv4-col-pmta">
+                      <span className="iv4-rot-m">PMTA </span>
                       {item.pmtaMpa !== null
                         ? formatarValor(item.pmtaMpa, (item.unidade as SistemaUnidade) ?? 'SI')
                         : '—'}
                     </span>
-                  </div>
-                </div>
-                {/* O badge SOME quando a contagem é desconhecida. "0 Inspeções"
-                    ali seria afirmar um fato que ninguém mediu. */}
-                {rotuloInspecoes(item.inspecoes) && (
-                  <span className={`badge-relatorios ${(item.inspecoes ?? 0) > 0 ? 'tem' : ''}`}>
-                    {rotuloInspecoes(item.inspecoes)}
-                  </span>
-                )}
-              </button>
-            )}
-          />
+                    <span className="num iv4-mono iv4-col-qtd" title={rotuloInspecoes(item.inspecoes) ?? undefined}>
+                      <span className="iv4-rot-m">Inspeções </span>
+                      {qtd}
+                    </span>
+                    <Icone nome="chevright" tam={16} />
+                  </button>
+                );
+              }}
+            />
+          </>
         )}
-      </div>
+      </section>
     </div>
   );
 }

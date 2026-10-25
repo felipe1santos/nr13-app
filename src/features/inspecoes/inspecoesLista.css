@@ -1,0 +1,160 @@
+/* ============================================================================
+   /inspecoes — lista de equipamentos (v4 "Aço Frio", 25/10/2026)
+   docs/design/v4/direcao-v4.md · tela "Inspeções" da prévia.
+   UM cartão: barra de ferramentas no topo (busca + abas de tipo) e uma tabela
+   de 40px por linha. Tudo escopado em `.iv4`: `inspecoes.css` continua servindo
+   a tela de containers e o formulário.
+   ============================================================================ */
+
+.iv4-painel {
+  background: var(--superficie);
+  border: 1px solid var(--fio);
+  border-radius: var(--r-md);
+  min-width: 0;
+}
+
+/* ── Barra do cartão: busca, contagem e abas na mesma linha ── */
+.iv4-barra {
+  padding: var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--fio);
+}
+.iv4 .busca-lista { margin: 0; }
+.iv4 .busca-lista-linha { gap: var(--s-3); }
+.iv4 .busca-lista-campo {
+  flex: 0 1 320px;
+  min-width: 200px;
+  height: var(--h-ctl);
+  padding: 0 var(--s-3);
+  background: var(--superficie);
+  border: 1px solid var(--fio-campo);
+  border-radius: var(--r-sm);
+  color: var(--texto-3);
+}
+.iv4 .busca-lista-campo:focus-within { outline: 2px solid var(--foco); outline-offset: 1px; }
+.iv4 .busca-lista-campo input::placeholder { color: var(--texto-3); }
+.iv4 .busca-lista-contagem { color: var(--texto-3); font-size: var(--fs-12); }
+
+/* Abas segmentadas: trilho neutro, ATIVO no acento com texto branco. */
+.iv4-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  margin-left: auto;
+  border-radius: var(--r-sm);
+  background: var(--superficie-3);
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.iv4-seg::-webkit-scrollbar { display: none; }
+.iv4-seg button {
+  height: var(--h-ctl-sm);
+  padding: 0 var(--s-3);
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  font-family: var(--font-base);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  color: var(--texto-2);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.iv4-seg button:not([aria-pressed='true']):hover { color: var(--texto-1); }
+.iv4-seg button[aria-pressed='true'] {
+  background: var(--acao);
+  color: var(--acao-texto);
+  font-weight: 600;
+}
+.iv4-seg button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
+
+/* ── Tabela: cabeçalho + linhas na MESMA grade de colunas ── */
+.iv4-linha {
+  display: grid;
+  grid-template-columns:
+    minmax(120px, 0.8fr) minmax(0, 1.8fr) minmax(0, 1.6fr)
+    86px 110px 84px 16px;
+  align-items: center;
+  column-gap: var(--s-3);
+  width: 100%;
+  min-height: var(--h-row);
+  padding: 0 var(--s-4);
+  border: 0;
+  border-bottom: 1px solid var(--fio);
+  background: var(--superficie);
+  font-family: var(--font-base);
+  font-size: var(--fs-13);
+  line-height: var(--lh-13);
+  color: var(--texto-1);
+  text-align: left;
+  cursor: pointer;
+}
+.iv4-linha > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.iv4-linha .num { text-align: right; }
+.iv4-linha > svg { color: var(--texto-3); }
+.iv4-linhas > :last-child .iv4-linha { border-bottom: 0; }
+button.iv4-linha:hover { background: var(--superficie-2); }
+button.iv4-linha:focus-visible { outline: 2px solid var(--foco); outline-offset: -2px; }
+
+.iv4-cab {
+  min-height: 36px;
+  background: var(--superficie-2);
+  font-size: var(--fs-11);
+  line-height: var(--lh-11);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--texto-3);
+  cursor: default;
+}
+
+.iv4-tag { font-family: var(--font-mono); font-weight: 500; }
+.iv4-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.iv4-sub { color: var(--texto-2); }
+/* O rótulo por célula só aparece no celular, onde não há cabeçalho. */
+.iv4-rot-m { display: none; }
+
+.iv4-vazio { padding: var(--s-6) var(--s-4); color: var(--texto-3); font-size: var(--fs-13); }
+
+/* Tela média: colunas numéricas mais justas. */
+@media (max-width: 1100px) {
+  .iv4-linha {
+    grid-template-columns: minmax(110px, 0.9fr) minmax(0, 1.6fr) minmax(0, 1.3fr) 76px 100px 72px 16px;
+  }
+}
+
+/* ── Celular: cada linha vira um item de duas linhas, 64px, alvo inteiro ── */
+@media (max-width: 640px) {
+  .iv4-barra { padding: var(--s-3); }
+  .iv4 .busca-lista-campo { flex: 1 1 100%; height: var(--h-toque); }
+  .iv4 .busca-lista-campo input { font-size: 16px; }
+  .iv4-seg { margin-left: 0; flex: 1 1 100%; }
+  .iv4-seg button { height: 40px; flex: 1 0 auto; }
+  .iv4-cab { display: none; }
+  .iv4-linha {
+    grid-template-columns: minmax(0, 1fr) 16px;
+    grid-template-areas:
+      'tag   seta'
+      'eq    seta'
+      'meta  seta';
+    row-gap: 2px;
+    min-height: 64px;
+    padding: var(--s-3) var(--s-4);
+  }
+  .iv4-tag { grid-area: tag; font-size: 15px; }
+  .iv4-eq { grid-area: eq; color: var(--texto-2); }
+  .iv4-linha > svg { grid-area: seta; }
+  .iv4-col-cli { display: none; }
+  .iv4-col-cat, .iv4-col-pmta, .iv4-col-qtd {
+    grid-area: meta;
+    font-size: var(--fs-12);
+    color: var(--texto-3);
+    text-align: left;
+  }
+  /* As três métricas dividem a linha de baixo. */
+  .iv4-col-cat { justify-self: start; }
+  .iv4-col-pmta { justify-self: center; }
+  .iv4-col-qtd { justify-self: end; }
+  .iv4-rot-m { display: inline; font-family: var(--font-base); }
+}

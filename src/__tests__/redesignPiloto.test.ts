@@ -204,3 +204,28 @@ describe('v4: aba ativa no acento, KPIs numa faixa, menu ⋯ sem quebra', () => 
     expect(MENU_CSS).toMatch(/\.mmais-item \{[^}]*white-space: nowrap;/);
   });
 });
+
+describe('v4: Inspeções em tabela de 40px, abas por tipo', () => {
+  const V9 = ler('src/features/inspecoes/InspecoesV9.tsx');
+  const CSS = ler('src/features/inspecoes/inspecoesLista.css');
+
+  it('as abas filtram pelo TIPO que o servidor já sabe recortar, com estado na URL', () => {
+    expect(V9).toContain("const tipo = params.get('tipo') ?? '';");
+    expect(V9).toContain('({ termo, tipo })');
+    expect(V9).toContain("onClick={() => trocarParam('tipo', a.valor)}");
+  });
+
+  it('nada de situação inventada: o catálogo não tem prazo por linha', () => {
+    expect(V9).not.toMatch(/proximaInspecao/);
+  });
+
+  it('contagem desconhecida continua sem número, nunca zero', () => {
+    expect(V9).toContain("rotuloInspecoes(item.inspecoes) ? String(item.inspecoes) : '—'");
+  });
+
+  it('linha de 40px e aba ativa no acento', () => {
+    expect(V9).toContain('const ALT_LINHA = 40;');
+    expect(CSS).toMatch(/\.iv4-linha \{[^}]*min-height: var\(--h-row\);/);
+    expect(CSS).toMatch(/\.iv4-seg button\[aria-pressed='true'\] \{[^}]*background: var\(--acao\);/);
+  });
+});
