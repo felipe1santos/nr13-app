@@ -32,9 +32,27 @@ describe('tokens Forja Compacto', () => {
     expect(TOKENS).toContain('--acao: var(--amber);');
   });
 
-  it('o texto secundário novo passa de 4,5:1 (o --muted antigo não passava)', () => {
-    expect(TOKENS).toContain('--texto-2: #4F5A63;');
-    expect(TOKENS).toContain('--texto-3: #66717A;');
+  it('o texto secundário passa de 4,5:1 no branco e no fundo (v4)', () => {
+    expect(TOKENS).toContain('--texto-2: #4A525B;');
+    expect(TOKENS).toContain('--texto-3: #636C76;');
+  });
+
+  it('v4 "Aço Frio": acento #BC560A com texto BRANCO (o texto escuro reprova no acento novo)', () => {
+    expect(TOKENS).toContain('--amber: #BC560A;');
+    expect(TOKENS).toContain('--amber-txt: #FFFFFF;');
+    expect(TOKENS).toContain('--steel: #F3F4F6;');
+    expect(TOKENS).toContain('--ink: #111418;');
+    expect(TOKENS).not.toMatch(/:\s*#FF7A1A/i); // nenhum token com o âmbar antigo
+  });
+
+  it('v4: Inter na interface, JetBrains Mono nos dados', () => {
+    expect(TOKENS).toMatch(/--font-base: 'Inter Variable'/);
+    expect(TOKENS).toMatch(/--font-display: 'Inter Variable'/);
+    expect(TOKENS).toMatch(/--font-mono: 'JetBrains Mono'/);
+  });
+
+  it('v4: nenhum azul como cor de ação — o link é o tom escuro do acento', () => {
+    expect(TOKENS).toContain('--link: #A34A08;');
   });
 
   it('não redefine --surface/--border: 87 usos com fallback mudariam de cor fora do piloto', () => {
@@ -160,5 +178,29 @@ describe('visualizador de Relatórios: uma barra de 44px, PDF no resto da altura
   it('no celular o rótulo sai da vista mas fica para o leitor de tela', () => {
     expect(BARRA_CSS).toContain('clip: rect(0 0 0 0)');
     expect(BARRA_CSS).not.toMatch(/\.rotulo-compacto \{[^}]*display: none/);
+  });
+});
+
+describe('v4: aba ativa no acento, KPIs numa faixa, menu ⋯ sem quebra', () => {
+  const DASH_CSS = ler('src/pages/dashboard-novo.css');
+  const MENU_CSS = ler('src/components/menu-mais.css');
+
+  it('o segmento ativo do Painel é acento sólido com texto branco', () => {
+    expect(DASH_CSS).toMatch(/\.pc-seg button\[aria-pressed='true'\] \{[^}]*background: var\(--acao\);[^}]*color: var\(--acao-texto\);/);
+  });
+
+  it('os cinco KPIs moram numa faixa só, com fio entre eles', () => {
+    expect(DASH_CSS).toMatch(/\.pc-kpis \{[^}]*border: 1px solid var\(--fio\);/);
+    expect(DASH_CSS).toContain('.pc-kpi-sec { border-left: 1px solid var(--fio); }');
+  });
+
+  it('o número do dominante não é pintado: o status vai no ponto e no ícone', () => {
+    expect(DASH_CSS).not.toMatch(/\.pc-crit \.pc-kpi-val \{ color/);
+    expect(DASH_CSS).toContain('.pc-kpi-dom.pc-crit .pc-kpi-val::before { background: var(--st-crit); }');
+  });
+
+  it('"Configurações do relatório" cabe numa linha do ⋯', () => {
+    expect(MENU_CSS).toContain('min-width: 240px;');
+    expect(MENU_CSS).toMatch(/\.mmais-item \{[^}]*white-space: nowrap;/);
   });
 });

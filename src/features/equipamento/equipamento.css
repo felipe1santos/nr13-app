@@ -379,8 +379,10 @@
 }
 
 .btn-primario:disabled {
-  background: #E8C7A6;
-  color: var(--amber-txt);
+  /* Acento novo pede texto branco; branco sobre âmbar claro sumia. Desabilitado
+     vira neutro, como na v4. */
+  background: var(--bg-soft);
+  color: var(--text-faint);
   cursor: not-allowed;
   box-shadow: none;
 }

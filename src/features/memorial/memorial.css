@@ -1292,7 +1292,7 @@
   content: '';
   width: 5px;
   height: 15px;
-  background: #FF7A1A;
+  background: var(--amber, #BC560A);
   border-radius: 2px;
   flex: 0 0 auto;
 }

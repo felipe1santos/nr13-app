@@ -65,8 +65,8 @@ export default function RotaErro() {
           padding: '10px 20px',
           borderRadius: 10,
           border: 'none',
-          background: '#FF7A1A',
-          color: '#241505',
+          background: '#BC560A',
+          color: '#FFFFFF',
           fontWeight: 600,
           cursor: 'pointer',
         }}

@@ -1,46 +1,55 @@
 /* ============================================================================
-   NR-13 — Design System "Forja" (fonte da verdade: pasta design/ na raiz)
-   Identidade: fundo steel #F6F5F2, painéis brancos, bordas #E4E1D8, sidebar
-   escura #14181C, acento âmbar #FF7A1A, tipografia Space Grotesk (títulos) +
-   IBM Plex Sans (texto) + IBM Plex Mono (dados técnicos). Os nomes de tokens
-   antigos são preservados como aliases (compatibilidade com CSS existente).
+   NR-13 — Design System "Aço Frio" (v4, aprovada em 25/10/2026)
+   Fonte da verdade visual: docs/design/v4/direcao-v4.md (prévia ao lado).
+   Fundo #F3F4F6, superfícies brancas, fios #E3E5E8, sidebar #111418,
+   acento #BC560A com texto BRANCO, Inter na interface e JetBrains Mono nos
+   dados técnicos (TAG, datas, números de tabela).
+
+   Os nomes abaixo são os da paleta Forja (03/07/2026). Os NOMES ficam — há
+   centenas de `var(--amber)`, `var(--line)` e `var(--text-main)` espalhados —
+   e só os VALORES passam a ser os da v4. Assim o app inteiro troca de paleta
+   num lugar só, sem reescrever tela nenhuma.
+   ATENÇÃO: `--amber-txt` virou BRANCO. O âmbar antigo (#FF7A1A) pedia texto
+   escuro; o acento novo (#BC560A) só passa contraste com branco (4,69:1).
    Fontes self-hosted via @fontsource (main.tsx) — PWA funciona offline.
    ============================================================================ */
 
 :root {
-  /* ── Paleta Forja (copiada de design/painel_dashboard.html) ── */
-  --ink: #14181C;
-  --ink-soft: #1E252B;
-  --ink-soft2: #242B32;
-  --steel: #F6F5F2;
+  /* ── Paleta (nomes Forja, valores Aço Frio) ── */
+  --ink: #111418;            /* sidebar */
+  --ink-soft: #1A1F25;       /* hover na sidebar */
+  --ink-soft2: #222831;      /* item ativo na sidebar */
+  --steel: #F3F4F6;          /* fundo */
   --panel: #FFFFFF;
-  --line: #E4E1D8;
-  --text: #2D3339;
-  --muted: #7A8790;
-  --amber: #FF7A1A;
-  --amber-deep: #D9640C;
-  --amber-txt: #241505;      /* texto sobre âmbar */
-  --amber-bg: #FFF1E6;
-  --ok: #1FA971;
-  --ok-bg: #E7F6EF;
-  --ok-line: #BFE9D6;
-  --warn: #B8860B;
-  --warn-bg: #FBF1DC;
-  --warn-line: #F0DBA6;
-  --crit: #D5453D;
-  --crit-deep: #B93A33;
-  --crit-bg: #FBEAE9;
-  --crit-line: #F3C6C3;
+  --line: #E3E5E8;
+  --text: #15191E;
+  --muted: #636C76;          /* 5,33:1 no branco; o antigo #7A8790 dava 3,6 */
+  --amber: #BC560A;          /* ACENTO: primário, ativo, foco */
+  --amber-deep: #A34A08;     /* hover do primário e texto/link em tom de acento */
+  --amber-txt: #FFFFFF;      /* texto sobre o acento: 4,69:1 */
+  --amber-bg: #FBEFE6;       /* tinta do acento */
+  --ok: #137A4F;
+  --ok-bg: #E6F4ED;
+  --ok-line: #B9DECB;
+  --warn: #8A5A00;
+  --warn-bg: #FBF2DE;
+  --warn-line: #EBD39B;
+  --crit: #B42318;
+  --crit-deep: #8F1C13;
+  --crit-bg: #FBEAE8;
+  --crit-line: #F1C1BC;
   --purple: #7C5CFC;
   --purple-bg: #F1EDFF;
-  --blue: #457DC1;
-  --blue-deep: #35639C;
-  --blue-bg: #EAF2FB;
-  --blue-line: #C9DCF0;
-  --blue2: #0C4F9B;
-  --blue2-bg: #E4EDF9;
-  --blue2-line: #C4D9F0;
-  --link: #1E3A8A;           /* azul escuro — textos clicáveis (fj-link) */
+  /* Os azuis viram o INFO da v4 (selo "Agendada", "Em andamento"). Não há mais
+     azul como cor de ação: a ação é o acento. */
+  --blue: #285A8F;
+  --blue-deep: #1F4770;
+  --blue-bg: #E9F0F8;
+  --blue-line: #C5D6EA;
+  --blue2: #285A8F;
+  --blue2-bg: #E9F0F8;
+  --blue2-line: #C5D6EA;
+  --link: #A34A08;           /* texto clicável (fj-link): 5,93:1 no branco */
   /* Azul petróleo — o azul da tela de login. Usado onde um texto informativo
      precisa de peso sem virar alerta (carimbo de último login, selo do
      documento arquivado). */
@@ -48,55 +57,55 @@
   --petroleo-claro: #0E6F85;
   --petroleo-bg: #E8F2F5;
   --petroleo-line: #BEDCE4;
-  --radius: 10px;
+  --radius: 8px;
 
-  /* ── Aliases legados (mapeados para a paleta Forja) ── */
-  --bg-body: #F6F5F2;
+  /* ── Aliases legados ── */
+  --bg-body: #F3F4F6;
   --bg-card: #FFFFFF;
-  --bg-faint: #FBFAF7;
-  --bg-soft: #F2EFE7;
+  --bg-faint: #F8F9FA;
+  --bg-soft: #EEF0F2;
 
-  --text-main: #2D3339;
-  --text-muted: #7A8790;
-  --text-faint: #AEB4B9;
+  --text-main: #15191E;
+  --text-muted: #636C76;
+  --text-faint: #8A919A;
 
-  --border-solid: #E4E1D8;
-  --border-dashed: #D8D5CC;
-  --highlight-bg: #FFF1E6;
-  --menu-hover: #F2EFE7;
-  --active-color: #FF7A1A;
+  --border-solid: #E3E5E8;
+  --border-dashed: #D5D8DD;
+  --highlight-bg: #FBEFE6;
+  --menu-hover: #EEF0F2;
+  --active-color: #BC560A;
 
   --top-bar-bg: #ffffff;
   --top-bar-grad: #ffffff;
-  --sidebar-bg: #14181C;
-  --sidebar-grad: #14181C;
+  --sidebar-bg: #111418;
+  --sidebar-grad: #111418;
 
-  --accent: #FF7A1A;
-  --accent-2: #D9640C;        /* hover */
-  --accent-soft: #FF9247;
-  --accent-grad: linear-gradient(135deg, #FF7A1A 0%, #D9640C 100%);
-  --accent-bg-light: #FFF1E6;
-  --accent-ring: rgba(255, 122, 26, 0.35);
+  --accent: #BC560A;
+  --accent-2: #A34A08;        /* hover */
+  --accent-soft: #D0702A;
+  --accent-grad: linear-gradient(135deg, #BC560A 0%, #A34A08 100%);
+  --accent-bg-light: #FBEFE6;
+  --accent-ring: rgba(188, 86, 10, 0.35);
 
-  /* ── Status (aliases → Forja) ── */
-  --status-sucesso-icone: #1FA971;
-  --status-pendente-icone: #B8860B;
-  --status-ok-bg: #E7F6EF;
-  --status-ok-text: #1FA971;
-  --status-erro-bg: #FBEAE9;
-  --status-erro-text: #D5453D;
-  --status-aviso-bg: #FBF1DC;
-  --status-aviso-text: #B8860B;
+  /* ── Status (aliases) ── */
+  --status-sucesso-icone: #137A4F;
+  --status-pendente-icone: #8A5A00;
+  --status-ok-bg: #E6F4ED;
+  --status-ok-text: #137A4F;
+  --status-erro-bg: #FBEAE8;
+  --status-erro-text: #B42318;
+  --status-aviso-bg: #FBF2DE;
+  --status-aviso-text: #8A5A00;
 
   /* ── Tags de tipo de equipamento ── */
   --tipo-vaso-bg: #F1EDFF;
   --tipo-vaso-text: #7C5CFC;
 
-  /* ── Raios ── */
-  --radius-sm: 7px;
-  --radius-md: 10px;
-  --radius-lg: 12px;
-  --radius-xl: 14px;
+  /* ── Raios (v4: 4–6 em controle, 8 em cartão e modal) ── */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
 
   /* ── Sombras (leves; pesada só em hover/modal) ── */
   --shadow-xs: 0 1px 2px rgba(20, 24, 28, 0.05);
@@ -104,25 +113,25 @@
   --shadow-md: 0 10px 26px rgba(20, 24, 28, 0.08);
   --shadow-lg: 0 20px 60px rgba(20, 24, 28, 0.35);
   --shadow-card: none;
-  --shadow-accent: 0 8px 20px rgba(255, 122, 26, 0.28);
+  --shadow-accent: 0 8px 20px rgba(188, 86, 10, 0.24);
 
   /* ── Transições ── */
   --t-fast: 0.14s cubic-bezier(0.4, 0, 0.2, 1);
   --t-base: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* ── Tipografia ── */
-  --font-base: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
-  --font-display: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
-  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
-  --font-size-base: 13.5px;
+  /* ── Tipografia (v4: Inter + JetBrains Mono) ── */
+  --font-base: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  --font-size-base: 13px;
 }
 
 /* ============================================================================
-   FORJA COMPACTO (Opção A, aprovada em 25/10/2026) — docs/design/direcao.md
+   ESCALAS E NOMES SEMÂNTICOS (piloto 25/10/2026; valores da v4 "Aço Frio")
    ----------------------------------------------------------------------------
-   Escalas e cores semânticas da nova direção visual. São NOMES NOVOS: nenhum
-   token acima muda de valor, então nada fora das telas piloto muda de cara.
-   Onde o valor já existia, o novo nome é um apelido do antigo.
+   Escalas de espaço, tipo, raio, altura e camada, e os nomes semânticos usados
+   pelas telas redesenhadas. As cores são apelidos da paleta acima, então o
+   valor mora num lugar só.
 
    Os nomes estão em português e não são `--surface`/`--border` de propósito:
    esses dois já aparecem em 87 `var(--surface, #fff)` espalhados, sem
@@ -182,6 +191,7 @@
   /* ── Camadas. Escala-alvo da Fase 0 completa; o shell ainda usa os números
         de hoje (gaveta 1500, modais 4000) até a migração dos modais. ── */
   --z-sticky: 10;
+  --z-menu: 30;
   --z-toolbar: 20;
   --z-gaveta: 30;
   --z-overlay: 40;
@@ -193,42 +203,42 @@
   --t-medio: 180ms cubic-bezier(0.2, 0, 0, 1);
 
   /* ── Superfícies e fios ── */
-  --fundo: var(--steel);           /* #F6F5F2 */
+  --fundo: var(--steel);           /* #F3F4F6 */
   --superficie: var(--panel);      /* #FFFFFF */
-  --superficie-2: var(--bg-faint); /* #FBFAF7 — cabeçalho de tabela, hover */
-  --superficie-3: var(--bg-soft);  /* #F2EFE7 — trilho de segmentos, chip neutro */
-  --fio: var(--line);              /* #E4E1D8 — separação, decorativo */
-  --fio-campo: #8E897E;            /* contorno de input: 3,48:1 no branco */
-  --fundo-documento: #DAD7CF;      /* mesa onde o PDF aberto é desenhado */
+  --superficie-2: var(--bg-faint); /* #F8F9FA — cabeçalho de tabela, hover */
+  --superficie-3: var(--bg-soft);  /* #EEF0F2 — trilho de segmentos, chip neutro */
+  --fio: var(--line);              /* #E3E5E8 — separação, decorativo */
+  --fio-campo: #8A919A;            /* contorno de input: 3,18:1 no branco (campo sempre em superfície branca) */
+  --fundo-documento: #D5D8DD;      /* mesa onde o PDF aberto é desenhado */
 
   /* ── Texto: todos ≥ 4,5:1 no branco E no fundo ── */
-  --texto-1: #1C2227;              /* 16,1:1 */
-  --texto-2: #4F5A63;              /* 7,1:1 · 6,5:1 no fundo */
-  --texto-3: #66717A;              /* 5,0:1 · 4,58:1 no fundo */
+  --texto-1: #15191E;              /* 17,65:1 */
+  --texto-2: #4A525B;              /* 7,93:1 · 7,20:1 no fundo */
+  --texto-3: #636C76;              /* 5,33:1 · 4,85:1 no fundo */
 
   /* ── UMA cor de ação ── */
-  --acao: var(--amber);            /* #FF7A1A — só primário, barra ativa do menu */
-  --acao-hover: #F06A0A;
-  --acao-texto: var(--amber-txt);  /* #241505 sobre âmbar: 6,8:1 */
-  --acao-link: #B4530A;            /* âmbar legível como texto: 5,0:1 */
-  --foco: #B4530A;
+  --acao: var(--amber);            /* #BC560A — primário, aba/chip ativo, barra ativa */
+  --acao-hover: var(--amber-deep); /* #A34A08 */
+  --acao-texto: var(--amber-txt);  /* branco sobre o acento: 4,69:1 */
+  --acao-link: #A34A08;            /* link: 5,93:1 no branco, 5,39:1 no fundo */
+  --foco: #BC560A;                 /* anel: 4,69:1 no branco */
 
   /* ── Navegação (sidebar escura) ── */
-  --nav-fundo: var(--ink);         /* #14181C */
-  --nav-hover: var(--ink-soft);    /* #1E252B */
-  --nav-ativo: var(--ink-soft2);   /* #242B32 */
-  --nav-texto: #C9CED3;            /* 11,3:1 */
-  --nav-apagado: #8C969F;          /* 5,9:1 — rótulo de grupo */
-  --nav-fio: #262D34;
+  --nav-fundo: var(--ink);         /* #111418 */
+  --nav-hover: var(--ink-soft);    /* #1A1F25 */
+  --nav-ativo: var(--ink-soft2);   /* #222831 */
+  --nav-texto: #C4CAD1;            /* 11,18:1 */
+  --nav-apagado: #8A939D;          /* 5,93:1 — rótulo de grupo */
+  --nav-fio: #232930;
 
   /* ── Semânticas SÓ para status, sempre com ícone + texto ── */
-  --st-ok: #11724B;
+  --st-ok: var(--ok);              /* #137A4F */
   --st-ok-bg: var(--ok-bg);
-  --st-warn: #8A6100;
+  --st-warn: var(--warn);          /* #8A5A00 */
   --st-warn-bg: var(--warn-bg);
-  --st-crit: #B42318;
+  --st-crit: var(--crit);          /* #B42318 */
   --st-crit-bg: var(--crit-bg);
-  --st-info: #2F5E8C;
+  --st-info: var(--blue);          /* #285A8F */
   --st-info-bg: var(--blue-bg);
 }
 
@@ -294,17 +304,17 @@ h1, h2, h3, h4, .titulo-display {
 /* ── Scrollbar refinada ── */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #C9C5B8 transparent;
+  scrollbar-color: #C4C9CF transparent;
 }
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
-  background: #C9C5B8;
+  background: #C4C9CF;
   border-radius: 8px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
-*::-webkit-scrollbar-thumb:hover { background: #AEA995; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: #A7AEB6; background-clip: padding-box; }
 
 /* ============================================================================
    UTILITÁRIOS GLOBAIS — animações de entrada + spinner de carregamento

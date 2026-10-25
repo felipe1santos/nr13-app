@@ -105,7 +105,7 @@
 }
 .fj-btn-primary { background: var(--amber); color: var(--amber-txt); }
 .fj-btn-primary:hover { background: var(--amber-deep); }
-.fj-btn-primary:disabled { background: #E8C7A6; cursor: not-allowed; }
+.fj-btn-primary:disabled { background: var(--bg-soft); color: var(--text-faint); cursor: not-allowed; }
 .fj-btn-ghost { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
 .fj-btn-ghost:hover { background: var(--steel); }
 .fj-btn-danger { background: var(--crit-bg); color: var(--crit); }

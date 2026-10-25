@@ -16,7 +16,9 @@
   top: calc(100% + 6px);
   right: 0;
   z-index: 60;
-  min-width: 216px;
+  /* 240px e sem quebra de linha (v4): com 216px "Configurações do relatório"
+     quebrava em duas linhas. */
+  min-width: 240px;
   max-width: calc(100vw - 24px);
   display: flex;
   flex-direction: column;
@@ -43,6 +45,7 @@
   font-weight: 600;
   color: var(--text-main, #2d3339);
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
 }
 .mmais-item:hover:not(:disabled) { background: var(--bg-soft, #f7f6f2); }
