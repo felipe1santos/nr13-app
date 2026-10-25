@@ -1251,3 +1251,23 @@ para `scripts/massa-escala/`; usar sempre o caminho do arquivo.
 
 Não se aplica só a exclusão: vale para qualquer ação irreversível disparada por
 automação (arquivar, trancar registro do Livro, resetar senha).
+
+## 15. Identidade visual (definida pelo dono em 25/10/2026)
+
+> **A identidade do sistema é a PRIMEIRA prévia — `docs/design/preview.html` — com a
+> paleta B "Aço Frio" (`docs/design/direcao.md`).** Substitui o `design/` "Forja" como
+> fonte da verdade visual. As rodadas `docs/design/v2..v4` são histórico, não regra.
+
+- **Cor:** fundo `#F3F4F6`, superfícies brancas, fios `#E3E5E8`, sidebar `#111418`,
+  acento `#BC560A` com texto **branco** (o texto escuro reprova nele), link `#A34A08`.
+  Semânticas (`--st-ok/warn/crit/info`) só em selo, ponto e variação, sempre com ícone + texto.
+- **Tipo:** IBM Plex Sans (texto), Space Grotesk (títulos e números de destaque),
+  IBM Plex Mono (TAG, datas, números de tabela). Escala 11/12/13/14/16/20/32.
+- **Forma e densidade:** cabeçalho de 48px, toolbar de 44px, controles de 32px (44 no
+  toque), linha de tabela de 40px, raio 4/6/8. Aba segmentada: trilho cinza, ativo
+  **branco com sombra**. Cabeçalho de tabela 12px, caixa normal.
+- **Onde mora:** os VALORES em `src/styles/tokens.css` (nomes Forja mantidos — `--amber`,
+  `--line`, `--text-main` — para o app inteiro trocar num lugar só) e a camada semântica
+  em português (`--superficie`, `--texto-*`, `--acao`, `--fio`, `--st-*`, `--s-*`, `--h-*`).
+  **Não definir `--surface`/`--border`**: há dezenas de `var(--surface, #fff)` com fallback.
+- Travado por `src/__tests__/redesignPiloto.test.ts`.

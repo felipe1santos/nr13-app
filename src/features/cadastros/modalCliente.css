@@ -215,7 +215,7 @@
 }
 .mcli-corpo > p { color: var(--texto-2); }
 
-/* Abas segmentadas: ativo no acento com texto branco. */
+/* Abas segmentadas (1ª prévia): ativo em branco com sombra sobre o trilho. */
 .mcli-seg {
   display: inline-flex;
   align-self: flex-start;
@@ -246,9 +246,9 @@
   white-space: nowrap;
   cursor: pointer;
 }
-.mcli-seg button:not([aria-selected='true']):hover { color: var(--texto-1); }
-.mcli-seg button[aria-selected='true'] { background: var(--acao); color: var(--acao-texto); font-weight: 600; }
-.mcli-seg .n { font-family: var(--font-mono); font-size: var(--fs-11); }
+.mcli-seg button:hover { color: var(--texto-1); }
+.mcli-seg button[aria-selected='true'] { background: var(--superficie); color: var(--texto-1); font-weight: 500; box-shadow: var(--sh-1); }
+.mcli-seg .n { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--texto-3); }
 
 /* Leitura: rótulo 12 + valor 14, sem caixa nem borda. */
 .mcli-leitura {
@@ -340,12 +340,10 @@
   height: 32px;
   padding: 0 var(--s-3) 0 0;
   border-bottom: 1px solid var(--fio);
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   text-align: left;
-  color: var(--texto-3);
+  color: var(--texto-2);
   white-space: nowrap;
 }
 .mcli-tabela td {

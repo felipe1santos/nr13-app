@@ -34,7 +34,7 @@
 .iv4 .busca-lista-campo input::placeholder { color: var(--texto-3); }
 .iv4 .busca-lista-contagem { color: var(--texto-3); font-size: var(--fs-12); }
 
-/* Abas segmentadas: trilho neutro, ATIVO no acento com texto branco. */
+/* Abas segmentadas (1ª prévia): trilho neutro, ATIVO em branco com sombra. */
 .iv4-seg {
   display: inline-flex;
   gap: 2px;
@@ -61,11 +61,12 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
-.iv4-seg button:not([aria-pressed='true']):hover { color: var(--texto-1); }
+.iv4-seg button:hover { color: var(--texto-1); }
 .iv4-seg button[aria-pressed='true'] {
-  background: var(--acao);
-  color: var(--acao-texto);
-  font-weight: 600;
+  background: var(--superficie);
+  color: var(--texto-1);
+  font-weight: 500;
+  box-shadow: var(--sh-1);
 }
 .iv4-seg button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
 
@@ -100,12 +101,10 @@ button.iv4-linha:focus-visible { outline: 2px solid var(--foco); outline-offset:
 .iv4-cab {
   min-height: 36px;
   background: var(--superficie-2);
-  font-size: var(--fs-11);
-  line-height: var(--lh-11);
+  font-size: var(--fs-12);
+  line-height: var(--lh-12);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--texto-3);
+  color: var(--texto-2);
   cursor: default;
 }
 

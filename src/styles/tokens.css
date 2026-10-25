@@ -1,9 +1,10 @@
 /* ============================================================================
-   NR-13 — Design System "Aço Frio" (v4, aprovada em 25/10/2026)
-   Fonte da verdade visual: docs/design/v4/direcao-v4.md (prévia ao lado).
-   Fundo #F3F4F6, superfícies brancas, fios #E3E5E8, sidebar #111418,
-   acento #BC560A com texto BRANCO, Inter na interface e JetBrains Mono nos
-   dados técnicos (TAG, datas, números de tabela).
+   NR-13 — IDENTIDADE DO SISTEMA (definida pelo dono em 25/10/2026)
+   = a PRIMEIRA prévia (docs/design/preview.html) com a paleta B "Aço Frio"
+   (docs/design/direcao.md). Fundo #F3F4F6, superfícies brancas, fios
+   #E3E5E8, sidebar #111418, acento #BC560A com texto BRANCO, IBM Plex Sans +
+   Space Grotesk + IBM Plex Mono. As rodadas v2–v4 (docs/design/v2..v4) são
+   histórico: o que vale é a primeira prévia.
 
    Os nomes abaixo são os da paleta Forja (03/07/2026). Os NOMES ficam — há
    centenas de `var(--amber)`, `var(--line)` e `var(--text-main)` espalhados —
@@ -119,10 +120,12 @@
   --t-fast: 0.14s cubic-bezier(0.4, 0, 0.2, 1);
   --t-base: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* ── Tipografia (v4: Inter + JetBrains Mono) ── */
-  --font-base: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  /* ── Tipografia (identidade: a da 1ª prévia, docs/design/preview.html) ──
+     IBM Plex Sans no texto, Space Grotesk nos títulos e números de destaque,
+     IBM Plex Mono nos dados técnicos (TAG, datas, números de tabela). */
+  --font-base: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk', 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
   --font-size-base: 13px;
 }
 

@@ -97,8 +97,8 @@ describe('modal do cliente: leitura primeiro, e a gravação é esperada', () =>
     expect(MODAL).toContain("aba === 'local' ? urlMapaEmbed(cliente) : null");
   });
 
-  it('aba ativa no acento com texto branco; raio 8; sem pílula', () => {
-    expect(CSS).toMatch(/\.mcli-seg button\[aria-selected='true'\] \{[^}]*background: var\(--acao\);/);
+  it('aba ativa branca com sombra (1ª prévia); raio 8; sem pílula', () => {
+    expect(CSS).toMatch(/\.mcli-seg button\[aria-selected='true'\] \{[^}]*background: var\(--superficie\);/);
     expect(CSS).toMatch(/\.mcli \{[^}]*border-radius: var\(--r-md\);/);
     expect(CSS).not.toMatch(/border-radius: 999px/);
   });
