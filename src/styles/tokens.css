@@ -197,6 +197,9 @@
   --z-overlay: 40;
   --z-modal: 50;
   --z-toast: 60;
+  /* Camada dos modais do app enquanto o shell usa os números antigos (gaveta
+     1500, cabeçalho 200): acima de tudo, inclusive do cabeçalho. */
+  --z-modal-app: 4000;
 
   /* ── Movimento ── */
   --t-rapido: 120ms cubic-bezier(0.2, 0, 0, 1);

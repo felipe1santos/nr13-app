@@ -28,16 +28,23 @@ export function listarClientes(): Cliente[] {
   return visiveis(clientesBrutos());
 }
 
-export function salvarCliente(cliente: Cliente): void {
+/**
+ * Devolve a promessa da gravação. Na v2 do armazenamento o cache só recebe o
+ * valor novo DEPOIS de um `await` interno: quem relê a lista logo em seguida
+ * (`listarClientes()`) precisa esperar, senão relê a versão de antes — foi o que
+ * deixou a tela de Clientes sem o cliente recém-cadastrado (25/10/2026).
+ */
+export function salvarCliente(cliente: Cliente): Promise<void> {
   const lista = clientesBrutos();
   const idx = lista.findIndex((c) => c.id === cliente.id);
   if (idx >= 0) lista[idx] = cliente;
   else lista.push(cliente);
-  salvar(KEY_CLIENTES, lista);
+  return salvar(KEY_CLIENTES, lista);
 }
 
-export function excluirCliente(id: string): void {
-  salvar(KEY_CLIENTES, excluirPorId(clientesBrutos(), id));
+/** Devolve a promessa da gravação — ver `salvarCliente`. */
+export function excluirCliente(id: string): Promise<void> {
+  return salvar(KEY_CLIENTES, excluirPorId(clientesBrutos(), id));
 }
 
 /** Bruta, com tombstones — para o escritor. Ver `clientesBrutos`. */
