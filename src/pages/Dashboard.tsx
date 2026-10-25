@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import ModalDetalheEquipamento from '../components/ModalDetalheEquipamento';
@@ -54,21 +54,20 @@ function ChipOrigem({ origem }: { origem: ItemVencimento['origem'] }) {
   return <span className={`orig-chip orig-${origem}`}>{ROTULO_ORIGEM[origem]}</span>;
 }
 
+/** Situação com ÍCONE + TEXTO: a cor sozinha não pode ser o único sinal. */
 function BadgeStatus({ status }: { status: ItemVencimento['status'] }) {
-  if (status === 'crit') return <span className="fj-badge crit">Crítico</span>;
-  if (status === 'warn') return <span className="fj-badge warn">Atenção</span>;
-  if (status === 'ok') return <span className="fj-badge ok">Operacional</span>;
+  if (status === 'crit') return <span className="fj-badge crit"><Icone nome="alerttri" tam={12} /> Crítico</span>;
+  if (status === 'warn') return <span className="fj-badge warn"><Icone nome="clock" tam={12} /> Atenção</span>;
+  if (status === 'ok') return <span className="fj-badge ok"><Icone nome="checkcircle" tam={12} /> Operacional</span>;
   return <span className="fj-badge neutro">Sem prazo</span>;
 }
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [alertaDispensado, setAlertaDispensado] = useState(
-    () => sessionStorage.getItem('nr13_alerta_dispensado') === '1',
-  );
   const [listaExpandida, setListaExpandida] = useState(false);
   const [modalTag, setModalTag] = useState<string | null>(null);
   const [filtroPrazo, setFiltroPrazo] = useState<FiltroPrazo>(FILTRO_PRAZO_PADRAO);
+  const painelPrazos = useRef<HTMLElement>(null);
 
   // Fase 10A · a Agenda saiu do Dashboard e virou tela própria. O que ficou
   // aqui é RESUMO: previsto, realizado, quantidade e os próximos compromissos.
@@ -109,11 +108,6 @@ export default function Dashboard() {
   const tabela = listaExpandida ? filtrados : filtrados.slice(0, 6);
   const primeiroVencido = vencidos[0];
 
-  function dispensarAlerta() {
-    sessionStorage.setItem('nr13_alerta_dispensado', '1');
-    setAlertaDispensado(true);
-  }
-
   /**
    * Onde o usuário resolve ESTE prazo.
    *
@@ -129,287 +123,248 @@ export default function Dashboard() {
     navigate(rotaEquipamento(it.pertenceA ?? it.tag));
   }
 
-  return (
-    <div className="dash-page">
-      {/* ===== BANNER CRÍTICO ===== */}
-      {primeiroVencido && !alertaDispensado && (
-        <div className="alert-banner">
-          <div className="alert-ic-wrap">
-            <Icone nome="alerttri" tam={20} style={{ stroke: '#fff' }} />
-            <span className="pulse-dot" />
-          </div>
-          <div className="alert-body">
-            {/* "1 equipamento vencido" era mentira desde que a lista passou a
-                agregar certificados de padrão (07/09/2026): o primeiro
-                vencido desta conta é um certificado de PSV padrão, que não é
-                equipamento nenhum. O texto agora nomeia a categoria do item
-                que está no banner. */}
-            <div className="alert-title">
-              {vencidos.length === 1
-                ? `1 ${ROTULO_ORIGEM[primeiroVencido.origem].toLowerCase()} vencid${primeiroVencido.origem === 'inspecao' ? 'a' : 'o'} requer atenção imediata`
-                : `${vencidos.length} itens vencidos requerem atenção imediata`}
-            </div>
-            <div className="alert-sub">
-              <b>{primeiroVencido.tag}</b> · {primeiroVencido.tipoEquip}
-              {primeiroVencido.pertenceA ? ` · pertence a ${primeiroVencido.pertenceA}` : ''} ·{' '}
-              {textoPrazo(primeiroVencido).toLowerCase()}
-            </div>
-          </div>
-          <div className="alert-actions">
-            <button type="button" className="btn-alert" onClick={() => irParaItem(primeiroVencido)}>
-              {primeiroVencido.origem === 'certificado' ? 'Ver certificados' : 'Ver equipamento'}{' '}
-              <Icone nome="arrowright" tam={13} />
-            </button>
-            <button type="button" className="btn-alert-ghost" title="Dispensar" onClick={dispensarAlerta}>
-              <Icone nome="x" tam={15} />
-            </button>
-          </div>
-        </div>
-      )}
+  /** "Ver todos os vencidos": a lista já está nesta tela — filtra e rola até ela. */
+  function verVencidos() {
+    setFiltroPrazo('vencidos');
+    setListaExpandida(true);
+    painelPrazos.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
-      {/* ===== KPIs =====
-           Compactos desde 07/09/2026: o pedido do dono era ganhar altura acima
-           da dobra sem perder informação. O que saiu foi ESPAÇO (padding,
-           respiros, a pílula do rodapé), não conteúdo — rótulo, número e
-           legenda continuam os quatro. O filete colorido à esquerda substitui
-           a cor de fundo: dá identidade a cada card sem pintar a tela. */}
-      <div className="fj-kpi-row">
-        <div className="fj-kpi k-azul">
-          <div>
-            <div className="fj-kpi-label">Equipamentos cadastrados</div>
-            <div className="fj-kpi-value">{textoContador(kpis.total)}</div>
-            <div className="fj-kpi-delta flat">ativos sob NR-13</div>
+  // O KPI dominante é o de VENCIDOS (Forja Compacto, 25/10/2026). Ele absorveu
+  // o banner vermelho de largura total que vinha acima dos cartões: o mesmo
+  // fato — quantos vencidos e qual o primeiro —, sem um bloco de cor chapada.
+  // Contador INDEFINIDO é "o servidor não respondeu", não zero (gate offline 9F.5).
+  const nVencidos = kpis.vencidos;
+  const tomDominante = nVencidos === undefined ? 'neutro' : nVencidos > 0 ? 'crit' : 'ok';
+
+  return (
+    <div className="dash-page painel-compacto">
+      {/* ===== KPIs: um dominante + quatro secundários numa faixa ===== */}
+      <div className="pc-kpis">
+        <section className={`pc-kpi-dom pc-${tomDominante}`} aria-labelledby="pc-kpi-dom-rot">
+          <div className="pc-kpi-rot" id="pc-kpi-dom-rot">
+            <Icone nome={tomDominante === 'ok' ? 'checkcircle' : tomDominante === 'crit' ? 'alerttri' : 'cloudoff'} tam={14} />
+            Vencidos
           </div>
-          <div className="fj-kpi-icon">
-            <Icone nome="box" tam={17} />
+          <div className="pc-kpi-val">{textoContador(nVencidos)}</div>
+          <div className="pc-kpi-txt">
+            {nVencidos === undefined ? (
+              'Sem resposta do servidor — o número não pôde ser conferido.'
+            ) : nVencidos === 0 ? (
+              'Nenhum prazo vencido entre inspeções, calibrações e certificados.'
+            ) : primeiroVencido ? (
+              /* "1 equipamento vencido" era mentira desde que a lista passou a
+                 agregar certificados de padrão (07/09/2026): o texto nomeia a
+                 CATEGORIA do primeiro item, como o banner fazia. */
+              <>
+                {vencidos.length === 1
+                  ? `1 ${ROTULO_ORIGEM[primeiroVencido.origem].toLowerCase()} vencid${primeiroVencido.origem === 'inspecao' ? 'a' : 'o'}: `
+                  : 'O mais antigo: '}
+                <b className="mono">{primeiroVencido.tag}</b> · {primeiroVencido.tipoEquip}
+                {primeiroVencido.pertenceA ? ` · pertence a ${primeiroVencido.pertenceA}` : ''} ·{' '}
+                {textoPrazo(primeiroVencido).toLowerCase()}
+              </>
+            ) : (
+              'Requer ação imediata.'
+            )}
           </div>
-        </div>
-        <div className="fj-kpi k-ambar">
-          <div>
-            <div className="fj-kpi-label">Próximos a vencer <span className="mono" style={{ fontSize: 10 }}>(30d)</span></div>
-            <div className="fj-kpi-value">{textoContador(kpis.aVencer30)}</div>
-            {/* A legenda mudou junto com a regra: a janela de 30 dias passou a
-                contar TAMBÉM os certificados dos padrões (07/09/2026). Dizer só
-                "inspeções e calibrações" descreveria um número que já não é
-                esse. */}
-            <div className="fj-kpi-delta flat">inspeções, calibrações e certificados</div>
-          </div>
-          <div className="fj-kpi-icon">
-            <Icone nome="calendar" tam={17} />
-          </div>
-        </div>
-        <div className="fj-kpi k-vermelho">
-          <div>
-            <div className="fj-kpi-label">Vencidos</div>
-            <div className="fj-kpi-value">{textoContador(kpis.vencidos)}</div>
-            <div className={`fj-kpi-delta ${(kpis.vencidos ?? 0) > 0 ? 'down' : 'up'}`}>
-              {/* Contador INDEFINIDO é "o servidor não respondeu", não zero. O
-                  `?? 0` daqui fazia o número exibir "—" e a legenda logo abaixo
-                  afirmar "nenhum vencido" — a única frase da tela que não se
-                  pode dizer sem ter contado. Visto no gate offline da 9F.5. */}
-              {kpis.vencidos === undefined
-                ? 'sem resposta do servidor'
-                : kpis.vencidos > 0
-                  ? 'ação imediata'
-                  : 'nenhum vencido'}
+          {primeiroVencido && (nVencidos ?? 0) > 0 && (
+            <div className="pc-kpi-acoes">
+              <button type="button" className="pc-link" onClick={() => irParaItem(primeiroVencido)}>
+                {primeiroVencido.origem === 'certificado' ? 'Ver certificados' : 'Ver equipamento'}
+                <Icone nome="arrowright" tam={13} />
+              </button>
+              {(nVencidos ?? 0) > 1 && (
+                <button type="button" className="pc-link" onClick={verVencidos}>
+                  Ver os {nVencidos} vencidos
+                </button>
+              )}
             </div>
-          </div>
-          <div className="fj-kpi-icon">
-            <Icone nome="alerttri" tam={17} />
-          </div>
-        </div>
-        <div className="fj-kpi k-verde">
+          )}
+        </section>
+
+        <section className="pc-kpi-sec" aria-label="Indicadores">
           <div>
-            <div className="fj-kpi-label">Taxa de conformidade</div>
+            <div className="pc-kpi-rot">Equipamentos cadastrados</div>
+            <div className="pc-kpi-val">{textoContador(kpis.total)}</div>
+            <div className="pc-kpi-txt">ativos sob NR-13</div>
+          </div>
+          <div>
+            <div className="pc-kpi-rot">A vencer em 30 dias</div>
+            <div className="pc-kpi-val">{textoContador(kpis.aVencer30)}</div>
+            {/* A janela de 30 dias conta TAMBÉM os certificados dos padrões
+                (07/09/2026). Dizer só "inspeções e calibrações" descreveria um
+                número que já não é esse. */}
+            <div className="pc-kpi-txt">inspeções, calibrações e certificados</div>
+          </div>
+          <div>
+            <div className="pc-kpi-rot">Taxa de conformidade</div>
             {/* Conformidade indefinida = o painel não pôde ser lido. Mostrar
                 100 % aqui seria a mentira mais cara desta tela. */}
-            <div className="fj-kpi-value">
+            <div className="pc-kpi-val">
               {kpis.conformidade === undefined ? '—' : kpis.conformidade.toLocaleString('pt-BR')}
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)' }}>%</span>
+              <span className="pc-kpi-unid">%</span>
             </div>
-            {/* O texto diz o ESCOPO da métrica (§13 da rodada): ela mede os
-                itens COM PRAZO deste painel — inspeções, calibrações e
-                certificados —, não a conformidade normativa da planta. */}
-            <div className={`fj-kpi-delta ${(kpis.conformidade ?? 0) >= 90 ? 'up' : 'down'}`}>
-              <Icone nome="trendup" tam={11} />{' '}
+            {/* O texto diz o ESCOPO da métrica: ela mede os itens COM PRAZO
+                deste painel, não a conformidade normativa da planta. */}
+            <div className="pc-kpi-txt">
               {kpis.conformidade === undefined ? 'sem resposta do servidor' : 'dos prazos deste painel em dia'}
             </div>
           </div>
-          <div className="fj-kpi-icon">
-            <Icone nome="checkcircle" tam={17} />
+          <div>
+            <div className="pc-kpi-rot">Serviços no mês</div>
+            <div className="pc-kpi-val">{resumoAgenda.quantidade}</div>
+            <div className="pc-kpi-txt">
+              previsto {formatarBRL(resumoAgenda.previsto)} · realizado {formatarBRL(resumoAgenda.realizado)}
+            </div>
           </div>
-        </div>
+        </section>
       </div>
-      {/* O selo de procedência desceu para DEPOIS dos indicadores e virou uma
-          linha fina: no topo ele criava uma faixa vazia entre o cabeçalho da
-          página e os cards. Continua dizendo a hora do agregado, o
-          truncamento e a falha — só não ocupa mais uma faixa inteira. */}
+      {/* O selo de procedência fica DEPOIS dos indicadores, numa linha fina:
+          diz a hora do agregado, o truncamento e a falha. */}
       <SeloPainel painel={painel} />
 
-      {/* ===== COLUNAS (mockup): esquerda = Minha Empresa + Prazos; direita = Agenda + Alertas.
-           Cada coluna empilha seus painéis de forma independente — sem buraco quando o
-           calendário é mais alto que o card da empresa. ===== */}
       <div className="dash-cols">
         <div className="dash-col">
-        {/* O card "Minha Empresa" saiu daqui em 12/08/2026: virou o item "Meus dados"
-            do menu, acima do Dashboard, apontando para a MESMA tela /minha-empresa.
-            Nada de dado mudou de lugar — só a porta de entrada. */}
-        <div className="fj-panel">
-          <div className="fj-panel-head">
-            <div>
-              {/* O título deixou de dizer "Equipamentos" em 07/09/2026: a lista
+          {/* O card "Minha Empresa" saiu daqui em 12/08/2026: virou o item "Meus dados"
+              do menu, apontando para a MESMA tela /minha-empresa. */}
+          <section className="fj-panel pc-painel" ref={painelPrazos} aria-labelledby="pc-prazos-tit">
+            <div className="pc-painel-hd">
+              {/* O título não diz "Equipamentos" desde 07/09/2026: a lista
                   agrega inspeção do equipamento, calibração do acessório e
-                  certificado do padrão de bancada — e certificado de padrão
-                  não é equipamento nenhum. */}
-              <div className="fj-eyebrow">Prazos</div>
-              <h2>Prazos e vencimentos</h2>
-            </div>
-            {(kpis.vencidos ?? 0) > 0 && <span className="fj-badge crit">{kpis.vencidos} vencido{(kpis.vencidos ?? 0) > 1 ? 's' : ''}</span>}
-          </div>
-          <div className="prazo-filtros">
-            {FILTROS_PRAZO.map(([valor, rotulo]) => (
-              <button
-                key={String(valor)}
-                type="button"
-                className={`prazo-chip${filtroPrazo === valor ? ' ativo' : ''}${valor === 'vencidos' ? ' venc' : ''}`}
-                onClick={() => setFiltroPrazo(valor)}
-              >
-                {rotulo}
-              </button>
-            ))}
-          </div>
-          {/* ESTADO VAZIO SÓ DEPOIS DE CONFERIR (§21 da rodada, 07/09/2026).
-              "Nenhum prazo cadastrado" é uma AFIRMAÇÃO sobre a organização, e
-              foi ela que escondeu o certificado do usuário. Enquanto a consulta
-              não voltou inteira — carregando, com erro, ou com os certificados
-              não conferidos — a tela diz o que não sabe, e nunca "não há". */}
-          {consultaIncompleta ? (
-            <div className="fj-empty">
-              <div className="fj-empty-ic"><Icone nome="cloudoff" tam={22} /></div>
-              <div className="fj-empty-title">
-                {painel.carregando ? 'Consultando os prazos…' : 'Prazos não conferidos'}
+                  certificado do padrão de bancada. */}
+              <h2 id="pc-prazos-tit">Prazos e vencimentos</h2>
+              <div className="pc-seg" role="group" aria-label="Janela de prazo">
+                {FILTROS_PRAZO.map(([valor, rotulo]) => (
+                  <button
+                    key={String(valor)}
+                    type="button"
+                    aria-pressed={filtroPrazo === valor}
+                    onClick={() => setFiltroPrazo(valor)}
+                  >
+                    {rotulo}
+                  </button>
+                ))}
               </div>
-              {painel.carregando
-                ? 'Um instante — o painel está sendo montado a partir dos dados da organização.'
-                : 'O servidor não respondeu por completo. Recarregue a página: nada foi apagado, e esta lista não representa a organização.'}
             </div>
-          ) : comPrazo.length === 0 ? (
-            <div className="fj-empty">
-              <div className="fj-empty-ic"><Icone nome="calendar" tam={22} /></div>
-              <div className="fj-empty-title">Nenhum prazo cadastrado</div>
-              Calcule a Vida Remanescente na ficha do equipamento, cadastre calibrações ou registre a validade dos certificados dos padrões para acompanhar os vencimentos aqui.
-            </div>
-          ) : tabela.length === 0 ? (
-            <div className="fj-empty">
-              <div className="fj-empty-ic"><Icone nome="filter" tam={22} /></div>
-              <div className="fj-empty-title">Nada neste filtro</div>
-              Nenhum item {filtroPrazo === 'vencidos' ? 'vencido' : `vencido ou vencendo em até ${filtroPrazo} dias`}.
-            </div>
-          ) : (
-            <div className="fj-table-wrap">
-              <table className="fj-table">
-                <thead>
-                  {/* col-ultima: escondida neste painel de meia largura (ver
-                      dashboard-novo.css). Continua na tela cheia de /vencimentos. */}
-                  <tr><th>Tag</th><th>Origem</th><th className="col-ultima">Última</th><th>Vencimento</th><th>Prazo</th><th>Status</th></tr>
-                </thead>
-                <tbody>
-                  {/* Certificado de padrão não tem ficha de equipamento: a
-                      linha leva para Certificados, que é onde ele se resolve.
-                      Ver `irParaItem`. */}
-                  {tabela.map((it, i) => (
-                    <tr
-                      key={`${it.tag}${i}`}
-                      style={{ cursor: 'pointer' }}
-                      onClick={() =>
-                        it.origem === 'certificado'
-                          ? navigate('/certificados')
-                          : setModalTag(it.pertenceA ?? it.tag)
-                      }
-                    >
-                      {/* data-rot: rótulo de cada campo quando a tabela vira cartão no
-                          celular (forja.css) — sem cabeçalho, três datas seguidas não
-                          dizem qual é a última inspeção e qual é o vencimento. */}
-                      <td className="cel-titulo">
-                        <div className="fj-tag-cell">
-                          <div className="fj-tag-ico"><Icone nome={ICONE_TIPO[it.tipoEquip] ?? 'box'} tam={15} /></div>
-                          <div>
-                            <div className="fj-tag-code">{it.tag}</div>
-                            <div className="fj-eq-name">
-                              {it.tipoEquip}
-                              {it.pertenceA ? ` · pertence a ${it.pertenceA}` : ''}
+            {/* ESTADO VAZIO SÓ DEPOIS DE CONFERIR (§21 da rodada, 07/09/2026).
+                "Nenhum prazo cadastrado" é uma AFIRMAÇÃO sobre a organização, e
+                foi ela que escondeu o certificado do usuário. Enquanto a consulta
+                não voltou inteira — carregando, com erro, ou com os certificados
+                não conferidos — a tela diz o que não sabe, e nunca "não há". */}
+            {consultaIncompleta ? (
+              <div className="fj-empty">
+                <div className="fj-empty-ic"><Icone nome="cloudoff" tam={22} /></div>
+                <div className="fj-empty-title">
+                  {painel.carregando ? 'Consultando os prazos…' : 'Prazos não conferidos'}
+                </div>
+                {painel.carregando
+                  ? 'Um instante — o painel está sendo montado a partir dos dados da organização.'
+                  : 'O servidor não respondeu por completo. Recarregue a página: nada foi apagado, e esta lista não representa a organização.'}
+              </div>
+            ) : comPrazo.length === 0 ? (
+              <div className="fj-empty">
+                <div className="fj-empty-ic"><Icone nome="calendar" tam={22} /></div>
+                <div className="fj-empty-title">Nenhum prazo cadastrado</div>
+                Calcule a Vida Remanescente na ficha do equipamento, cadastre calibrações ou registre a validade dos certificados dos padrões para acompanhar os vencimentos aqui.
+              </div>
+            ) : tabela.length === 0 ? (
+              <div className="fj-empty">
+                <div className="fj-empty-ic"><Icone nome="filter" tam={22} /></div>
+                <div className="fj-empty-title">Nada neste filtro</div>
+                Nenhum item {filtroPrazo === 'vencidos' ? 'vencido' : `vencido ou vencendo em até ${filtroPrazo} dias`}.
+              </div>
+            ) : (
+              <div className="fj-table-wrap">
+                <table className="fj-table">
+                  <thead>
+                    {/* col-ultima: escondida neste painel de meia largura (ver
+                        dashboard-novo.css). Continua na tela cheia de /vencimentos. */}
+                    <tr><th>Tag</th><th>Origem</th><th className="col-ultima">Última</th><th>Vencimento</th><th>Prazo</th><th>Status</th></tr>
+                  </thead>
+                  <tbody>
+                    {/* Certificado de padrão não tem ficha de equipamento: a
+                        linha leva para Certificados, que é onde ele se resolve.
+                        Ver `irParaItem`. */}
+                    {tabela.map((it, i) => (
+                      <tr
+                        key={`${it.tag}${i}`}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() =>
+                          it.origem === 'certificado'
+                            ? navigate('/certificados')
+                            : setModalTag(it.pertenceA ?? it.tag)
+                        }
+                      >
+                        {/* data-rot: rótulo de cada campo quando a tabela vira cartão no
+                            celular (forja.css) — sem cabeçalho, três datas seguidas não
+                            dizem qual é a última inspeção e qual é o vencimento. */}
+                        <td className="cel-titulo">
+                          <div className="fj-tag-cell">
+                            <div className="fj-tag-ico"><Icone nome={ICONE_TIPO[it.tipoEquip] ?? 'box'} tam={15} /></div>
+                            <div>
+                              <div className="fj-tag-code">{it.tag}</div>
+                              <div className="fj-eq-name">
+                                {it.tipoEquip}
+                                {it.pertenceA ? ` · pertence a ${it.pertenceA}` : ''}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
-                      <td data-rot="Origem"><ChipOrigem origem={it.origem} /></td>
-                      <td className="mono col-ultima" data-rot="Última">{it.ultima ? it.ultima.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
-                      <td className="mono" data-rot="Vencimento">{it.vencimento ? it.vencimento.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
-                      {/* `folgado`: mais de 60 dias até vencer. Selo azul, para o olho
-                          separar o que está tranquilo do que pede agenda — sem mudar o
-                          cálculo de status, que continua vindo do motor de vencimentos. */}
-                      <td className={`fj-days ${it.status === 'crit' ? 'crit' : it.status === 'warn' ? 'warn' : ''}`} data-rot="Prazo">
-                        <span className={`fj-prazo${(it.dias ?? 0) > 60 ? ' folgado' : ''}`}>{textoPrazo(it)}</span>
-                      </td>
-                      <td data-rot="Status"><BadgeStatus status={it.status} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <div className="fj-panel-foot">
-            <button type="button" className="fj-link" onClick={() => setListaExpandida((v) => !v)}>
-              {listaExpandida ? 'Recolher lista' : `Ver todos os vencimentos (${filtrados.length})`}
-              <Icone nome={listaExpandida ? 'chevup' : 'chevdown'} tam={13} />
-            </button>
-          </div>
-        </div>
+                        </td>
+                        <td data-rot="Origem"><ChipOrigem origem={it.origem} /></td>
+                        <td className="mono col-ultima" data-rot="Última">{it.ultima ? it.ultima.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
+                        <td className="mono" data-rot="Vencimento">{it.vencimento ? it.vencimento.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
+                        {/* `folgado`: mais de 60 dias até vencer — sem mudar o
+                            cálculo de status, que vem do motor de vencimentos. */}
+                        <td className={`fj-days ${it.status === 'crit' ? 'crit' : it.status === 'warn' ? 'warn' : ''}`} data-rot="Prazo">
+                          <span className={`fj-prazo${(it.dias ?? 0) > 60 ? ' folgado' : ''}`}>{textoPrazo(it)}</span>
+                        </td>
+                        <td data-rot="Status"><BadgeStatus status={it.status} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {filtrados.length > 6 && (
+              <div className="fj-panel-foot">
+                <button type="button" className="fj-link" onClick={() => setListaExpandida((v) => !v)}>
+                  {listaExpandida ? 'Recolher lista' : `Ver todos os vencimentos (${filtrados.length})`}
+                  <Icone nome={listaExpandida ? 'chevup' : 'chevdown'} tam={13} />
+                </button>
+              </div>
+            )}
+          </section>
         </div>
 
         <div className="dash-col">
-        <div className="fj-panel">
-          <div className="fj-panel-head">
-            <div>
-              <div className="fj-eyebrow">Agenda</div>
-              <h2>Serviços do mês</h2>
+          <section className="fj-panel pc-painel" aria-labelledby="pc-agenda-tit">
+            <div className="pc-painel-hd">
+              <h2 id="pc-agenda-tit">Próximos serviços</h2>
+              <button type="button" className="pc-link" onClick={() => navigate('/agenda')}>
+                Abrir agenda <Icone nome="arrowright" tam={13} />
+              </button>
             </div>
-            <button type="button" className="fj-btn fj-btn-primary" onClick={() => navigate('/agenda')}>
-              <Icone nome="calendar" tam={14} /> Abrir Agenda
-            </button>
-          </div>
-          <div className="ag-resumo">
-            <div className="ag-resumo-linhas">
-              <div className="ag-resumo-item previsto">
-                <div className="ag-resumo-rot">Previsto</div>
-                <div className="ag-resumo-num">{formatarBRL(resumoAgenda.previsto)}</div>
-              </div>
-              <div className="ag-resumo-item realizado">
-                <div className="ag-resumo-rot">Realizado</div>
-                <div className="ag-resumo-num">{formatarBRL(resumoAgenda.realizado)}</div>
-              </div>
-              <div className="ag-resumo-item">
-                <div className="ag-resumo-rot">Serviços</div>
-                <div className="ag-resumo-num">{resumoAgenda.quantidade}</div>
-              </div>
-            </div>
-            <div className="ag-resumo-proximos">
-              {proximosServicos.length === 0 ? (
-                <div className="agenda-vazia" style={{ padding: '6px 0' }}>
-                  Nada agendado daqui para frente.
-                </div>
-              ) : (
-                proximosServicos.map((n) => (
-                  <div key={n.id} className="ag-resumo-proximo">
-                    <span className="data">{dataDeISO(n.data).toLocaleDateString('pt-BR')}</span>
-                    <span className="titulo">{n.titulo}</span>
-                    <span className="fj-badge info2">{ROTULO_TIPO_NOTA[n.tipo]}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
+            {proximosServicos.length === 0 ? (
+              <div className="pc-vazio">Nada agendado daqui para frente.</div>
+            ) : (
+              <ul className="pc-agenda">
+                {proximosServicos.map((n) => {
+                  const d = dataDeISO(n.data);
+                  return (
+                    <li key={n.id}>
+                      <div className="pc-agenda-dia">
+                        <b>{d.getDate()}</b>
+                        <small>{d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</small>
+                      </div>
+                      <div className="pc-agenda-txt">{n.titulo}</div>
+                      <span className="fj-badge info2">{ROTULO_TIPO_NOTA[n.tipo]}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
         </div>
       </div>
 

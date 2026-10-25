@@ -3,32 +3,37 @@
    ============================================================================ */
 .app-layout {
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 .shell {
   display: flex;
   height: 100vh;
+  height: 100dvh;
 }
 
-/* ===== Sidebar ===== */
+/* ===== Sidebar (Forja Compacto, 25/10/2026) =====
+   Agrupada e recolhível. Larguras: 232px aberta, 56px recolhida (só ícones).
+   Item de 32px no desktop; no celular a gaveta sobe para 44px de toque. */
 .sidebar {
-  width: 246px;
+  width: 232px;
   flex-shrink: 0;
-  background: var(--ink);
-  color: #C9CDD2;
-  padding: 20px 14px 16px;
+  background: var(--nav-fundo);
+  color: var(--nav-texto);
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
   overflow-y: auto;
+  transition: width var(--t-medio);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 0 8px 18px;
-  border-bottom: 1px solid #2A3138;
-  margin-bottom: 14px;
+  gap: var(--s-2);
+  height: var(--h-header);
+  padding: 0 var(--s-2) 0 var(--s-4);
+  border-bottom: 1px solid var(--nav-fio);
   flex-shrink: 0;
 }
 .brand-mark {
@@ -47,25 +52,74 @@
 }
 /* Logo da marca no lugar do quadradinho "13". */
 .brand-logo {
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
   flex-shrink: 0;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
 }
-.brand-name { color: #fff; font-weight: 600; font-size: 15.5px; }
-.brand-sub { font-size: 10.5px; color: #7C8792; }
+.brand-txt { min-width: 0; flex: 1; }
+.brand-name { color: #fff; font-family: var(--font-display); font-weight: 600; font-size: var(--fs-14); line-height: var(--lh-14); }
+.brand-sub { font-size: var(--fs-11); line-height: var(--lh-11); color: var(--nav-apagado); white-space: nowrap; }
 
-.nav-list { display: flex; flex-direction: column; gap: 1px; }
+.btn-recolher {
+  width: var(--h-ctl-sm);
+  height: var(--h-ctl-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--nav-apagado);
+  cursor: pointer;
+}
+.btn-recolher:hover { background: var(--nav-hover); color: #fff; }
+.btn-recolher:focus-visible { outline: 2px solid var(--acao); outline-offset: 2px; }
 
-.nav-item {
+.nav-list { display: flex; flex-direction: column; padding: var(--s-2); }
+
+/* Grupo: rótulo pequeno + itens. Fechar o grupo esconde os itens; o grupo da
+   tela atual nunca fecha (Layout.tsx). */
+.nav-grupo + .nav-grupo { margin-top: var(--s-2); }
+.nav-grupo-tit {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 10px;
-  border-radius: 7px;
-  font-size: 13px;
-  color: #B7BEC5;
+  justify-content: space-between;
+  width: 100%;
+  height: 28px;
+  padding: 0 var(--s-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--nav-apagado);
+  font-family: var(--font-base);
+  font-size: var(--fs-11);
+  line-height: var(--lh-11);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  text-align: left;
+}
+.nav-grupo-tit:hover { color: var(--nav-texto); }
+.nav-grupo-tit:focus-visible { outline: 2px solid var(--acao); outline-offset: 1px; }
+.nav-grupo-tit .chev { transition: transform var(--t-rapido); flex-shrink: 0; }
+.nav-grupo.fechado .nav-grupo-tit .chev { transform: rotate(-90deg); }
+.nav-grupo-itens { display: flex; flex-direction: column; gap: 1px; }
+.nav-grupo.fechado .nav-grupo-itens { display: none; }
+
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  height: var(--h-nav);
+  padding: 0 var(--s-2);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-13);
+  line-height: var(--lh-13);
+  color: var(--nav-texto);
   font-weight: 500;
   cursor: pointer;
   justify-content: space-between;
@@ -75,50 +129,48 @@
   width: 100%;
   font-family: var(--font-base);
   text-align: left;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.nav-item .left { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.nav-item:hover { background: var(--ink-soft); color: #fff; }
+.nav-item .left { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
+.nav-item .menu-text { overflow: hidden; text-overflow: ellipsis; }
+.nav-item:hover { background: var(--nav-hover); color: #fff; }
+/* Ativo: fundo um tom acima + filete âmbar. É o único âmbar da sidebar. */
 .nav-item.active {
-  background: var(--ink-soft);
+  background: var(--nav-ativo);
   color: #fff;
-  box-shadow: inset 2px 0 0 var(--amber);
+  box-shadow: inset 2px 0 0 var(--acao);
 }
 .nav-item .chev { transition: transform 0.18s ease; opacity: 0.7; }
 .nav-item.expanded .chev { transform: rotate(180deg); }
-.nav-item:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; box-shadow: none; }
+.nav-item:focus-visible { outline: 2px solid var(--acao); outline-offset: -2px; box-shadow: none; }
 
 .nav-count {
   font-family: var(--font-mono);
-  font-size: 10px;
-  color: #828C96;
-  background: var(--ink-soft2);
-  padding: 1px 6px;
-  border-radius: 20px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-11);
+  color: var(--nav-apagado);
 }
-.nav-item.active .nav-count { color: var(--amber); background: #2E2620; }
+.nav-item.active .nav-count { color: var(--nav-texto); }
 
-.subnav {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.2s ease;
+/* `subnav` (o grupo Cadastros) agora é um grupo como os outros: quem decide
+   aberto/fechado é `.nav-grupo.fechado`, não a altura animada de antes. */
+.subnav { display: flex; flex-direction: column; }
+.nav-grupo .subnav .nav-item { padding-left: var(--s-2); }
+
+.nav-spacer { flex: 1; min-height: var(--s-3); }
+.nav-divider { border-top: 1px solid var(--nav-fio); margin: 12px 4px 10px; flex-shrink: 0; }
+.nav-rodape {
   display: flex;
   flex-direction: column;
+  gap: 1px;
+  padding: var(--s-2);
+  padding-bottom: calc(var(--s-2) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--nav-fio);
+  flex-shrink: 0;
 }
-.subnav.open { max-height: 120px; }
-.subnav .nav-item { padding-left: 32px; font-size: 12.5px; }
-
-.nav-spacer { flex: 1; min-height: 12px; }
-.nav-divider { border-top: 1px solid #2A3138; margin: 12px 4px 10px; flex-shrink: 0; }
 .nav-item.danger:hover { background: #2E1E1D; color: #F0A19B; }
 
-.sidebar-foot {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 10px 8px 2px;
-  flex-shrink: 0;
-  min-width: 0;
-}
 .avatar {
   width: 28px;
   height: 28px;
@@ -128,21 +180,35 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11.5px;
+  font-size: var(--fs-11);
   font-weight: 600;
   flex-shrink: 0;
 }
-.foot-info { min-width: 0; }
-.foot-name {
-  color: #E5E7E9;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 170px;
+
+/* ── Recolhida: trilho de 56px, só ícones (só existe em tela larga) ── */
+@media (min-width: 901px) {
+  .shell.menu-recolhido .sidebar { width: 56px; }
+  .shell.menu-recolhido .brand { padding: 0; justify-content: center; }
+  .shell.menu-recolhido .brand-logo,
+  .shell.menu-recolhido .brand-txt,
+  .shell.menu-recolhido .menu-text,
+  .shell.menu-recolhido .nav-count,
+  .shell.menu-recolhido .nav-grupo-tit span,
+  .shell.menu-recolhido .nav-grupo-tit .chev { display: none; }
+  /* O rótulo do grupo vira um fio separador; com os nomes escondidos, um grupo
+     fechado esconderia ícones sem dizer onde. Recolhida, tudo fica à vista. */
+  .shell.menu-recolhido .nav-grupo-tit {
+    height: 1px;
+    padding: 0;
+    margin: var(--s-2) var(--s-1);
+    background: var(--nav-fio);
+    pointer-events: none;
+  }
+  .shell.menu-recolhido .nav-grupo:first-child .nav-grupo-tit { display: none; }
+  .shell.menu-recolhido .nav-grupo.fechado .nav-grupo-itens { display: flex; }
+  .shell.menu-recolhido .nav-item { justify-content: center; padding: 0; }
+  .shell.menu-recolhido .nav-item .left { gap: 0; }
 }
-.foot-role { font-size: 10.5px; color: #7C8792; }
 
 /* ===== Main / Topbar ===== */
 .main {
@@ -152,29 +218,35 @@
   flex-direction: column;
 }
 
+/* Cabeçalho de UMA linha, 48px fixos (Forja Compacto). Antes: 62px mínimos
+   mais o subtítulo, que quebrava em até três linhas ao disputar a largura com
+   o "Último login". */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 30px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  gap: 20px;
+  height: var(--h-header);
+  padding: 0 var(--s-5);
+  background: var(--superficie);
+  border-bottom: 1px solid var(--fio);
+  gap: var(--s-3);
   flex-shrink: 0;
-  min-height: 62px;
 }
-.topbar-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.topbar-left { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
 .topbar h1 {
   font-family: var(--font-display);
-  font-size: 19px;
+  font-size: var(--fs-16);
+  line-height: var(--lh-16);
   font-weight: 600;
+  color: var(--texto-1);
   margin: 0;
-  letter-spacing: -0.2px;
+  letter-spacing: -0.01em;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.topbar .path { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
 
-.top-status { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.top-status { display: flex; align-items: center; gap: var(--s-2); flex-shrink: 0; }
 
 .login-info {
   display: flex;
@@ -185,7 +257,7 @@
   font-size: 12px;
   white-space: nowrap;
 }
-.divider-v { width: 1px; height: 20px; background: var(--line); }
+.divider-v { width: 1px; height: 20px; background: var(--fio); }
 
 /* ===== Chip do usuário + menu da conta ===== */
 .menu-usuario { position: relative; flex-shrink: 0; }
@@ -194,7 +266,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 8px 4px 4px;
+  padding: 2px 6px 2px 2px;
   border-radius: 20px;
   border: 1px solid transparent;
   background: none;
@@ -250,6 +322,15 @@
   white-space: nowrap;
 }
 .menu-conta-papel { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.menu-conta-login {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-11);
+  color: var(--texto-2);
+}
 
 .menu-conta-item {
   display: flex;
@@ -334,10 +415,10 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-width: 34px;
-  height: 34px;
+  min-width: var(--h-ctl);
+  height: var(--h-ctl);
   padding: 0 9px;
-  border-radius: 9px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--line);
   background: transparent;
   color: var(--muted);
@@ -422,10 +503,15 @@
   }
 
   .login-info, .divider-v { display: none; }
-  .topbar { padding: 10px 14px; gap: 10px; }
-  .topbar .path { display: none; }
+  /* Toque: cabeçalho de 52px para caber alvos de 44px. */
+  .topbar { height: 52px; padding: 0 var(--s-2) 0 var(--s-1); gap: var(--s-2); }
+  .btn-hamburguer { width: var(--h-toque); height: var(--h-toque); padding: 13px; border: 0; background: transparent; }
   .user-chip-txt, .user-chip-chev { display: none; }
-  .user-chip { padding: 3px; }
+  .user-chip { padding: 8px; }
+  /* Na gaveta não há trilho: o botão de recolher não tem o que fazer. */
+  .btn-recolher { display: none; }
+  .sidebar .nav-item { height: var(--h-toque); }
+  .nav-grupo-tit { height: 32px; }
 }
 
 @media (max-width: 560px) {

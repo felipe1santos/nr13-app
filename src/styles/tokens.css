@@ -117,6 +117,120 @@
   --font-size-base: 13.5px;
 }
 
+/* ============================================================================
+   FORJA COMPACTO (Opção A, aprovada em 25/10/2026) — docs/design/direcao.md
+   ----------------------------------------------------------------------------
+   Escalas e cores semânticas da nova direção visual. São NOMES NOVOS: nenhum
+   token acima muda de valor, então nada fora das telas piloto muda de cara.
+   Onde o valor já existia, o novo nome é um apelido do antigo.
+
+   Os nomes estão em português e não são `--surface`/`--border` de propósito:
+   esses dois já aparecem em 87 `var(--surface, #fff)` espalhados, sem
+   definição, e defini-los agora repintaria telas que não estão no piloto.
+   ============================================================================ */
+:root {
+  /* ── Espaço (grade de 4px) ── */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+
+  /* ── Tipografia: sete tamanhos (hoje são 33) ── */
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-20: 20px;
+  --fs-32: 32px;
+  --lh-11: 16px;
+  --lh-12: 16px;
+  --lh-13: 20px;
+  --lh-14: 20px;
+  --lh-16: 24px;
+  --lh-20: 28px;
+  --lh-32: 36px;
+
+  /* ── Raios ── */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-full: 999px;
+
+  /* ── Sombras: só o que flutua tem sombra ── */
+  --sh-0: none;
+  --sh-1: 0 1px 2px rgba(20, 24, 28, 0.06);
+  --sh-2: 0 8px 24px rgba(20, 24, 28, 0.12), 0 0 0 1px rgba(20, 24, 28, 0.06);
+  --sh-3: 0 24px 64px rgba(20, 24, 28, 0.28);
+
+  /* ── Alturas: desktop denso, toque com 44px ── */
+  --h-ctl-sm: 28px;
+  --h-ctl: 32px;
+  --h-ctl-lg: 36px;
+  --h-row: 40px;
+  --h-header: 48px;
+  --h-toolbar: 44px;
+  --h-nav: 32px;
+  --h-toque: 44px;
+
+  /* ── Camadas. Escala-alvo da Fase 0 completa; o shell ainda usa os números
+        de hoje (gaveta 1500, modais 4000) até a migração dos modais. ── */
+  --z-sticky: 10;
+  --z-toolbar: 20;
+  --z-gaveta: 30;
+  --z-overlay: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+
+  /* ── Movimento ── */
+  --t-rapido: 120ms cubic-bezier(0.2, 0, 0, 1);
+  --t-medio: 180ms cubic-bezier(0.2, 0, 0, 1);
+
+  /* ── Superfícies e fios ── */
+  --fundo: var(--steel);           /* #F6F5F2 */
+  --superficie: var(--panel);      /* #FFFFFF */
+  --superficie-2: var(--bg-faint); /* #FBFAF7 — cabeçalho de tabela, hover */
+  --superficie-3: var(--bg-soft);  /* #F2EFE7 — trilho de segmentos, chip neutro */
+  --fio: var(--line);              /* #E4E1D8 — separação, decorativo */
+  --fio-campo: #8E897E;            /* contorno de input: 3,48:1 no branco */
+
+  /* ── Texto: todos ≥ 4,5:1 no branco E no fundo ── */
+  --texto-1: #1C2227;              /* 16,1:1 */
+  --texto-2: #4F5A63;              /* 7,1:1 · 6,5:1 no fundo */
+  --texto-3: #66717A;              /* 5,0:1 · 4,58:1 no fundo */
+
+  /* ── UMA cor de ação ── */
+  --acao: var(--amber);            /* #FF7A1A — só primário, barra ativa do menu */
+  --acao-hover: #F06A0A;
+  --acao-texto: var(--amber-txt);  /* #241505 sobre âmbar: 6,8:1 */
+  --acao-link: #B4530A;            /* âmbar legível como texto: 5,0:1 */
+  --foco: #B4530A;
+
+  /* ── Navegação (sidebar escura) ── */
+  --nav-fundo: var(--ink);         /* #14181C */
+  --nav-hover: var(--ink-soft);    /* #1E252B */
+  --nav-ativo: var(--ink-soft2);   /* #242B32 */
+  --nav-texto: #C9CED3;            /* 11,3:1 */
+  --nav-apagado: #8C969F;          /* 5,9:1 — rótulo de grupo */
+  --nav-fio: #262D34;
+
+  /* ── Semânticas SÓ para status, sempre com ícone + texto ── */
+  --st-ok: #11724B;
+  --st-ok-bg: var(--ok-bg);
+  --st-warn: #8A6100;
+  --st-warn-bg: var(--warn-bg);
+  --st-crit: #B42318;
+  --st-crit-bg: var(--crit-bg);
+  --st-info: #2F5E8C;
+  --st-info-bg: var(--blue-bg);
+}
+
 * {
   margin: 0;
   padding: 0;

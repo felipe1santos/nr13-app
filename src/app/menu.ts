@@ -69,6 +69,38 @@ export const ITENS_BAIXO: ItemMenu[] = [
 // Só o mestre enxerga (gestão de sub-logins).
 export const ITEM_ACESSOS: ItemMenu = { id: 'acessos', to: '/acesso', label: 'Acessos', icone: 'key' };
 
+/**
+ * Os GRUPOS da sidebar (redesign Forja Compacto, 25/10/2026).
+ *
+ * Doze itens soltos numa coluna só obrigavam a ler tudo para achar um. O
+ * agrupamento é só de APRESENTAÇÃO: os itens continuam vindo de `ITENS_TOPO` e
+ * `ITENS_BAIXO`, com os mesmos ids de permissão — um id que não está em nenhum
+ * grupo não some, cai em `itensSemGrupo` e é desenhado no fim. Cadastros e a
+ * Ajuda têm regra própria no Layout (mestre, Acessos, Info sem filtro).
+ */
+export interface GrupoMenu {
+  id: string;
+  rotulo: string;
+  ids: string[];
+}
+
+export const GRUPOS_MENU: GrupoMenu[] = [
+  { id: 'operacao', rotulo: 'Operação', ids: ['dashboard', 'agenda', 'equipamentos', 'inspecoes'] },
+  { id: 'documentos', rotulo: 'Documentos', ids: ['relatorios', 'prontuarios', 'livro'] },
+  { id: 'instrumentos', rotulo: 'Instrumentos', ids: ['calibracoes', 'certificados'] },
+];
+
+/** Itens (já filtrados por permissão) de um grupo, na ordem do grupo. */
+export function itensDoGrupo(grupo: GrupoMenu, itens: ItemMenu[]): ItemMenu[] {
+  return grupo.ids.map((id) => itens.find((i) => i.id === id)).filter((i): i is ItemMenu => Boolean(i));
+}
+
+/** Itens que nenhum grupo reclama — nunca somem por falta de grupo. `info` mora no rodapé. */
+export function itensSemGrupo(itens: ItemMenu[]): ItemMenu[] {
+  const agrupados = new Set(GRUPOS_MENU.flatMap((g) => g.ids));
+  return itens.filter((i) => !agrupados.has(i.id) && i.id !== 'info');
+}
+
 /** Título + subtítulo da topbar por prefixo de rota. */
 export const TITULOS_ROTA: { prefixo: string; titulo: string; sub: string }[] = [
   { prefixo: '/dashboard', titulo: 'Dashboard', sub: 'Visão geral da operação e indicadores-chave' },

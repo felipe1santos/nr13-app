@@ -15,12 +15,15 @@ export default function MenuUsuario({
   email,
   papel,
   temAlerta,
+  ultimoLogin,
   onNotificacoes,
 }: {
   iniciais: string;
   email: string | null;
   papel: string;
   temAlerta: boolean;
+  /** "hoje às 03:05". Morava solto no cabeçalho; aqui ele não disputa a linha. */
+  ultimoLogin?: string | null;
   onNotificacoes: () => void;
 }) {
   const [aberto, setAberto] = useState(false);
@@ -69,6 +72,11 @@ export default function MenuUsuario({
           <div className="menu-conta-topo">
             <div className="menu-conta-email" title={email ?? ''}>{email ?? '—'}</div>
             <div className="menu-conta-papel">{papel}</div>
+            {ultimoLogin && (
+              <div className="menu-conta-login">
+                <Icone nome="clock" tam={12} /> Último login: {ultimoLogin}
+              </div>
+            )}
           </div>
 
           <button

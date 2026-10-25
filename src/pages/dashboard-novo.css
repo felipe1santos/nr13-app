@@ -560,3 +560,222 @@
   color: var(--amber-deep);
   border-color: #F5D8BC;
 }
+
+/* ============================================================================
+   PAINEL — Forja Compacto (Opção A, 25/10/2026) · docs/design/direcao.md
+   Tudo escopado em `.painel-compacto`: este arquivo também serve Vencimentos
+   e Registros de Segurança, que continuam no desenho de antes até a vez deles.
+   ============================================================================ */
+.painel-compacto {
+  padding: var(--s-5) var(--s-5) var(--s-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+/* ── KPIs: um dominante + quatro secundários numa faixa ── */
+.pc-kpis {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.1fr) minmax(0, 3fr);
+  gap: var(--s-4);
+}
+.pc-kpi-dom,
+.pc-kpi-sec {
+  background: var(--superficie);
+  border: 1px solid var(--fio);
+  border-radius: var(--r-md);
+  min-width: 0;
+}
+.pc-kpi-dom {
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.pc-kpi-rot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-12);
+  line-height: var(--lh-12);
+  font-weight: 500;
+  color: var(--texto-2);
+}
+.pc-kpi-val {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-20);
+  line-height: var(--lh-20);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--texto-1);
+}
+.pc-kpi-dom .pc-kpi-val { font-size: var(--fs-32); line-height: var(--lh-32); }
+.pc-kpi-unid { font-size: var(--fs-13); font-weight: 500; color: var(--texto-3); margin-left: 1px; }
+.pc-kpi-txt { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--texto-3); }
+.pc-kpi-dom .pc-kpi-txt { font-size: var(--fs-13); line-height: var(--lh-13); color: var(--texto-2); }
+/* A cor do dominante é SEMÂNTICA e vem com ícone + texto: vermelho só quando
+   há vencido, verde quando não há, neutro quando não deu para conferir. */
+.pc-kpi-dom.pc-crit .pc-kpi-rot,
+.pc-kpi-dom.pc-crit .pc-kpi-val { color: var(--st-crit); }
+.pc-kpi-dom.pc-ok .pc-kpi-rot,
+.pc-kpi-dom.pc-ok .pc-kpi-val { color: var(--st-ok); }
+.pc-kpi-acoes { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); margin-top: auto; padding-top: var(--s-1); }
+
+.pc-kpi-sec { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pc-kpi-sec > div { padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
+.pc-kpi-sec > div + div { border-left: 1px solid var(--fio); }
+
+.pc-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-base);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: var(--acao-link);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pc-link:hover { text-decoration: underline; }
+.pc-link:focus-visible,
+.pc-seg button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; border-radius: var(--r-xs); }
+
+/* ── Painéis: cabeçalho de uma linha, sem eyebrow laranja nem filete ── */
+.painel-compacto .fj-panel { margin-bottom: 0; border-radius: var(--r-md); }
+.painel-compacto .dash-cols { margin-bottom: 0; }
+.pc-painel-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  min-height: 48px;
+  padding: var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--fio);
+}
+.pc-painel-hd h2 {
+  margin: 0;
+  font-family: var(--font-base);
+  font-size: var(--fs-14);
+  line-height: var(--lh-14);
+  font-weight: 600;
+  color: var(--texto-1);
+}
+
+/* Filtro de janela: controle segmentado no lugar das pílulas soltas. */
+.pc-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-sm);
+  background: var(--superficie-3);
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pc-seg::-webkit-scrollbar { display: none; }
+.pc-seg button {
+  height: var(--h-ctl-sm);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  font-family: var(--font-base);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  color: var(--texto-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pc-seg button:hover { color: var(--texto-1); }
+.pc-seg button[aria-pressed='true'] {
+  background: var(--superficie);
+  color: var(--texto-1);
+  font-weight: 600;
+  box-shadow: var(--sh-1);
+}
+
+/* ── Tabela de prazos: 40px por linha, cabeçalho em caixa normal ── */
+.painel-compacto .fj-table thead th {
+  height: 36px;
+  padding: 0 var(--s-3);
+  font-size: var(--fs-12);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+  color: var(--texto-2);
+  background: var(--superficie-2);
+}
+.painel-compacto .fj-table tbody td {
+  height: var(--h-row);
+  padding: 4px var(--s-3);
+  font-size: var(--fs-13);
+}
+.painel-compacto .fj-tag-ico { width: 24px; height: 24px; }
+.painel-compacto .fj-eq-name { font-size: var(--fs-12); color: var(--texto-3); }
+
+/* Selos: caixa normal, ícone + texto, cor só de status. */
+.painel-compacto .fj-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--r-xs);
+  font-size: var(--fs-12);
+  line-height: var(--lh-12);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.painel-compacto .fj-badge.crit { background: var(--st-crit-bg); color: var(--st-crit); }
+.painel-compacto .fj-badge.warn { background: var(--st-warn-bg); color: var(--st-warn); }
+.painel-compacto .fj-badge.ok { background: var(--st-ok-bg); color: var(--st-ok); }
+.painel-compacto .fj-badge.info2 { background: var(--st-info-bg); color: var(--st-info); }
+/* Origem é CATEGORIA, não status: neutra. */
+.painel-compacto .orig-chip {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: var(--superficie-3);
+  color: var(--texto-2);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ── Próximos serviços ── */
+.pc-agenda { list-style: none; margin: 0; padding: 0; }
+.pc-agenda li {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 48px;
+  padding: var(--s-2) var(--s-4);
+}
+.pc-agenda li + li { border-top: 1px solid var(--fio); }
+.pc-agenda-dia { text-align: center; line-height: 1.1; }
+.pc-agenda-dia b { display: block; font-family: var(--font-display); font-size: var(--fs-16); font-weight: 600; color: var(--texto-1); }
+.pc-agenda-dia small { font-size: var(--fs-11); color: var(--texto-3); text-transform: uppercase; }
+.pc-agenda-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--texto-1); }
+.pc-vazio { padding: var(--s-4); font-size: var(--fs-13); color: var(--texto-3); }
+
+@media (max-width: 1180px) {
+  .pc-kpis { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .painel-compacto { padding: var(--s-4) var(--s-4) var(--s-10); gap: var(--s-3); }
+  .pc-kpi-sec { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pc-kpi-sec > div:nth-child(3) { border-left: 0; }
+  .pc-kpi-sec > div:nth-child(n + 3) { border-top: 1px solid var(--fio); }
+  /* Toque: filtros e links com 44px de alvo. */
+  .pc-seg button { height: 40px; }
+  .pc-link { min-height: var(--h-toque); }
+  .pc-painel-hd { padding: var(--s-2) var(--s-3); }
+}
