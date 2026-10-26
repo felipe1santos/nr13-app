@@ -22,18 +22,23 @@
 -- ============================================================================
 -- BLOCO 1 — O trigger continua ativo e apontando para a função certa?
 -- ============================================================================
--- Esperado: 1 linha, tgenabled = 'O' (origem/habilitado), tabela = auth.users
+-- Esperado: 1 linha, tgenabled = 'O' (origem/habilitado), tabela = auth.users,
+-- e le_metadata = false. Desde 25/10/2026 o trigger NÃO lê metadata (ver o
+-- cabeçalho de perfil_origem.sql): ler `raw_user_meta_data` é o furo do
+-- achado #1 da auditoria — qualquer signUp escolhia papel e organização.
 select
-  t.tgname                          as trigger_nome,
-  t.tgenabled                       as habilitado,
-  t.tgrelid::regclass::text         as tabela,
-  p.proname                         as funcao,
-  (p.prosrc like '%nr13_papel%')    as le_metadata,
-  (p.prosrc like '%sem_papel%')     as tem_fail_closed,
+  t.tgname                                  as trigger_nome,
+  t.tgenabled                               as habilitado,
+  t.tgrelid::regclass::text                 as tabela,
+  p.proname                                 as funcao,
+  (p.prosrc like '%raw_user_meta_data%')    as le_metadata,
   case
-    when t.tgenabled = 'O' and p.prosrc like '%nr13_papel%' then 'OK'
+    when t.tgenabled = 'O' and p.prosrc not like '%raw_user_meta_data%'
+     and p.prosrc not like '%nr13_org_id%' then 'OK'
+    when p.prosrc like '%raw_user_meta_data%'
+    then 'PROBLEMA — versão de 16/08: signUp escolhe papel/org (rodar perfil_origem.sql)'
     else 'PROBLEMA'
-  end                               as veredito
+  end                                       as veredito
 from pg_trigger t
 join pg_proc p on p.oid = t.tgfoid
 where t.tgname = 'on_auth_user_created';
@@ -43,7 +48,8 @@ where t.tgname = 'on_auth_user_created';
 -- BLOCO 2 — A conta de teste nasceu com o papel certo?
 -- ============================================================================
 -- Esperado para AUTO-CADASTRO: papel='mestre', org_id = próprio id,
--- cliente_id null, e a metadata com nr13_papel='mestre'.
+-- cliente_id null — com QUALQUER metadata (desde 25/10/2026 o signUp não manda
+-- `nr13_*`, e se mandar o trigger ignora).
 select
   pr.email,
   pr.papel,
@@ -53,15 +59,11 @@ select
   (pr.org_id = pr.id)                          as org_e_a_propria,
   u.raw_user_meta_data ->> 'nr13_papel'        as metadata_papel,
   u.raw_user_meta_data ->> 'nr13_org_id'       as metadata_org,
-  u.raw_user_meta_data ->> 'nr13_cliente_id'   as metadata_cliente,
   case
     when pr.papel = 'mestre'
      and pr.org_id = pr.id
      and pr.cliente_id is null
-     and u.raw_user_meta_data ->> 'nr13_papel' = 'mestre'
-    then 'OK — auto-cadastro correto e EXPLICITO'
-    when pr.papel = 'mestre' and u.raw_user_meta_data ->> 'nr13_papel' is null
-    then 'ATENCAO — virou mestre pelo DEFAULT, nao pela metadata (bundle antigo?)'
+    then 'OK — auto-cadastro é mestre da própria organização'
     else 'PROBLEMA'
   end                                          as veredito
 from public.profiles pr
@@ -75,25 +77,27 @@ where pr.email = 'COLOQUE_O_EMAIL_AQUI';
 -- Rode DEPOIS de criar um sub-login (funcionario ou gerente) e um acesso de
 -- cliente pela tela Acessos, logado na conta de teste.
 --
--- Esperado: papel correto, org_id = org do MESTRE (nao a propria), e a
--- metadata carregando papel/org desde a criacao.
+-- Esperado: papel correto, org_id = org do MESTRE (nao a propria),
+-- `criado_por` = o mestre e a origem registrada em app_metadata.
 --
--- O criterio central da Fase 0-A e a coluna `nasceu_correto`: ela prova que o
--- papel veio da metadata no INSERT, e nao do upsert posterior do org_admin.
+-- Desde 25/10/2026 o papel vem do UPSERT do org_admin (service_role), não do
+-- INSERT: o trigger não lê metadata. `criado_por` é a prova de que passou
+-- pela Edge — é o que separa sub-login legítimo de signUp forjado
+-- (perfil_origem_levantamento.sql).
 select
   filho.email,
   filho.papel,
   filho.cliente_id,
   (filho.org_id = mestre.id)                        as org_e_a_do_mestre,
-  u.raw_user_meta_data ->> 'nr13_papel'             as metadata_papel,
-  (u.raw_user_meta_data ->> 'nr13_org_id')::uuid = mestre.id as metadata_org_bate,
+  (filho.criado_por = mestre.id)                    as criado_pelo_mestre,
+  u.raw_app_meta_data ->> 'nr13_papel'              as origem_papel,
   case
-    when u.raw_user_meta_data ->> 'nr13_papel' = filho.papel
-     and (u.raw_user_meta_data ->> 'nr13_org_id')::uuid = filho.org_id
-    then 'OK — nasceu com o papel certo (metadata)'
-    when u.raw_user_meta_data ->> 'nr13_papel' is null
-    then 'ATENCAO — sem metadata: Edge antiga, papel veio do upsert'
-    else 'PROBLEMA'
+    when filho.criado_por = mestre.id
+     and u.raw_app_meta_data ->> 'nr13_papel' = filho.papel
+    then 'OK — criado pela org_admin, origem em app_metadata'
+    when filho.criado_por = mestre.id
+    then 'ATENCAO — criado pela org_admin antiga (origem em user_metadata)'
+    else 'PROBLEMA — ver perfil_origem_levantamento.sql'
   end                                               as nasceu_correto
 from public.profiles filho
 join auth.users u on u.id = filho.id
