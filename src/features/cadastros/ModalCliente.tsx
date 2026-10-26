@@ -1,8 +1,8 @@
 /**
  * Modal do cliente (v4 "Aço Frio", 25/10/2026).
  *
- * Plano em `docs/design/v3/modal-cliente.md`, desenho em
- * `docs/design/v4/preview-v4.html` ("Modal do cliente").
+ * Desenho na identidade do sistema,
+ * `docs/design/preview.html` (CLAUDE.md §15).
  *
  * ## Leitura primeiro, edição sob demanda
  *

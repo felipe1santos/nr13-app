@@ -1256,7 +1256,7 @@ automação (arquivar, trancar registro do Livro, resetar senha).
 
 > **A identidade do sistema é a PRIMEIRA prévia — `docs/design/preview.html` — com a
 > paleta B "Aço Frio" (`docs/design/direcao.md`).** Substitui o `design/` "Forja" como
-> fonte da verdade visual. As rodadas `docs/design/v2..v4` são histórico, não regra.
+> fonte da verdade visual. As rodadas v2–v4 foram descartadas e apagadas (25/10/2026); só existem no histórico do git.
 
 - **Cor:** fundo `#F3F4F6`, superfícies brancas, fios `#E3E5E8`, sidebar `#111418`,
   acento `#BC560A` com texto **branco** (o texto escuro reprova nele), link `#A34A08`.

@@ -1,6 +1,6 @@
 /* ============================================================================
    /inspecoes — lista de equipamentos (v4 "Aço Frio", 25/10/2026)
-   docs/design/v4/direcao-v4.md · tela "Inspeções" da prévia.
+   Identidade: docs/design/preview.html (CLAUDE.md §15).
    UM cartão: barra de ferramentas no topo (busca + abas de tipo) e uma tabela
    de 40px por linha. Tudo escopado em `.iv4`: `inspecoes.css` continua servindo
    a tela de containers e o formulário.
