@@ -157,9 +157,18 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
         <VazioProntuarios temFiltro={!!termo || temFiltroDoc(f)} />
       ) : (
         <div className="bloco-dados painel-lista">
-          {/* v5 (25/10/2026): o cabeçalho "título + subtítulo + contagem" saiu.
-              A contagem já está na barra de busca, o título na barra do topo,
-              e a faixa empurrava a tabela 56px para baixo. */}
+          {/* Mesmo cabeçalho de /relatorios: filete âmbar, nome da seção e a
+              contagem. É o idioma que o sistema já usa em `.bloco-dados h3` e
+              no `fj-panel-head` — nada de vocabulário novo. */}
+          <div className="painel-lista-head" role="presentation">
+            <span className="painel-lista-titulo">
+              <strong>Prontuários</strong>
+              <span>Um prontuário vigente por equipamento; as versões anteriores ficam no histórico</span>
+            </span>
+            <span className="painel-lista-contagem">
+              {grupos.length} {grupos.length === 1 ? 'equipamento' : 'equipamentos'}
+            </span>
+          </div>
           <div className="pront-linha pront-linha-cabecalho" role="row" aria-hidden>
             <span />
             <span>Prontuário vigente</span>

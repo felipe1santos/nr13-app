@@ -1,236 +1,263 @@
 /* ============================================================================
-   SHELL v5 (25/10/2026) — topo escuro, trilho de ícones, submenu do módulo
-   Estrutura do hPanel (docs/design/proposta-v5.html): o TOPO atravessa a tela;
-   embaixo, o trilho (84px, ícone com o nome embaixo), o submenu (232px, só
-   quando há o que mostrar) e o conteúdo.
+   SHELL FORJA — sidebar escura + topbar branca (fonte: design/painel_dashboard)
    ============================================================================ */
 .app-layout {
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  background: var(--fundo);
 }
 .shell {
   display: flex;
-  flex: 1;
-  min-height: 0;
+  height: 100vh;
+  height: 100dvh;
 }
 
-/* ===== Topo ===== */
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-3);
-  height: var(--h-header);
-  padding: 0 var(--s-3) 0 var(--s-4);
-  background: var(--topo-fundo);
-  color: var(--topo-texto);
-  flex-shrink: 0;
-  position: relative;
-  z-index: 200;
-}
-.topbar-left { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
-.brand { display: flex; align-items: center; gap: var(--s-2); flex-shrink: 0; }
-.brand-logo { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; border-radius: var(--r-sm); }
-.brand-txt { min-width: 0; }
-.brand-name { color: #fff; font-weight: 700; font-size: var(--fs-14); line-height: 16px; letter-spacing: -0.01em; }
-.brand-sub { font-size: var(--fs-11); line-height: 14px; color: var(--topo-apagado); white-space: nowrap; }
-.topbar-sep { width: 1px; height: 20px; background: #2A333E; flex-shrink: 0; }
-.topbar h1 {
-  font-family: var(--font-base);
-  font-size: var(--fs-14);
-  line-height: var(--lh-14);
-  font-weight: 600;
-  color: var(--topo-texto);
-  margin: 0;
-  letter-spacing: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.top-status { display: flex; align-items: center; gap: var(--s-2); flex-shrink: 0; }
-
-/* Peças claras que moram no topo escuro */
-.topbar .sync-status.ok { background: rgba(19, 122, 79, 0.2); color: #8EE0B8; }
-.topbar .sync-status.offline { background: #222A33; color: var(--topo-apagado); }
-.topbar .selo-sync { border-color: #2A333E; color: var(--topo-apagado); }
-html body .topbar .selo-sync:hover { background: var(--topo-hover); color: #fff; border-color: #2A333E; }
-.topbar .user-chip:hover,
-.topbar .user-chip.aberto { background: var(--topo-hover); border-color: transparent; }
-.topbar .user-chip .name { color: #fff; }
-.topbar .user-chip .role,
-.topbar .user-chip-chev { color: var(--topo-apagado); }
-.topbar .avatar { background: var(--interacao-bg); color: var(--interacao-texto); }
-.topbar .avatar-dot { border-color: var(--topo-fundo); }
-
-/* ===== Menu lateral: trilho + submenu ===== */
+/* ===== Sidebar (Forja Compacto, 25/10/2026) =====
+   Agrupada e recolhível. Larguras: 232px aberta, 56px recolhida (só ícones).
+   Item de 32px no desktop; no celular a gaveta sobe para 44px de toque. */
 .sidebar {
-  display: flex;
+  width: 232px;
   flex-shrink: 0;
-  min-height: 0;
-}
-
-.trilho {
-  width: var(--trilho-largura);
+  background: var(--nav-fundo);
+  color: var(--nav-texto);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: var(--s-2) 0;
+  overflow-x: hidden;
   overflow-y: auto;
-  scrollbar-width: none;
-  background: var(--fundo);
+  transition: width var(--t-medio);
 }
-.trilho::-webkit-scrollbar { display: none; }
-.trilho-espaco { flex: 1; min-height: var(--s-2); }
 
-.trilho-item {
-  width: 80px;
-  padding: 4px 0 6px;
+.brand {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--s-2);
+  height: var(--h-header);
+  padding: 0 var(--s-2) 0 var(--s-4);
+  border-bottom: 1px solid var(--nav-fio);
+  flex-shrink: 0;
+}
+.brand-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  background: linear-gradient(135deg, var(--amber), var(--amber-deep));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 13px;
+  font-family: var(--font-display);
+  flex-shrink: 0;
+}
+/* Logo da marca no lugar do quadradinho "13". */
+.brand-logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+}
+.brand-txt { min-width: 0; flex: 1; }
+.brand-name { color: #fff; font-family: var(--font-display); font-weight: 600; font-size: var(--fs-14); line-height: var(--lh-14); }
+.brand-sub { font-size: var(--fs-11); line-height: var(--lh-11); color: var(--nav-apagado); white-space: nowrap; }
+
+.btn-recolher {
+  width: var(--h-ctl-sm);
+  height: var(--h-ctl-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   border: 0;
-  background: none;
-  border-radius: var(--r-md);
-  color: var(--texto-2);
-  font-family: var(--font-base);
-  font-size: var(--fs-11);
-  line-height: 14px;
-  font-weight: 600;
-  text-align: center;
-  text-decoration: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--nav-apagado);
   cursor: pointer;
 }
-.trilho-ico {
-  position: relative;
-  width: 40px;
-  height: 32px;
-  border-radius: var(--r-md);
-  display: grid;
-  place-items: center;
-  transition: background-color var(--t-rapido), color var(--t-rapido);
-}
-.trilho-rot { max-width: 78px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: -0.01em; }
-.trilho-item:hover { color: var(--interacao-texto); }
-.trilho-item:hover .trilho-ico { background: var(--interacao-bg); color: var(--interacao-texto); }
-.trilho-item.active { color: var(--texto-1); }
-.trilho-item.active .trilho-ico { background: var(--superficie); color: var(--acao); box-shadow: var(--sh-1); }
-.trilho-item:focus-visible { outline: 2px solid var(--interacao-texto); outline-offset: 0; }
-.trilho-alerta {
-  position: absolute;
-  top: 3px;
-  right: 6px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--crit);
-  border: 2px solid var(--fundo);
-}
+.btn-recolher:hover { background: var(--nav-hover); color: #fff; }
+.btn-recolher:focus-visible { outline: 2px solid var(--acao); outline-offset: 2px; }
 
-.submenu {
-  width: var(--submenu-largura);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--s-3) var(--s-2);
-  background: var(--superficie);
-  border-right: 1px solid var(--fio);
-  border-radius: var(--r-lg) 0 0 0;
-  overflow-y: auto;
-}
-.submenu-oculto { display: none; }
-.submenu-topo {
+.nav-list { display: flex; flex-direction: column; padding: var(--s-2); }
+
+/* Grupo: rótulo pequeno + itens. Fechar o grupo esconde os itens; o grupo da
+   tela atual nunca fecha (Layout.tsx). */
+.nav-grupo + .nav-grupo { margin-top: var(--s-2); }
+.nav-grupo-tit {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--s-2);
-  padding: 0 var(--s-1) 0 var(--s-3);
-  margin-bottom: var(--s-2);
-}
-.submenu-topo h2 {
-  margin: 0;
-  font-family: var(--font-base);
-  font-size: var(--fs-16);
-  line-height: var(--lh-16);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--texto-1);
-}
-.btn-recolher {
-  width: 28px;
+  width: 100%;
   height: 28px;
+  padding: 0 var(--s-2);
   border: 0;
   border-radius: var(--r-sm);
   background: none;
-  color: var(--texto-3);
-  display: grid;
-  place-items: center;
+  color: var(--nav-apagado);
+  font-family: var(--font-base);
+  font-size: var(--fs-11);
+  line-height: var(--lh-11);
+  font-weight: 500;
+  letter-spacing: 0.02em;
   cursor: pointer;
+  text-align: left;
 }
-.btn-recolher:hover { background: var(--interacao-bg); color: var(--interacao-texto); }
+.nav-grupo-tit:hover { color: var(--nav-texto); }
+.nav-grupo-tit:focus-visible { outline: 2px solid var(--acao); outline-offset: 1px; }
+.nav-grupo-tit .chev { transition: transform var(--t-rapido); flex-shrink: 0; }
+.nav-grupo.fechado .nav-grupo-tit .chev { transform: rotate(-90deg); }
+.nav-grupo-itens { display: flex; flex-direction: column; gap: 1px; }
+.nav-grupo.fechado .nav-grupo-itens { display: none; }
 
-.nav-list { display: flex; flex-direction: column; gap: 2px; }
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--s-3);
-  height: 36px;
-  padding: 0 var(--s-3);
-  width: 100%;
-  border: 0;
-  border-radius: var(--r-md);
-  background: none;
-  color: var(--texto-1);
-  font-family: var(--font-base);
+  height: var(--h-nav);
+  padding: 0 var(--s-2);
+  border-radius: var(--r-sm);
   font-size: var(--fs-13);
   line-height: var(--lh-13);
+  color: var(--nav-texto);
   font-weight: 500;
-  text-align: left;
-  text-decoration: none;
-  white-space: nowrap;
   cursor: pointer;
+  justify-content: space-between;
+  text-decoration: none;
+  background: none;
+  border: none;
+  width: 100%;
+  font-family: var(--font-base);
+  text-align: left;
+  white-space: nowrap;
   flex-shrink: 0;
-  transition: background-color var(--t-rapido), color var(--t-rapido);
 }
 .nav-item .left { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
-.nav-item .left svg { color: var(--texto-3); flex-shrink: 0; }
 .nav-item .menu-text { overflow: hidden; text-overflow: ellipsis; }
-.nav-item:hover { background: var(--interacao-bg); color: var(--interacao-texto); }
-.nav-item:hover .left svg { color: var(--interacao-texto); }
-.nav-item.active { background: var(--amber-bg); color: var(--acao-hover); font-weight: 600; }
-.nav-item.active .left svg { color: var(--acao); }
-.nav-item:focus-visible { outline: 2px solid var(--interacao-texto); outline-offset: -2px; }
-.nav-count { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--texto-3); }
-.subnav { display: flex; flex-direction: column; }
+.nav-item:hover { background: var(--nav-hover); color: #fff; }
+/* Ativo: fundo um tom acima + filete âmbar. É o único âmbar da sidebar. */
+.nav-item.active {
+  background: var(--nav-ativo);
+  color: #fff;
+  box-shadow: inset 2px 0 0 var(--acao);
+}
+.nav-item .chev { transition: transform 0.18s ease; opacity: 0.7; }
+.nav-item.expanded .chev { transform: rotate(180deg); }
+.nav-item:focus-visible { outline: 2px solid var(--acao); outline-offset: -2px; box-shadow: none; }
 
-/* Conteúdo que a tela põe no submenu: título de seção do mesmo jeito. */
-.submenu-slot:empty { display: none; }
-.submenu-slot { display: flex; flex-direction: column; gap: 2px; }
-.submenu-secao {
-  margin: var(--s-4) 0 var(--s-1);
-  padding: 0 var(--s-3);
-  font-size: var(--fs-12);
-  line-height: var(--lh-12);
-  font-weight: 700;
-  color: var(--texto-2);
+.nav-count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  line-height: var(--lh-11);
+  color: var(--nav-apagado);
+}
+.nav-item.active .nav-count { color: var(--nav-texto); }
+
+/* `subnav` (o grupo Cadastros) agora é um grupo como os outros: quem decide
+   aberto/fechado é `.nav-grupo.fechado`, não a altura animada de antes. */
+.subnav { display: flex; flex-direction: column; }
+.nav-grupo .subnav .nav-item { padding-left: var(--s-2); }
+
+.nav-spacer { flex: 1; min-height: var(--s-3); }
+.nav-divider { border-top: 1px solid var(--nav-fio); margin: 12px 4px 10px; flex-shrink: 0; }
+.nav-rodape {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--s-2);
+  padding-bottom: calc(var(--s-2) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--nav-fio);
+  flex-shrink: 0;
+}
+.nav-item.danger:hover { background: #2E1E1D; color: #F0A19B; }
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #3A4149;
+  color: #E5E7E9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-11);
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
-/* ===== Conteúdo ===== */
+/* ── Recolhida: trilho de 56px, só ícones (só existe em tela larga) ── */
+@media (min-width: 901px) {
+  .shell.menu-recolhido .sidebar { width: 56px; }
+  .shell.menu-recolhido .brand { padding: 0; justify-content: center; }
+  .shell.menu-recolhido .brand-logo,
+  .shell.menu-recolhido .brand-txt,
+  .shell.menu-recolhido .menu-text,
+  .shell.menu-recolhido .nav-count,
+  .shell.menu-recolhido .nav-grupo-tit span,
+  .shell.menu-recolhido .nav-grupo-tit .chev { display: none; }
+  /* O rótulo do grupo vira um fio separador; com os nomes escondidos, um grupo
+     fechado esconderia ícones sem dizer onde. Recolhida, tudo fica à vista. */
+  .shell.menu-recolhido .nav-grupo-tit {
+    height: 1px;
+    padding: 0;
+    margin: var(--s-2) var(--s-1);
+    background: var(--nav-fio);
+    pointer-events: none;
+  }
+  .shell.menu-recolhido .nav-grupo:first-child .nav-grupo-tit { display: none; }
+  .shell.menu-recolhido .nav-grupo.fechado .nav-grupo-itens { display: flex; }
+  .shell.menu-recolhido .nav-item { justify-content: center; padding: 0; }
+  .shell.menu-recolhido .nav-item .left { gap: 0; }
+}
+
+/* ===== Main / Topbar ===== */
 .main {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: var(--superficie);
-  border-radius: var(--r-lg) 0 0 0;
 }
-.shell:has(.submenu:not(.submenu-oculto)) .main { border-radius: 0; }
+
+/* Cabeçalho de UMA linha, 48px fixos (Forja Compacto). Antes: 62px mínimos
+   mais o subtítulo, que quebrava em até três linhas ao disputar a largura com
+   o "Último login". */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--h-header);
+  padding: 0 var(--s-5);
+  background: var(--superficie);
+  border-bottom: 1px solid var(--fio);
+  gap: var(--s-3);
+  flex-shrink: 0;
+}
+.topbar-left { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.topbar h1 {
+  font-family: var(--font-display);
+  font-size: var(--fs-16);
+  line-height: var(--lh-16);
+  font-weight: 600;
+  color: var(--texto-1);
+  margin: 0;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.top-status { display: flex; align-items: center; gap: var(--s-2); flex-shrink: 0; }
+
+.login-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--petroleo);
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.divider-v { width: 1px; height: 20px; background: var(--fio); }
 
 /* ===== Chip do usuário + menu da conta ===== */
 .menu-usuario { position: relative; flex-shrink: 0; }
@@ -354,7 +381,7 @@ html body .topbar .selo-sync:hover { background: var(--topo-hover); color: #fff;
   flex: 1;
   overflow-y: auto;
   min-width: 0;
-  background: transparent;
+  background: var(--steel);
 }
 
 /* ===== Sync pill (Forja) ===== */
@@ -419,55 +446,51 @@ html body .topbar .selo-sync:hover { background: var(--topo-hover); color: #fff;
   border: 2px solid var(--panel);
 }
 
-/* ===== Hambúrguer (celular/tablet) ===== */
+/* ===== Hambúrguer (mobile) ===== */
 .btn-hamburguer {
   display: none;
   flex-direction: column;
   justify-content: center;
   gap: 4px;
-  width: var(--h-toque);
-  height: var(--h-toque);
-  padding: 13px;
-  border: 0;
-  border-radius: var(--r-md);
-  background: transparent;
+  width: 38px;
+  height: 38px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
   cursor: pointer;
   flex-shrink: 0;
 }
-.btn-hamburguer span { display: block; height: 2px; width: 100%; background: var(--topo-texto); border-radius: 2px; }
-.btn-hamburguer:hover { background: var(--topo-hover); }
+.btn-hamburguer span {
+  display: block;
+  height: 2px;
+  width: 100%;
+  background: var(--text);
+  border-radius: 2px;
+}
+.btn-hamburguer:hover { background: var(--steel); }
 
 .sidebar-backdrop { display: none; }
-.barra-inferior { display: none; }
 
 /* ============================================================================
-   TABLET / CELULAR — trilho + submenu viram a gaveta; no celular, barra
-   inferior com os módulos de campo
+   MOBILE / TABLET — sidebar vira drawer off-canvas
    ============================================================================ */
 @media (max-width: 900px) {
   .btn-hamburguer { display: flex; }
-  .topbar { padding: 0 var(--s-2) 0 var(--s-1); }
-  .brand-sub, .topbar-sep { display: none; }
 
   .sidebar {
     position: fixed;
     top: 0;
     left: 0;
     bottom: 0;
-    max-width: calc(100vw - 48px);
+    width: 80vw;
+    max-width: 300px;
     transform: translateX(-100%);
     transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 1500;
     box-shadow: 0 0 40px rgba(15, 23, 42, 0.35);
-    background: var(--superficie);
   }
   .sidebar.aberta { transform: translateX(0); }
-  /* Na gaveta o submenu aparece sempre (lá ele é a lista das páginas). */
-  .sidebar .submenu-oculto { display: flex; }
-  .sidebar .submenu { width: min(232px, calc(100vw - 48px - var(--trilho-largura))); border-radius: 0; }
-  .btn-recolher { display: none; }
-  .nav-item { height: var(--h-toque); }
-  .trilho-item { padding: 6px 0 8px; }
 
   .sidebar-backdrop {
     display: block;
@@ -475,39 +498,36 @@ html body .topbar .selo-sync:hover { background: var(--topo-hover); color: #fff;
     inset: 0;
     z-index: 1400;
     background: rgba(20, 24, 28, 0.5);
+    backdrop-filter: blur(2px);
     animation: nr-fade-in 0.2s ease;
   }
-  .main { border-radius: 0; }
+
+  .login-info, .divider-v { display: none; }
+  /* Toque: cabeçalho de 52px para caber alvos de 44px. */
+  .topbar { height: 52px; padding: 0 var(--s-2) 0 var(--s-1); gap: var(--s-2); }
+  .btn-hamburguer { width: var(--h-toque); height: var(--h-toque); padding: 13px; border: 0; background: transparent; }
+  .user-chip-txt, .user-chip-chev { display: none; }
+  .user-chip { padding: 8px; }
+  /* Na gaveta não há trilho: o botão de recolher não tem o que fazer. */
+  .btn-recolher { display: none; }
+  .sidebar .nav-item { height: var(--h-toque); }
+  .nav-grupo-tit { height: 32px; }
 }
 
-@media (max-width: 680px) {
-  /* A barra inferior assume a navegação: o hambúrguer sai do topo. */
-  .btn-hamburguer { display: none; }
-  .topbar { padding: 0 var(--s-2) 0 var(--s-3); }
-  .topbar h1 { font-size: var(--fs-14); }
-  .brand-txt { display: none; }
+@media (max-width: 560px) {
+  .topbar h1 { font-size: 16px; }
+  .sidebar { width: 86vw; }
   .sync-status-txt { display: none; }
   .sync-status { padding: 6px 9px; }
+  .top-status { gap: 8px; }
   .selo-sync { padding: 0 7px; }
   .selo-sync__rotulo { display: none; }
+  /* Menu da conta ancorado na borda da tela: com 390px de largura ele não pode
+     nascer colado no chip e sair pela direita. */
   .menu-conta { right: -4px; min-width: 216px; max-width: calc(100vw - 24px); }
-  .user-chip-txt, .user-chip-chev { display: none; }
-  .user-chip { padding: 6px; }
-
-  .barra-inferior {
-    display: flex;
-    justify-content: space-around;
-    gap: 2px;
-    padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
-    background: var(--superficie);
-    border-top: 1px solid var(--fio);
-    flex-shrink: 0;
-    position: relative;
-    z-index: 200;
-  }
-  .barra-inferior .trilho-item { flex: 1; width: auto; min-height: 52px; }
 }
 
+/* Aviso vermelho: acesso do usuário vencendo (≤30 dias) */
 .aviso-expiracao {
   display: flex;
   align-items: center;

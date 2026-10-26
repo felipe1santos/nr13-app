@@ -981,9 +981,19 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
 
       {linhas.length > 0 && (
         <div className="rel-tabela-v9 painel-lista" role="table" aria-label="Relatórios">
-          {/* v5 (25/10/2026): o cabeçalho "título + subtítulo + contagem" saiu.
-              A contagem já está na barra de busca, o título na barra do topo,
-              e a faixa empurrava a tabela 56px para baixo. */}
+          {/* CABEÇALHO DO PAINEL. A caixa terminava logo abaixo da última
+              linha: com três documentos numa tela de 900px o resultado era uma
+              faixa branca curta boiando num vão cinza. O painel ganhou piso de
+              altura e um cabeçalho com o filete âmbar que o sistema já usa. */}
+          <div className="painel-lista-head" role="presentation">
+            <span className="painel-lista-titulo">
+              <strong>Documentos emitidos e rascunhos</strong>
+              <span>Cada linha é um relatório desta organização</span>
+            </span>
+            <span className="painel-lista-contagem">
+              {linhas.length} {linhas.length === 1 ? 'linha' : 'linhas'}
+            </span>
+          </div>
           {/* CAIXA DE ENTRADA · uma linha por documento.
               O nome do relatório tinha o número do documento e a empresa
               EMPILHADOS embaixo dele. Duas informações na mesma célula fazem a

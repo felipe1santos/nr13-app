@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
-import type { NomeIcone } from '../components/Icone';
 import { isMestre, isTrial, logout, papelAtual, usuarioLogado } from '../services/auth';
 import BarraTrial from '../components/BarraTrial';
 import BarraAssinatura from '../components/BarraAssinatura';
@@ -33,7 +32,6 @@ import MenuUsuario from './MenuUsuario';
 import SyncStatus from './SyncStatus';
 import ModalTrocarSenha from '../components/ModalTrocarSenha';
 import ModalTermos from '../components/ModalTermos';
-import { SubmenuContexto } from './submenu';
 import './layout.css';
 
 const ROTULO_PAPEL: Record<string, string> = {
@@ -63,13 +61,14 @@ function diasParaExpirar(): number | null {
 }
 
 /**
- * Preferência do MENU (shell v5): o submenu recolhido. É conveniência DESTE
- * aparelho, por isso `localStorage` direto e fora do prefixo `nr13_` — que é o
- * das chaves de dado, sincronizadas e purgadas pela v2. Leitura e escrita
- * protegidas: em aba privada ou com o armazenamento bloqueado, o menu só não
- * lembra.
+ * Preferências da SIDEBAR (redesign Forja Compacto, 25/10/2026): recolhida e
+ * quais grupos estão fechados. São conveniências DESTE aparelho, por isso
+ * `localStorage` direto e fora do prefixo `nr13_` — que é o das chaves de dado,
+ * sincronizadas e purgadas pela v2. Leitura e escrita protegidas: em aba
+ * privada ou com o armazenamento bloqueado, o menu só não lembra.
  */
 const CHAVE_MENU_RECOLHIDO = 'forja.menu.recolhido';
+const CHAVE_MENU_GRUPOS = 'forja.menu.gruposFechados';
 
 function lerPreferencia(chave: string): string | null {
   try {
@@ -87,29 +86,29 @@ function gravarPreferencia(chave: string, valor: string): void {
   }
 }
 
-/**
- * Uma entrada do TRILHO de ícones (shell v5). Os módulos de operação são uma
- * entrada cada; Documentos, Instrumentos e Cadastros são GRUPOS, e as páginas
- * deles aparecem no submenu. Os ids de permissão são os de sempre — o trilho é
- * só outra apresentação de `ITENS_TOPO`/`ITENS_BAIXO`/`GRUPOS_MENU`.
- */
-interface EntradaTrilho {
-  id: string;
-  rotulo: string;
-  icone: NomeIcone;
-  itens: ItemMenu[];
+function gruposFechadosIniciais(): string[] {
+  try {
+    const v = JSON.parse(lerPreferencia(CHAVE_MENU_GRUPOS) ?? '[]');
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
-/** Rótulo curto no trilho (cabe em 76px, embaixo do ícone). */
-const ROTULO_TRILHO: Record<string, string> = { dashboard: 'Painel' };
-const ICONE_GRUPO: Record<string, NomeIcone> = { documentos: 'filetext', instrumentos: 'gauge', cadastros: 'users' };
-
-/** A ficha (`/equipamento/X`) e os vencimentos pertencem a um módulo sem ter a rota dele. */
-function rotaPertence(pathname: string, item: ItemMenu): boolean {
-  if (pathname.startsWith(item.to)) return true;
-  if (item.id === 'equipamentos') return pathname.startsWith('/equipamento/');
-  if (item.id === 'dashboard') return pathname.startsWith('/vencimentos');
-  return false;
+/** Rótulo de um grupo da sidebar: abre e fecha os itens dele. */
+function TituloGrupo({ id, rotulo, aberto, onAlternar }: { id: string; rotulo: string; aberto: boolean; onAlternar: () => void }) {
+  return (
+    <button
+      type="button"
+      className="nav-grupo-tit"
+      onClick={onAlternar}
+      aria-expanded={aberto}
+      aria-controls={`nav-grupo-${id}`}
+    >
+      <span>{rotulo}</span>
+      <Icone nome="chevdown" className="chev" tam={12} />
+    </button>
+  );
 }
 
 function ultimoLoginTexto(): string | null {
@@ -127,20 +126,13 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuAberto, setMenuAberto] = useState(false);
+  const [cadastrarAberto, setCadastrarAberto] = useState(
+    () => location.pathname.startsWith('/funcionarios') || location.pathname.startsWith('/empresas'),
+  );
   const [temAlerta, setTemAlerta] = useState(false);
   const [modalSenha, setModalSenha] = useState(false);
   const [recolhida, setRecolhida] = useState(() => lerPreferencia(CHAVE_MENU_RECOLHIDO) === '1');
-  // Submenu: o nó do portal e quantas telas estão pondo conteúdo nele.
-  const [alvoSubmenu, setAlvoSubmenu] = useState<HTMLElement | null>(null);
-  const [nConteudoSubmenu, setNConteudoSubmenu] = useState(0);
-  const registrarSubmenu = useCallback(() => {
-    setNConteudoSubmenu((n) => n + 1);
-    return () => setNConteudoSubmenu((n) => n - 1);
-  }, []);
-  const contextoSubmenu = useMemo(
-    () => ({ alvo: alvoSubmenu, registrar: registrarSubmenu }),
-    [alvoSubmenu, registrarSubmenu],
-  );
+  const [gruposFechados, setGruposFechados] = useState<string[]>(gruposFechadosIniciais);
   const email = usuarioLogado();
   const papel = ROTULO_PAPEL[papelAtual()] ?? 'Administrador';
   // Contagem do selo do menu. Nasce da contagem local (instantânea, e correta
@@ -278,56 +270,19 @@ export default function Layout() {
     });
   }
 
+  function alternarGrupo(id: string) {
+    setGruposFechados((atual) => {
+      const novo = atual.includes(id) ? atual.filter((g) => g !== id) : [...atual, id];
+      gravarPreferencia(CHAVE_MENU_GRUPOS, JSON.stringify(novo));
+      return novo;
+    });
+  }
+
+  /** O grupo da tela atual nunca fica fechado: o item ativo tem de estar à vista. */
+  const contemRotaAtual = (itens: ItemMenu[]) => itens.some((i) => location.pathname.startsWith(i.to));
   const itensPermitidos = [...itensTopo, ...itensBaixo];
   const soltos = itensSemGrupo(itensPermitidos);
   const itensAjuda = itensBaixo.filter((i) => i.id === 'info');
-
-  // ── O trilho ──────────────────────────────────────────────────────────────
-  const entradas: EntradaTrilho[] = [
-    ...itensTopo.map((i) => ({ id: i.id, rotulo: ROTULO_TRILHO[i.id] ?? i.label, icone: i.icone, itens: [i] })),
-    ...GRUPOS_MENU.filter((g) => g.id !== 'operacao').flatMap((g) => {
-      const itens = itensDoGrupo(g, itensPermitidos);
-      return itens.length ? [{ id: g.id, rotulo: g.rotulo, icone: ICONE_GRUPO[g.id] ?? 'grid', itens }] : [];
-    }),
-    ...soltos.map((i) => ({ id: i.id, rotulo: i.label, icone: i.icone, itens: [i] })),
-  ];
-  // Cadastros: "Meus dados" e Acessos são do mestre e não passam pelo filtro de
-  // permissão. O grupo abre também para o mestre que só tem Acessos.
-  const itensDeCadastro: ItemMenu[] = [
-    ...(isMestre() ? [ITEM_MEUS_DADOS] : []),
-    ...itensCadastrar,
-    ...(isMestre() ? [ITEM_ACESSOS] : []),
-  ];
-  if (itensCadastrar.length > 0 || isMestre()) {
-    entradas.push({ id: 'cadastros', rotulo: 'Cadastros', icone: ICONE_GRUPO.cadastros, itens: itensDeCadastro });
-  }
-  const entradaAtiva = entradas.find((e) => e.itens.some((i) => rotaPertence(location.pathname, i)));
-  const grupoAtivo = entradaAtiva && entradaAtiva.itens.length > 1 ? entradaAtiva : null;
-  const submenuVisivel = !recolhida && (grupoAtivo !== null || nConteudoSubmenu > 0);
-  // Barra inferior do celular: os quatro primeiros módulos + "Menu" (a gaveta).
-  const entradasBarra = entradas.slice(0, 4);
-
-  function EntradaDoTrilho({ e }: { e: EntradaTrilho }) {
-    const ativa = entradaAtiva?.id === e.id;
-    return (
-      <NavLink
-        to={e.itens[0].to}
-        className={`trilho-item${ativa ? ' active' : ''}`}
-        aria-current={ativa ? 'page' : undefined}
-        onClick={() => {
-          fecharDrawer();
-          // Clicar no módulo aberto com o submenu recolhido o reabre.
-          if (ativa && recolhida) alternarRecolhida();
-        }}
-      >
-        <span className="trilho-ico">
-          <Icone nome={e.icone} />
-          {e.id === 'dashboard' && temAlerta && <span className="trilho-alerta" aria-label="Há vencidos" />}
-        </span>
-        <span className="trilho-rot">{e.rotulo}</span>
-      </NavLink>
-    );
-  }
 
   function NavItem({ item, sub: isSub }: { item: ItemMenu; sub?: boolean }) {
     return (
@@ -335,6 +290,9 @@ export default function Layout() {
         to={item.to}
         className={({ isActive }) => `nav-item${isActive ? ' active' : ''}${isSub ? ' subitem' : ''}`}
         onClick={fecharDrawer}
+        // Com a sidebar recolhida só sobra o ícone: o nome vira dica e rótulo acessível.
+        title={recolhida ? item.label : undefined}
+        aria-label={recolhida ? item.label : undefined}
       >
         <span className="left">
           <Icone nome={item.icone} />
@@ -346,103 +304,123 @@ export default function Layout() {
   }
 
   return (
-    <SubmenuContexto.Provider value={contextoSubmenu}>
     <div className="app-layout">
-      {/* ===== TOPO escuro (shell v5): marca, título da rota, sincronização e
-          conta, numa linha de 48px. O subtítulo da rota é a dica do título. */}
-      <header className="topbar">
-        <div className="topbar-left">
-          <button
-            type="button"
-            className="btn-hamburguer"
-            onClick={() => setMenuAberto((a) => !a)}
-            aria-label="Abrir menu"
-            aria-expanded={menuAberto}
-          >
-            <span /><span /><span />
-          </button>
+      <div className={`shell${recolhida ? ' menu-recolhido' : ''}`}>
+        {menuAberto && <div className="sidebar-backdrop" onClick={fecharDrawer} />}
+
+        {/* ===== SIDEBAR (escura, Forja Compacto) =====
+            Agrupada (Operação, Documentos, Instrumentos, Cadastros) e
+            recolhível num trilho de ícones. Os ids e as permissões são os de
+            sempre; o agrupamento é só apresentação — ver GRUPOS_MENU. */}
+        <aside className={`sidebar${menuAberto ? ' aberta' : ''}`} aria-label="Navegação principal">
           <div className="brand">
             <img className="brand-logo" src="/logo-marca.png" alt="" aria-hidden="true" />
             <div className="brand-txt">
               <div className="brand-name">NR13</div>
               <div className="brand-sub">Engenharia &amp; Ativos</div>
             </div>
+            <button
+              type="button"
+              className="btn-recolher"
+              onClick={alternarRecolhida}
+              aria-label={recolhida ? 'Expandir menu' : 'Recolher menu'}
+              aria-pressed={recolhida}
+              title={recolhida ? 'Expandir menu' : 'Recolher menu'}
+            >
+              <Icone nome={recolhida ? 'chevright' : 'chevleft'} tam={16} />
+            </button>
           </div>
-          <span className="topbar-sep" aria-hidden="true" />
-          <h1 title={sub || undefined}>{titulo}</h1>
-        </div>
 
-        <div className="top-status">
-          <SyncStatus />
-          <SeloSync />
-          <MenuUsuario
-            iniciais={iniciais(email)}
-            email={email}
-            papel={papel}
-            temAlerta={temAlerta}
-            ultimoLogin={ultimoLoginTexto()}
-            onNotificacoes={() => navigate('/dashboard')}
-            onTrocarSenha={() => setModalSenha(true)}
-            onSair={handleLogout}
-          />
-        </div>
-      </header>
-
-      <div className={`shell${recolhida ? ' menu-recolhido' : ''}`}>
-        {menuAberto && <div className="sidebar-backdrop" onClick={fecharDrawer} />}
-
-        {/* ===== MENU (shell v5): trilho de ícones + submenu do módulo =====
-            No celular os dois viram a gaveta, aberta pelo hambúrguer ou pelo
-            "Menu" da barra inferior. */}
-        <aside className={`sidebar${menuAberto ? ' aberta' : ''}`} aria-label="Navegação principal">
-          <nav className="trilho" aria-label="Módulos">
-            {entradas.map((e) => (
-              <EntradaDoTrilho key={e.id} e={e} />
+          <nav className="nav-list">
+            {GRUPOS_MENU.map((g) => {
+              const itens = itensDoGrupo(g, itensPermitidos);
+              if (itens.length === 0) return null;
+              const aberto = !gruposFechados.includes(g.id) || contemRotaAtual(itens);
+              return (
+                <div key={g.id} className={`nav-grupo${aberto ? '' : ' fechado'}`}>
+                  <TituloGrupo id={g.id} rotulo={g.rotulo} aberto={aberto} onAlternar={() => alternarGrupo(g.id)} />
+                  <div className="nav-grupo-itens" id={`nav-grupo-${g.id}`}>
+                    {itens.map((item) => (
+                      <NavItem key={item.id} item={item} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            {soltos.map((item) => (
+              <NavItem key={item.id} item={item} />
             ))}
-            <span className="trilho-espaco" />
-            {itensAjuda.map((item) => (
-              <EntradaDoTrilho key={item.id} e={{ id: item.id, rotulo: 'Ajuda', icone: item.icone, itens: [item] }} />
-            ))}
+
+            {/* O grupo abre também para o mestre que só tem Acessos: ele é o
+                único item do grupo que não passa pelo filtro de permissão. */}
+            {(itensCadastrar.length > 0 || isMestre()) && (
+              <div
+                className={`nav-grupo${
+                  cadastrarAberto ||
+                  contemRotaAtual([...itensCadastrar, ITEM_ACESSOS, ITEM_MEUS_DADOS])
+                    ? ''
+                    : ' fechado'
+                }`}
+              >
+                <TituloGrupo
+                  id="cadastros"
+                  rotulo="Cadastros"
+                  aberto={cadastrarAberto || contemRotaAtual([...itensCadastrar, ITEM_ACESSOS, ITEM_MEUS_DADOS])}
+                  onAlternar={() => setCadastrarAberto((a) => !a)}
+                />
+                <div className={`subnav nav-grupo-itens${cadastrarAberto ? ' open' : ''}`} id="nav-grupo-cadastros">
+                  {/* "Meus dados" (a empresa executante) é cadastro da
+                      organização: mora aqui, e não acima do Dashboard. */}
+                  {isMestre() && <NavItem item={ITEM_MEUS_DADOS} sub />}
+                  {itensCadastrar.map((item) => (
+                    <NavItem key={item.id} item={item} sub />
+                  ))}
+                  {/* 10/09/2026 · Acessos passou a morar DENTRO de Cadastrar.
+                      Ele é o cadastro dos logins da equipe — mesma natureza de
+                      Funcionários e Clientes. Solto no fim do menu, ficava entre
+                      as telas de operação, que é onde ninguém procura por
+                      "criar um login para o meu técnico". */}
+                  {isMestre() && <NavItem item={ITEM_ACESSOS} sub />}
+                </div>
+              </div>
+            )}
           </nav>
 
-          <div className={`submenu${submenuVisivel ? '' : ' submenu-oculto'}`}>
-            <div className="submenu-topo">
-              <h2>{entradaAtiva?.rotulo === 'Painel' ? 'Painel' : entradaAtiva?.rotulo ?? titulo}</h2>
-              <button
-                type="button"
-                className="btn-recolher"
-                onClick={alternarRecolhida}
-                aria-label="Recolher menu"
-                title="Recolher menu"
-              >
-                <Icone nome="chevleft" tam={16} />
-              </button>
-            </div>
-
-            {grupoAtivo && grupoAtivo.id !== 'cadastros' && (
-              <nav className="nav-list" aria-label={grupoAtivo.rotulo}>
-                {grupoAtivo.itens.map((item) => (
-                  <NavItem key={item.id} item={item} />
-                ))}
-              </nav>
-            )}
-
-            {/* Cadastros: "Meus dados" (a empresa executante), Funcionários,
-                Clientes e Acessos — os logins da equipe são cadastro da mesma
-                natureza, e é aqui que se procura "criar um login para o meu
-                técnico". */}
-            {grupoAtivo?.id === 'cadastros' && (itensCadastrar.length > 0 || isMestre()) && (
-              <nav className={`subnav nav-list`} aria-label="Cadastros">
-                {isMestre() && <NavItem item={ITEM_MEUS_DADOS} sub />}
-                {itensCadastrar.map((item) => (
-                  <NavItem key={item.id} item={item} sub />
-                ))}
-                {isMestre() && <NavItem item={ITEM_ACESSOS} sub />}
-              </nav>
-            )}
-
-            {/* Conteúdo da tela aberta (ConteudoSubmenu), por portal. */}
-            <div className="submenu-slot" ref={setAlvoSubmenu} />
+          <div className="nav-spacer" />
+          <div className="nav-rodape">
+            {/* Ajuda no rodapé, longe das telas de operação: quem chega aqui já
+                passou o olho no menu. `itensAjuda` sai de `itensBaixo`, que não
+                filtra o Info por permissão. */}
+            {itensAjuda.map((item) => (
+              <NavItem key={item.id} item={item} />
+            ))}
+            <button
+              type="button"
+              className="nav-item"
+              onClick={() => {
+                setModalSenha(true);
+                fecharDrawer();
+              }}
+              title={recolhida ? 'Trocar senha' : undefined}
+              aria-label={recolhida ? 'Trocar senha' : undefined}
+            >
+              <span className="left">
+                <Icone nome="key" />
+                <span className="menu-text">Trocar Senha</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className="nav-item danger"
+              onClick={handleLogout}
+              title={recolhida ? 'Sair' : undefined}
+              aria-label={recolhida ? 'Sair' : undefined}
+            >
+              <span className="left">
+                <Icone nome="logout" />
+                <span className="menu-text">Sair</span>
+              </span>
+            </button>
           </div>
         </aside>
 
@@ -451,6 +429,38 @@ export default function Layout() {
           <BarraTrial />
           <BarraAssinatura />
           <ModalAviso />
+          {/* Cabeçalho de UMA linha, 48px (Forja Compacto). O subtítulo da rota
+              saiu da tela — quebrava em até três linhas — e virou a dica do
+              título; "Último login" foi para o menu da conta. */}
+          <header className="topbar">
+            <div className="topbar-left">
+              <button
+                type="button"
+                className="btn-hamburguer"
+                onClick={() => setMenuAberto((a) => !a)}
+                aria-label="Abrir menu"
+                aria-expanded={menuAberto}
+              >
+                <span /><span /><span />
+              </button>
+              <h1 title={sub || undefined}>{titulo}</h1>
+            </div>
+
+            <div className="top-status">
+              <SyncStatus />
+              <SeloSync />
+              <span className="divider-v" />
+              <MenuUsuario
+                iniciais={iniciais(email)}
+                email={email}
+                papel={papel}
+                temAlerta={temAlerta}
+                ultimoLogin={ultimoLoginTexto()}
+                onNotificacoes={() => navigate('/dashboard')}
+              />
+            </div>
+          </header>
+
           <main className="main-content">
             {(() => {
               // Conta trial: a BarraTrial acima substitui este aviso.
@@ -482,26 +492,9 @@ export default function Layout() {
         </div>
       </div>
 
-      {/* ===== Barra inferior (só no celular): módulos de campo + a gaveta ===== */}
-      <nav className="barra-inferior" aria-label="Módulos">
-        {entradasBarra.map((e) => (
-          <EntradaDoTrilho key={e.id} e={e} />
-        ))}
-        <button
-          type="button"
-          className={`trilho-item${menuAberto ? ' active' : ''}`}
-          onClick={() => setMenuAberto((a) => !a)}
-          aria-expanded={menuAberto}
-        >
-          <span className="trilho-ico"><Icone nome="menu" /></span>
-          <span className="trilho-rot">Menu</span>
-        </button>
-      </nav>
-
       {modalSenha && email && <ModalTrocarSenha email={email} onClose={() => setModalSenha(false)} />}
       {/* Boas-vindas + termos de uso: obrigatório no 1º acesso do período de teste */}
       {isTrial() && <ModalTermos />}
     </div>
-    </SubmenuContexto.Provider>
   );
 }

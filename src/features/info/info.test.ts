@@ -471,8 +471,7 @@ describe('gate · Acessos no grupo Cadastrar', () => {
     // Acessos é o único item do grupo que não passa pelo filtro de permissão:
     // sem esta condição, um mestre com Funcionários e Clientes bloqueados
     // perderia a porta de Acessos junto.
-    expect(layout).toContain('if (itensCadastrar.length > 0 || isMestre()) {');
-    expect(layout).toContain("grupoAtivo?.id === 'cadastros' && (itensCadastrar.length > 0 || isMestre()) && (");
+    expect(layout).toContain('{(itensCadastrar.length > 0 || isMestre()) && (');
   });
 
   it('a rota e o rótulo não mudaram', () => {

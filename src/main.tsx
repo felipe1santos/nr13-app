@@ -1,13 +1,15 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 // Fontes self-hosted (funcionam offline no PWA — sem Google Fonts em runtime)
-// v5: DM Sans (texto e títulos) + DM Mono (dados técnicos)
-import '@fontsource/dm-sans/400.css'
-import '@fontsource/dm-sans/500.css'
-import '@fontsource/dm-sans/600.css'
-import '@fontsource/dm-sans/700.css'
-import '@fontsource/dm-mono/400.css'
-import '@fontsource/dm-mono/500.css'
+import '@fontsource/space-grotesk/500.css'
+import '@fontsource/space-grotesk/600.css'
+import '@fontsource/space-grotesk/700.css'
+import '@fontsource/ibm-plex-sans/400.css'
+import '@fontsource/ibm-plex-sans/500.css'
+import '@fontsource/ibm-plex-sans/600.css'
+import '@fontsource/ibm-plex-mono/400.css'
+import '@fontsource/ibm-plex-mono/500.css'
+import '@fontsource/ibm-plex-mono/600.css'
 // Memorial de cálculo (design/painel_pmta.html): Inter + JetBrains Mono
 import '@fontsource-variable/inter/index.css'
 import '@fontsource/jetbrains-mono/400.css'

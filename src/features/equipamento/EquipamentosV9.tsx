@@ -47,7 +47,12 @@ import './equipamento.css';
 import './importar.css';
 import '../../pages/dashboard.css';
 import '../../pages/relatorios.css';
-import { TipoEquipamento } from '../../components/TipoEquipamento';
+
+const ROTULO_TIPO: Record<string, string> = {
+  vaso: 'Vaso de Pressão',
+  autoclave: 'Autoclave',
+  caldeira: 'Caldeira',
+};
 
 /** Altura estimada de uma linha, em px. Corrigida por medição no 1º quadro. */
 const ALT_GRADE = 430;
@@ -483,7 +488,7 @@ function LinhaCatalogo({ item, aoAbrir }: { item: ItemCatalogo; aoAbrir: () => v
       <div className="card-eq-info">
         <div className="eq-col">
           <span className="eq-tag">{item.tag}</span>
-          <TipoEquipamento tipo={item.tipo} tam={12} className="eq-tipo" />
+          <span className="eq-tipo">{ROTULO_TIPO[item.tipo ?? ''] ?? item.tipo ?? '—'}</span>
         </div>
         <div className="eq-col eq-col-cat">
           <span className="eq-label">Categoria</span>

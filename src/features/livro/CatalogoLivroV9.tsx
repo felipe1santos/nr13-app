@@ -64,7 +64,7 @@ const ROTULO_TIPO: Record<string, string> = {
 const ICONE_TIPO: Record<string, Parameters<typeof Icone>[0]['nome']> = {
   vaso: 'cylinder',
   caldeira: 'flame',
-  autoclave: 'autoclave',
+  autoclave: 'box',
 };
 
 export interface PropsCatalogoLivro {
@@ -249,7 +249,7 @@ export default function CatalogoLivroV9({
                         />
                       </span>
                     ) : (
-                      <span className="reg-card-ic" data-tipo={l.tipo ?? undefined} aria-hidden>
+                      <span className="reg-card-ic" aria-hidden>
                         <Icone nome={(l.tipo && ICONE_TIPO[l.tipo]) || 'book'} tam={18} />
                       </span>
                     )}

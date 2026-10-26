@@ -18,12 +18,10 @@ import SeloPainel from '../components/SeloPainel';
 import './dashboard-novo.css';
 import { rotaEquipamento } from '../app/rotas';
 
-/** v5: cor do tipo no ícone da linha (vaso azul, caldeira vermelha, autoclave roxa). */
-const CLASSE_TIPO: Record<string, string> = { 'Vaso de Pressão': 'vaso', Caldeira: 'caldeira', Autoclave: 'autoclave' };
 const ICONE_TIPO: Record<string, Parameters<typeof Icone>[0]['nome']> = {
   'Vaso de Pressão': 'cylinder',
   Caldeira: 'flame',
-  Autoclave: 'autoclave',
+  Autoclave: 'box',
   'Manômetro': 'manometro',
   'Válvula de Segurança': 'valvula-psv',
   // Os PADRÕES de bancada (07/09/2026). Ícone do instrumento onde ele existe,
@@ -303,7 +301,7 @@ export default function Dashboard() {
                             dizem qual é a última inspeção e qual é o vencimento. */}
                         <td className="cel-titulo">
                           <div className="fj-tag-cell">
-                            <div className={`fj-tag-ico mini-eq ${CLASSE_TIPO[it.tipoEquip] ?? ''}`}><Icone nome={ICONE_TIPO[it.tipoEquip] ?? 'box'} tam={15} /></div>
+                            <div className="fj-tag-ico"><Icone nome={ICONE_TIPO[it.tipoEquip] ?? 'box'} tam={15} /></div>
                             <div>
                               <div className="fj-tag-code">{it.tag}</div>
                               <div className="fj-eq-name">
