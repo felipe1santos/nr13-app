@@ -84,8 +84,9 @@ describe('o perfil precisa ser gravado — e o erro, lido', () => {
     expect(b).toContain("papel: 'mestre'");
   });
 
-  it('declara o papel na ORIGEM, como a Edge org_admin (perfilOrigem.ts)', () => {
-    expect(blocoCreateUser()).toContain('nr13_papel');
+  it('declara o papel na ORIGEM em app_metadata, como a Edge org_admin (perfilOrigem.ts)', () => {
+    // O trigger só lê `raw_app_meta_data` (achado #1, 25/10/2026).
+    expect(blocoCreateUser()).toMatch(/app_metadata:\s*\{[^}]*nr13_papel/);
   });
 });
 

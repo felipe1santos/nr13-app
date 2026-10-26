@@ -8,7 +8,6 @@ import { modoHidratacaoDaSessao, executarHidratacao, type ModoHidratacao } from 
 import { gravarEstadoLocal, limparEstadoLocal } from './assinatura';
 import { bloqueioEntrada, type ContaParaEntrada, type StatusAssinatura } from '../features/assinatura/maquinaEstados';
 import { classificarFalhaPerfil, ehFalhaDeTransporte, type FalhaPerfil } from './falhaPerfil';
-import { metadataPerfil } from './perfilOrigem';
 
 export const VIP_USERS = [
   'perone.fs@gmail.com',
@@ -432,11 +431,10 @@ export async function cadastrar(email: string, senha: string): Promise<LoginResu
   const { data, error } = await supabase.auth.signUp({
     email: normalizar(email),
     password: senha,
-    // Papel EXPLÍCITO na origem (ver `perfilOrigem.ts`). Sem isto o profile
-    // nasce pelo default da coluna e a conta fica correta por acidente em vez
-    // de por decisão. Auto-cadastro é dono da própria organização: mestre, sem
-    // orgId nem clienteId.
-    options: { data: metadataPerfil('mestre') },
+    // SEM papel/org na metadata (25/10/2026). O que vai em `options.data` é
+    // escrito por quem se cadastra, e o trigger `handle_new_user` não lê
+    // metadata: auto-cadastro nasce SEMPRE mestre da própria organização.
+    // Papel e org de sub-login só entram pelo upsert do service_role (org_admin).
   });
   if (error) {
     return { sucesso: false, erro: traduzErro(error.message) };
@@ -507,10 +505,8 @@ export async function cadastrarTrial(
         telefone: lead.telefone,
         empresa_nome: lead.empresaNome,
         origem: 'trial',
-        // Papel EXPLÍCITO na origem (ver `perfilOrigem.ts`). Espalhado DEPOIS
-        // dos campos do lead, mas as chaves não colidem — `nr13_*` é prefixo
-        // próprio. Conta de trial também é dona da própria organização.
-        ...metadataPerfil('mestre'),
+        // Sem `nr13_*`: o trigger ignoraria (ver `cadastrar`). Conta de trial
+        // nasce mestre da própria organização pelo default do trigger.
       },
     },
   });

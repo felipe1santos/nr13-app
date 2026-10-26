@@ -124,21 +124,21 @@ Deno.serve(async (req) => {
         email,
         password: senha,
         email_confirm: true,
-        // PAPEL EXPLÍCITO NA ORIGEM (Fase 0, D-24).
+        // ORIGEM REGISTRADA (Fase 0, D-24; revisto em 25/10/2026).
         //
-        // Sem isto, `handle_new_user` insere o profile sem a coluna `papel` e
-        // ela cai no default `'mestre'`: o sub-login NASCE mestre da própria
-        // organização e só é corrigido pelo upsert alguns milissegundos abaixo.
-        // Se aquele upsert falhar, o usuário fica no Auth com senha válida e
-        // perfil mestre PERMANENTE — o estado que o bloco `adotavel` mais
-        // adiante existe para recolher na retentativa.
+        // `handle_new_user` não lê metadata nenhuma: o sub-login NASCE mestre de
+        // uma organização própria e vazia, e quem atribui papel e org é o upsert
+        // logo abaixo (service_role, erro lido). Se aquele upsert falhar, a
+        // retentativa cai na adoção, que confere ESTA origem (`decidirAdocao`).
         //
-        // Com a metadata, o trigger grava o papel certo já no INSERT: a janela
-        // deixa de existir, e o upsert vira confirmação em vez de correção.
+        // `app_metadata`, NÃO `user_metadata`: só o service_role grava o
+        // primeiro. O segundo é o `options.data` de qualquer signUp público — a
+        // versão de 16/08 do trigger confiava nele, e uma conta nova podia
+        // nascer gerente de outra organização (perfil_origem.sql).
         //
         // O formato espelha `src/services/perfilOrigem.ts` — a Edge roda em Deno
         // e não importa de `src/`. Mudou lá, muda aqui.
-        user_metadata: {
+        app_metadata: {
           nr13_papel: papel,
           nr13_org_id: orgId,
           ...(clienteId ? { nr13_cliente_id: clienteId } : {}),
@@ -166,7 +166,8 @@ Deno.serve(async (req) => {
           .eq('org_id', existente.id);
         const decisao = decidirAdocao({
           existenteId: existente.id,
-          metadata: existente.user_metadata,
+          // A origem gravada pelo service_role; `user_metadata` é do próprio usuário.
+          metadata: existente.app_metadata,
           perfil: perfilExist ?? null,
           chamadorId: userData.user.id,
           orgId,

@@ -36,41 +36,47 @@
 -- uma origem fail-open seria aparência de segurança, e por isso esta correção
 -- vem ANTES das policies.
 --
--- ── A CORREÇÃO ──────────────────────────────────────────────────────────────
+-- ── A VERSÃO DE 16/08 ABRIU UM FURO PIOR (25/10/2026) ───────────────────────
 --
--- Quem cria o usuário declara o papel em `user_metadata`, e o trigger o grava
--- já no INSERT. A janela deixa de existir em vez de ser remendada depois.
+-- Para fechar a janela, a versão de 16/08 passou a ler `nr13_papel`,
+-- `nr13_org_id` e `nr13_cliente_id` de `raw_user_meta_data`. Esse campo é o
+-- `options.data` do `supabase.auth.signUp` — PÚBLICO: quem se cadastra escreve
+-- o que quiser nele. Com `{ nr13_papel: 'gerente', nr13_org_id: '<uuid de outra
+-- org>' }` uma conta nova nascia gerente da organização de outro cliente e
+-- lia/gravava o `app_storage` dela. Nada depois barrava: `definir_org_padrao`
+-- só preenche org NULA, `acesso_vigente()` aceita `acesso_expira_em` nulo e a
+-- escrita usa a assinatura do mestre da org-alvo. Trocamos um estado
+-- inconsistente sem vazamento por um vazamento. (Achado #1 da auditoria de
+-- 25/10/2026; reproduzido no laboratório por
+-- `scripts/lab/cadastroPapel.lab.test.mjs`.)
 --
---   src/services/perfilOrigem.ts      → metadataPerfil() (os dois signUp)
---   supabase/functions/org_admin/     → user_metadata no createUser
+-- ── A REGRA AGORA: O TRIGGER NÃO LÊ METADATA NENHUMA ────────────────────────
 --
--- ── COMPATIBILIDADE NAS DUAS DIREÇÕES ───────────────────────────────────────
+-- Todo usuário novo nasce `mestre` da PRÓPRIA organização. Papel e org de
+-- sub-login são atribuídos pelo service_role — o upsert que a Edge `org_admin`
+-- já faz logo depois do createUser, com o erro lido.
 --
---   trigger novo + chamador antigo (sem metadata) → 'mestre' + org própria,
---                                                   EXATAMENTE como hoje;
---   trigger antigo + chamador novo (com metadata) → metadata ignorada,
---                                                   EXATAMENTE como hoje.
+-- Por que não ler `raw_app_meta_data`, que só o service_role grava: porque ele
+-- NÃO está na linha no momento deste trigger. Medido no laboratório em
+-- 25/10/2026 (GoTrue v2.197): o `auth.admin.createUser` insere o usuário só
+-- com `provider`/`providers` e grava o `app_metadata` num UPDATE depois. Ler
+-- dali daria uma garantia que não existe. E um trigger `after update` não
+-- serve: o GoTrue regrava `raw_app_meta_data` em outros momentos (vínculo de
+-- provedor), e isso reaplicaria um papel antigo sobre um perfil que o mestre
+-- já alterou.
 --
--- Nenhum lado depende do outro. Ordem de deploy livre.
+-- A janela do D-24 volta, com a gravidade que ela sempre teve: um sub-login
+-- cujo upsert falhe fica mestre de uma organização VAZIA e própria, sem acesso
+-- a dado de ninguém, e a adoção do `org_admin` o recolhe na retentativa (pela
+-- origem registrada em `app_metadata`, que nesse momento já foi gravada).
 --
--- ── POR QUE O CAST DE uuid É GUARDADO POR REGEX ─────────────────────────────
+--   auto-cadastro (signUp, com ou sem metadata) → mestre, org própria
+--   org_admin / admin (createUser + upsert)      → o papel/org do upsert
 --
--- Este trigger roda `after insert on auth.users`. Se ele LANÇAR, o insert do
--- usuário é revertido e o CADASTRO INTEIRO QUEBRA. A versão anterior não tinha
--- como falhar; esta acrescenta uma conversão para uuid, que é um modo de falha
--- novo. Metadata é entrada externa e pode conter qualquer coisa.
+-- ── COMPATIBILIDADE ─────────────────────────────────────────────────────────
 --
--- Postgres não tem `try_cast`, então o formato é conferido por regex ANTES da
--- conversão. Valor malformado vira NULL (e `trg_definir_org_padrao` preenche a
--- org própria) em vez de derrubar o signup. Errar para o lado de "conta nasce
--- na própria org" é barato e visível; errar para o lado de "ninguém consegue se
--- cadastrar" não é.
---
--- ── POR QUE PAPEL DESCONHECIDO VIRA 'sem_papel', E NÃO 'mestre' ─────────────
---
--- 'sem_papel' não está na lista branca das policies (D-04), então a conta nasce
--- sem acesso — fail closed, sem precisar de policy nova. Cair em 'mestre' seria
--- reintroduzir exatamente o defeito que este arquivo conserta.
+-- Edge antiga (manda `user_metadata`) + este SQL → o upsert dela corrige logo
+-- depois, exatamente como antes de 16/08. Ordem de deploy livre.
 -- ============================================================================
 
 create or replace function public.handle_new_user()
@@ -81,43 +87,18 @@ set search_path = public
 as $$
 declare
   eh_admin boolean := lower(new.email) = 'perone.fs@gmail.com';
-  v_meta   jsonb   := coalesce(new.raw_user_meta_data, '{}'::jsonb);
-  v_papel  text;
-  v_org_txt text;
-  v_org    uuid;
-  v_cli    text;
 begin
-  -- Papel declarado por quem criou o usuário. Ausente ou vazio = auto-cadastro,
-  -- que é dono da própria organização: 'mestre' é o valor correto.
-  v_papel := coalesce(nullif(v_meta ->> 'nr13_papel', ''), 'mestre');
-
-  -- Lista branca, sensível a caixa — espelha as policies (D-04). 'MESTRE' não
-  -- é papel válido e não pode virar acesso por descuido de quem chamou.
-  if v_papel not in ('mestre', 'gerente', 'funcionario', 'cliente') then
-    v_papel := 'sem_papel';
-  end if;
-
-  -- uuid só depois de o formato ser conferido: ver a nota sobre o cast guardado.
-  v_org_txt := nullif(v_meta ->> 'nr13_org_id', '');
-  if v_org_txt ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
-    v_org := v_org_txt::uuid;
-  else
-    v_org := null;   -- trg_definir_org_padrao preenche com o próprio id
-  end if;
-
-  -- `cliente_id` é TEXT em profiles (acesso_setup.sql:16) — sem conversão.
-  -- Só faz sentido para papel='cliente'; nos demais fica nulo.
-  v_cli := case when v_papel = 'cliente' then nullif(v_meta ->> 'nr13_cliente_id', '') end;
-
+  -- Sem metadata: ver "A REGRA AGORA" no cabeçalho. `org_id` nulo é preenchido
+  -- com o próprio id por `trg_definir_org_padrao` (before insert em profiles).
   insert into public.profiles (id, email, ativo, role, papel, org_id, cliente_id)
   values (
     new.id,
     lower(new.email),
     eh_admin,
     case when eh_admin then 'admin' else 'user' end,
-    v_papel,
-    v_org,
-    v_cli
+    'mestre',
+    null,
+    null
   )
   -- PRESERVADO BYTE A BYTE da versão anterior, e é importante que continue
   -- assim: o org_admin pode ter criado a linha do profile ANTES do trigger
@@ -137,5 +118,7 @@ select tgname, tgenabled
   from pg_trigger
  where tgname = 'on_auth_user_created';
 
--- Conferência do corpo aplicado:
-select prosrc from pg_proc where proname = 'handle_new_user';
+-- Conferência do corpo aplicado (as duas colunas precisam ser false):
+select prosrc like '%raw_user_meta_data%' as le_user_metadata,
+       prosrc like '%nr13_org_id%'        as le_org_da_metadata
+  from pg_proc where proname = 'handle_new_user';

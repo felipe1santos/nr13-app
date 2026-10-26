@@ -26,6 +26,15 @@
  *
  * O prefixo `nr13_` evita colisão com metadata do próprio Supabase.
  *
+ * REVISTO EM 25/10/2026 (achado #1 da auditoria). A metadata ia em
+ * `user_metadata`, que é escrito por quem se cadastra — uma conta nova podia
+ * nascer gerente de outra organização. Agora o trigger NÃO lê metadata: todo
+ * usuário nasce mestre da própria org, e papel/org de sub-login vêm do upsert
+ * do service_role na Edge `org_admin`. A metadata continua existindo, em
+ * `app_metadata` (só o service_role grava), como REGISTRO DE ORIGEM que a
+ * adoção confere numa retentativa. O frontend não declara papel nenhum: este
+ * módulo é a fonte do FORMATO, travada por `perfilOrigem.paridade.test.ts`.
+ *
  * ESTE FORMATO É REPLICADO na Edge `org_admin` (Deno não importa de `src/`).
  * Mudou aqui, muda lá — ver o comentário no `createUser` daquele arquivo.
  */
