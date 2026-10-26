@@ -53,7 +53,6 @@ import * as buscaIndex from '../../services/buscaIndex';
 import { rotuloCalibracoes, textoCliente } from '../../services/buscaIndex';
 import type { Contagem, FiltrosBusca, ItemCatalogo } from '../../services/buscaIndex';
 import * as catalogo from '../../services/catalogoLocal';
-import { TipoEquipamento } from '../../components/TipoEquipamento';
 import {
   RECORTE_PADRAO,
   TETO_PAGINAS_RECORTE,
@@ -69,6 +68,12 @@ const TIPOS_FILTRO = [
   { valor: 'caldeira', rotulo: 'Caldeira' },
   { valor: 'autoclave', rotulo: 'Autoclave' },
 ];
+
+const ROTULO_TIPO: Record<string, string> = {
+  vaso: 'Vaso de Pressão',
+  autoclave: 'Autoclave',
+  caldeira: 'Caldeira',
+};
 
 /** Altura estimada de uma linha; corrigida por medição no primeiro quadro. */
 const ALT_LINHA = 92;
@@ -380,7 +385,9 @@ export default function CatalogoCalibracoesV9({
                 <div className="card-eq-info cal-card-info">
                   <div className="eq-col">
                     <span className="eq-tag">{item.tag}</span>
-                    <TipoEquipamento tipo={item.tipo} tam={12} className="eq-tipo" />
+                    <span className="eq-tipo">
+                      {item.tipo ? (ROTULO_TIPO[item.tipo] ?? item.tipo) : '—'}
+                    </span>
                   </div>
                   <div className="eq-col">
                     <span className="eq-label">Proprietário</span>

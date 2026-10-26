@@ -93,7 +93,7 @@ function IlustracaoPlanilha() {
         {xs.map((x, i) => (
           <g key={`reg-${colunas[i]}`}>
             <rect x={x} y={22} width={larguras[i]} height={16} fill="#F2EFE7" stroke="#E4E1D8" strokeWidth="1" />
-            <text x={x + larguras[i] / 2} y={33} textAnchor="middle" fontSize="9" fill="#7A8790" fontFamily="DM Mono, monospace">
+            <text x={x + larguras[i] / 2} y={33} textAnchor="middle" fontSize="9" fill="#7A8790" fontFamily="IBM Plex Mono, monospace">
               {String.fromCharCode(65 + i)}
             </text>
           </g>
@@ -102,7 +102,7 @@ function IlustracaoPlanilha() {
         {xs.map((x, i) => (
           <g key={`cab-${colunas[i]}`}>
             <rect x={x} y={38} width={larguras[i]} height={24} fill="#FFF1E6" stroke="#FF7A1A" strokeWidth="1.2" />
-            <text x={x + 6} y={54} fontSize="9.5" fill="#D9640C" fontFamily="DM Mono, monospace" fontWeight="700">
+            <text x={x + 6} y={54} fontSize="9.5" fill="#D9640C" fontFamily="IBM Plex Mono, monospace" fontWeight="700">
               {colunas[i]}
             </text>
           </g>
@@ -111,7 +111,7 @@ function IlustracaoPlanilha() {
         {xs.map((x, i) => (
           <g key={`ex-${colunas[i]}`}>
             <rect x={x} y={62} width={larguras[i]} height={24} fill="#FFFFFF" stroke="#E4E1D8" strokeWidth="1" />
-            <text x={x + 6} y={78} fontSize="9.5" fill="#2D3339" fontFamily="DM Mono, monospace">
+            <text x={x + 6} y={78} fontSize="9.5" fill="#2D3339" fontFamily="IBM Plex Mono, monospace">
               {exemplo[i]}
             </text>
           </g>
@@ -125,7 +125,7 @@ function IlustracaoPlanilha() {
         {/* reticências indicando continuação das colunas */}
         <text x={x0 + larguraTotal + 10} y={54} fontSize="12" fill="#7A8790">…</text>
         {/* chamada do cabeçalho */}
-        <text x={x0} y={150} fontSize="9.5" fill="#7A8790" fontFamily="DM Sans, sans-serif">
+        <text x={x0} y={150} fontSize="9.5" fill="#7A8790" fontFamily="IBM Plex Sans, sans-serif">
           Linha 1 = cabeçalho · linha 2 em diante = equipamentos
         </text>
         <path d={`M${x0 + 4} 144 L${x0 + 4} 62`} stroke="#FF7A1A" strokeWidth="1" strokeDasharray="3 3" fill="none" />

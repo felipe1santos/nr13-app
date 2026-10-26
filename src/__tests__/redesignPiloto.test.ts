@@ -45,18 +45,10 @@ describe('tokens Forja Compacto', () => {
     expect(TOKENS).not.toMatch(/:\s*#FF7A1A/i); // nenhum token com o âmbar antigo
   });
 
-  it('v5: DM Sans no texto e nos títulos, DM Mono nos dados (docs/design/proposta-v5.html)', () => {
-    expect(TOKENS).toMatch(/--font-base: 'DM Sans'/);
-    expect(TOKENS).toMatch(/--font-display: 'DM Sans'/);
-    expect(TOKENS).toMatch(/--font-mono: 'DM Mono'/);
-  });
-
-  it('v5: interação em petróleo, cabeçalho de tabela em aço e cor por tipo', () => {
-    expect(TOKENS).toContain('--interacao-bg: var(--petroleo-bg);');
-    expect(TOKENS).toContain('--interacao-texto: var(--petroleo);');
-    expect(TOKENS).toContain('--tab-cab-bg: #E6EAEE;');
-    expect(TOKENS).toContain('--tab-zebra: #F7F8FA;');
-    expect(TOKENS).toMatch(/--tipo-caldeira: #B4321F;/);
+  it('identidade: IBM Plex Sans, Space Grotesk nos títulos, IBM Plex Mono nos dados (1ª prévia)', () => {
+    expect(TOKENS).toMatch(/--font-base: 'IBM Plex Sans'/);
+    expect(TOKENS).toMatch(/--font-display: 'Space Grotesk'/);
+    expect(TOKENS).toMatch(/--font-mono: 'IBM Plex Mono'/);
   });
 
   it('nenhum azul como cor de ação — o link é o tom escuro do acento', () => {
@@ -91,10 +83,8 @@ describe('sidebar agrupada', () => {
     expect(LAYOUT).not.toMatch(/localStorage\.[a-zA-Z]+\(\s*'nr13_menu/);
   });
 
-  it('v5: no trilho o nome do módulo fica SEMPRE à vista, embaixo do ícone', () => {
-    expect(LAYOUT).toContain('<span className="trilho-rot">{e.rotulo}</span>');
-    // O submenu some quando não há nada a mostrar, em vez de virar coluna vazia.
-    expect(LAYOUT).toContain("const submenuVisivel = !recolhida && (grupoAtivo !== null || nConteudoSubmenu > 0);");
+  it('com o menu recolhido, o item tem nome acessível', () => {
+    expect(LAYOUT).toContain('aria-label={recolhida ? item.label : undefined}');
   });
 });
 
@@ -209,7 +199,7 @@ describe('identidade: a 1ª prévia (aba ativa branca, KPI dominante em cartão)
   });
 });
 
-describe('Inspeções em tabela, abas por tipo', () => {
+describe('Inspeções em tabela de 40px, abas por tipo', () => {
   const V9 = ler('src/features/inspecoes/InspecoesV9.tsx');
   const CSS = ler('src/features/inspecoes/inspecoesLista.css');
 
@@ -227,10 +217,9 @@ describe('Inspeções em tabela, abas por tipo', () => {
     expect(V9).toContain("rotuloInspecoes(item.inspecoes) ? String(item.inspecoes) : '—'");
   });
 
-  it('v5: linha de 52px (com a miniatura), alternada pelo índice, e aba ativa branca', () => {
-    expect(V9).toContain('const ALT_LINHA = 52;');
-    expect(CSS).toMatch(/\.iv4-linha \{[^}]*min-height: 52px;/);
-    expect(V9).toContain("(indiceDaTag.get(item.tag) ?? 0) % 2 === 1 ? ' iv4-zebra' : ''");
+  it('linha de 40px e aba ativa branca (1ª prévia)', () => {
+    expect(V9).toContain('const ALT_LINHA = 40;');
+    expect(CSS).toMatch(/\.iv4-linha \{[^}]*min-height: var\(--h-row\);/);
     expect(CSS).toMatch(/\.iv4-seg button\[aria-pressed='true'\] \{[^}]*background: var\(--superficie\);/);
   });
 });

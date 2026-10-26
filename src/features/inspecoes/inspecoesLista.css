@@ -1,35 +1,27 @@
 /* ============================================================================
-   /inspecoes — v5 (25/10/2026, docs/design/proposta-v5.html)
-   Lista: UM cartão com a barra de ferramentas no topo e a tabela de 52px por
-   linha (miniatura do equipamento), cabeçalho em aço e linhas alternadas.
-   Equipamento: uma barra, o cartão com a foto e as rodadas de inspeção.
-   Tudo escopado em `.iv4` (lista) e `.iv5-equip` (containers): `inspecoes.css`
-   continua servindo o formulário.
+   /inspecoes — lista de equipamentos (v4 "Aço Frio", 25/10/2026)
+   Identidade: docs/design/preview.html (CLAUDE.md §15).
+   UM cartão: barra de ferramentas no topo (busca + abas de tipo) e uma tabela
+   de 40px por linha. Tudo escopado em `.iv4`: `inspecoes.css` continua servindo
+   a tela de containers e o formulário.
    ============================================================================ */
-
-.iv4 { padding: var(--s-4) var(--s-5) var(--s-6); }
 
 .iv4-painel {
   background: var(--superficie);
   border: 1px solid var(--fio);
   border-radius: var(--r-md);
-  overflow: hidden;
   min-width: 0;
 }
 
-/* ── Barra do cartão: busca, contagem e abas na mesma linha (44px) ── */
+/* ── Barra do cartão: busca, contagem e abas na mesma linha ── */
 .iv4-barra {
-  display: flex;
-  align-items: center;
-  min-height: var(--h-toolbar);
-  padding: 6px var(--s-3);
+  padding: var(--s-2) var(--s-4);
   border-bottom: 1px solid var(--fio);
 }
-.iv4-barra > * { flex: 1; min-width: 0; }
 .iv4 .busca-lista { margin: 0; }
 .iv4 .busca-lista-linha { gap: var(--s-3); }
 .iv4 .busca-lista-campo {
-  flex: 0 1 340px;
+  flex: 0 1 320px;
   min-width: 200px;
   height: var(--h-ctl);
   padding: 0 var(--s-3);
@@ -37,19 +29,12 @@
   border: 1px solid var(--fio-campo);
   border-radius: var(--r-sm);
   color: var(--texto-3);
-  transition: border-color var(--t-rapido), box-shadow var(--t-rapido);
 }
-.iv4 .busca-lista-campo:hover { border-color: var(--interacao-texto); }
-.iv4 .busca-lista-campo:focus-within {
-  border-color: var(--interacao-texto);
-  box-shadow: 0 0 0 3px rgba(10, 90, 110, 0.15);
-  outline: 0;
-}
+.iv4 .busca-lista-campo:focus-within { outline: 2px solid var(--foco); outline-offset: 1px; }
 .iv4 .busca-lista-campo input::placeholder { color: var(--texto-3); }
 .iv4 .busca-lista-contagem { color: var(--texto-3); font-size: var(--fs-12); }
 
-/* Abas segmentadas: trilho neutro, ATIVO em branco com sombra. Com o submenu
-   aberto (tela larga) o filtro por tipo mora lá, e as abas saem da barra. */
+/* Abas segmentadas (1ª prévia): trilho neutro, ATIVO em branco com sombra. */
 .iv4-seg {
   display: inline-flex;
   gap: 2px;
@@ -76,7 +61,7 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
-.iv4-seg button:hover { color: var(--interacao-texto); }
+.iv4-seg button:hover { color: var(--texto-1); }
 .iv4-seg button[aria-pressed='true'] {
   background: var(--superficie);
   color: var(--texto-1);
@@ -84,22 +69,20 @@
   box-shadow: var(--sh-1);
 }
 .iv4-seg button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
-@media (min-width: 901px) {
-  .shell:has(.submenu:not(.submenu-oculto)) .iv4-seg { display: none; }
-}
 
 /* ── Tabela: cabeçalho + linhas na MESMA grade de colunas ── */
 .iv4-linha {
   display: grid;
   grid-template-columns:
-    40px minmax(130px, 0.9fr) minmax(0, 1.7fr) minmax(0, 1.4fr)
-    80px 104px 84px 16px;
+    minmax(120px, 0.8fr) minmax(0, 1.8fr) minmax(0, 1.6fr)
+    86px 110px 84px 16px;
   align-items: center;
-  column-gap: var(--s-4);
+  column-gap: var(--s-3);
   width: 100%;
-  min-height: 52px;
-  padding: 6px var(--s-4);
+  min-height: var(--h-row);
+  padding: 0 var(--s-4);
   border: 0;
+  border-bottom: 1px solid var(--fio);
   background: var(--superficie);
   font-family: var(--font-base);
   font-size: var(--fs-13);
@@ -110,241 +93,67 @@
 }
 .iv4-linha > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .iv4-linha .num { text-align: right; }
-.iv4-linha > svg { color: var(--texto-3); transition: color var(--t-rapido); }
-/* Linhas alternadas: a virtualização só desenha o que está na tela, então a
-   paridade vem do índice do item (`iv4-zebra`), não da posição no DOM. */
-.iv4-linha.iv4-zebra { background: var(--tab-zebra); }
-.iv4-linhas > :last-child { border-bottom: 0; }
-button.iv4-linha { transition: background-color var(--t-rapido); }
-html body .iv4-linhas button.iv4-linha:hover { background: var(--interacao-bg); }
-button.iv4-linha:hover .iv4-tag,
-button.iv4-linha:hover > svg { color: var(--interacao-texto); }
-button.iv4-linha:focus-visible { outline: 2px solid var(--interacao-texto); outline-offset: -2px; }
+.iv4-linha > svg { color: var(--texto-3); }
+.iv4-linhas > :last-child .iv4-linha { border-bottom: 0; }
+button.iv4-linha:hover { background: var(--superficie-2); }
+button.iv4-linha:focus-visible { outline: 2px solid var(--foco); outline-offset: -2px; }
 
 .iv4-cab {
   min-height: 36px;
-  padding-top: 0;
-  padding-bottom: 0;
-  background: var(--tab-cab-bg);
-  border-bottom: 1px solid var(--tab-cab-fio);
+  background: var(--superficie-2);
   font-size: var(--fs-12);
   line-height: var(--lh-12);
   font-weight: 600;
-  color: var(--tab-cab-texto);
+  color: var(--texto-2);
   cursor: default;
 }
 
-.iv4-mini { width: 40px; height: 40px; }
-.iv4-tag {
-  font-family: var(--font-mono);
-  font-size: var(--fs-13);
-  font-weight: 500;
-  transition: color var(--t-rapido);
-}
-.iv4-eq { display: flex; flex-direction: column; gap: 1px; }
-.iv4-eq b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.iv4-eq .tipo-eq { font-size: var(--fs-12); line-height: var(--lh-12); }
+.iv4-tag { font-family: var(--font-mono); font-weight: 500; }
 .iv4-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .iv4-sub { color: var(--texto-2); }
-.iv5-vazio { color: var(--texto-3); }
-.iv5-selo-cat {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 var(--s-2);
-  border-radius: var(--r-xs);
-  background: var(--superficie-3);
-  color: var(--tab-cab-texto);
-  font-size: var(--fs-12);
-  font-weight: 600;
-  white-space: nowrap;
-}
-.iv4-col-qtd { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; color: var(--texto-3); }
-.iv4-col-qtd b { color: var(--texto-1); font-weight: 500; }
 /* O rótulo por célula só aparece no celular, onde não há cabeçalho. */
 .iv4-rot-m { display: none; }
 
 .iv4-vazio { padding: var(--s-6) var(--s-4); color: var(--texto-3); font-size: var(--fs-13); }
 
-/* Tela média: colunas numéricas mais justas, sem cliente. */
-@media (max-width: 1180px) {
-  .iv4-linha { grid-template-columns: 40px minmax(120px, 1fr) minmax(0, 1.6fr) 80px 100px 72px 16px; }
-  .iv4-linha > :nth-child(4) { display: none; }
+/* Tela média: colunas numéricas mais justas. */
+@media (max-width: 1100px) {
+  .iv4-linha {
+    grid-template-columns: minmax(110px, 0.9fr) minmax(0, 1.6fr) minmax(0, 1.3fr) 76px 100px 72px 16px;
+  }
 }
 
-/* ── Celular: cada linha vira um item de duas linhas, alvo inteiro ── */
-@media (max-width: 680px) {
-  .iv4 { padding: var(--s-3); }
-  .iv4-barra { padding: var(--s-2); }
+/* ── Celular: cada linha vira um item de duas linhas, 64px, alvo inteiro ── */
+@media (max-width: 640px) {
+  .iv4-barra { padding: var(--s-3); }
   .iv4 .busca-lista-campo { flex: 1 1 100%; height: var(--h-toque); }
   .iv4 .busca-lista-campo input { font-size: 16px; }
   .iv4-seg { margin-left: 0; flex: 1 1 100%; }
   .iv4-seg button { height: 40px; flex: 1 0 auto; }
   .iv4-cab { display: none; }
   .iv4-linha {
-    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) 16px;
     grid-template-areas:
-      'mini tag cat'
-      'mini eq  qtd';
-    column-gap: var(--s-3);
+      'tag   seta'
+      'eq    seta'
+      'meta  seta';
     row-gap: 2px;
     min-height: 64px;
-    padding: var(--s-2) var(--s-3);
+    padding: var(--s-3) var(--s-4);
   }
-  .iv4-mini { grid-area: mini; }
-  .iv4-tag { grid-area: tag; }
-  .iv4-eq { grid-area: eq; }
-  .iv4-col-cat { grid-area: cat; justify-self: end; }
-  .iv4-col-qtd { grid-area: qtd; justify-self: end; }
-  .iv4-col-cli, .iv4-col-pmta, .iv4-linha > svg { display: none; }
-}
-
-/* ============================================================================
-   Containers de um equipamento (v5)
-   ============================================================================ */
-.iv5-equip { padding: var(--s-3) var(--s-5) var(--s-6); max-width: none; margin: 0; }
-
-.iv5-barra {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-height: var(--h-toolbar);
-  margin-bottom: var(--s-3);
-}
-.iv5-voltar { width: 36px; height: 36px; display: grid; place-items: center; }
-.iv5-trilha { display: flex; align-items: center; gap: var(--s-2); min-width: 0; color: var(--texto-3); }
-.iv5-trilha .crumb-tag-chip { white-space: nowrap; }
-.iv5-trilha button {
-  border: 0;
-  background: none;
-  padding: 2px 6px;
-  border-radius: var(--r-sm);
-  font: inherit;
-  font-size: var(--fs-14);
-  color: var(--texto-2);
-  cursor: pointer;
-}
-.iv5-trilha button:hover { background: var(--interacao-bg); color: var(--interacao-texto); }
-.iv5-esp { flex: 1; }
-.iv5-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 14px;
-  white-space: nowrap;
-}
-
-.iv5-ficha {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: var(--s-4);
-  align-items: center;
-  padding: var(--s-3) var(--s-4);
-  margin-bottom: var(--s-5);
-  border: 1px solid var(--fio);
-  border-radius: var(--r-lg);
-  background: var(--superficie);
-}
-.iv5-ficha-foto { width: 104px; height: 78px; border-radius: var(--r-md); }
-.iv5-ficha-foto svg { width: 32px; height: 32px; }
-.iv5-ficha-tit { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-1) var(--s-3); }
-.iv5-ficha-tit h2 {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--fs-16);
-  line-height: var(--lh-16);
-  font-weight: 500;
-  letter-spacing: 0;
-}
-.iv5-ficha-tit .tipo-eq { font-size: var(--fs-12); }
-.iv5-ficha-desc { margin: 2px 0 var(--s-2); color: var(--texto-2); font-size: var(--fs-13); }
-.iv5-dados { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-6); margin: 0; }
-.iv5-dados div { display: flex; flex-direction: column; min-width: 0; }
-.iv5-dados dt { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--texto-3); }
-.iv5-dados dd { margin: 0; font-size: var(--fs-13); font-weight: 600; color: var(--texto-1); }
-
-.iv5-secao-tit { display: flex; align-items: baseline; gap: var(--s-2); margin: 0 0 var(--s-2); }
-.iv5-secao-tit h3 {
-  margin: 0;
-  font-family: var(--font-base);
-  font-size: var(--fs-14);
-  line-height: var(--lh-14);
-  font-weight: 700;
-  letter-spacing: 0;
-}
-.iv5-secao-tit span { color: var(--texto-3); font-size: var(--fs-12); }
-
-/* Cartão da rodada */
-.iv5-equip .containers-lista { display: flex; flex-direction: column; gap: var(--s-2); }
-.iv5-equip .container-card {
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
-  gap: var(--s-3);
-  align-items: center;
-  padding: var(--s-3) var(--s-2) var(--s-3) var(--s-3);
-  border: 1px solid var(--fio);
-  border-radius: var(--r-md);
-  background: var(--superficie);
-  box-shadow: none;
-}
-.iv5-equip .container-card-clicavel:hover .container-card-titulo { color: var(--interacao-texto); }
-.cc-ico {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--r-md);
-  display: grid;
-  place-items: center;
-  background: var(--amber-bg);
-  color: var(--acao-hover);
-}
-.cc-corpo { min-width: 0; }
-.iv5-equip .container-card-titulo {
-  font-size: var(--fs-14);
-  line-height: var(--lh-14);
-  font-weight: 600;
-  color: var(--texto-1);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: color var(--t-rapido);
-}
-.iv5-equip .container-card-meta { margin: 1px 0 6px; font-size: var(--fs-12); line-height: var(--lh-12); color: var(--texto-3); }
-.iv5-equip .container-card-badges { display: flex; flex-wrap: wrap; gap: 6px; }
-.iv5-equip .badge-item-ensaio {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 24px;
-  padding: 0 var(--s-2);
-  border: 0;
-  border-radius: var(--r-full);
-  background: var(--superficie-3);
-  color: var(--texto-2);
-  font-size: var(--fs-12);
-  font-weight: 500;
-}
-.iv5-equip .badge-item-ensaio svg { color: var(--texto-3); }
-.iv5-equip .badge-item-ensaio.iniciado { background: var(--interacao-bg); color: var(--interacao-texto); }
-.iv5-equip .badge-item-ensaio.iniciado svg { color: var(--interacao-texto); }
-.iv5-equip .container-card-acoes { display: flex; align-items: center; gap: 2px; }
-.iv5-equip .container-card-acoes .btn-icone { width: 36px; height: 36px; display: grid; place-items: center; color: var(--texto-3); }
-html body .iv5-equip .cc-excluir:hover:not(:disabled) { background: var(--st-crit-bg); color: var(--st-crit); border-color: transparent; }
-html body .iv5-equip .cc-excluir:hover:not(:disabled) svg { color: var(--st-crit); }
-.iv5-equip .container-card-seta { display: grid; place-items: center; color: var(--texto-3); padding: 0 var(--s-1); }
-
-@media (max-width: 680px) {
-  .iv5-equip { padding: var(--s-3); }
-  .iv5-trilha { flex: 1; }
-  /* No celular a trilha fica só com a TAG: o voltar já leva à lista. */
-  .iv5-trilha > button, .iv5-trilha > svg { display: none; }
-  .iv5-trilha .crumb-tag-chip { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-  .iv5-esp { display: none; }
-  .iv5-rot-largo { display: none; }
-  .iv5-ficha { grid-template-columns: 80px minmax(0, 1fr); padding: var(--s-3); }
-  .iv5-ficha-foto { width: 80px; height: 64px; }
-  .iv5-ficha > .iv5-btn { grid-column: 1 / -1; justify-content: center; height: var(--h-toque); }
-  .iv5-equip .container-card { grid-template-columns: minmax(0, 1fr) auto; }
-  .cc-ico { display: none; }
-  .iv5-equip .container-card-acoes .btn-icone { width: var(--h-toque); height: var(--h-toque); }
+  .iv4-tag { grid-area: tag; font-size: 15px; }
+  .iv4-eq { grid-area: eq; color: var(--texto-2); }
+  .iv4-linha > svg { grid-area: seta; }
+  .iv4-col-cli { display: none; }
+  .iv4-col-cat, .iv4-col-pmta, .iv4-col-qtd {
+    grid-area: meta;
+    font-size: var(--fs-12);
+    color: var(--texto-3);
+    text-align: left;
+  }
+  /* As três métricas dividem a linha de baixo. */
+  .iv4-col-cat { justify-self: start; }
+  .iv4-col-pmta { justify-self: center; }
+  .iv4-col-qtd { justify-self: end; }
+  .iv4-rot-m { display: inline; font-family: var(--font-base); }
 }

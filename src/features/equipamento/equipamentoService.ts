@@ -271,93 +271,6 @@ function idsDe(lista: unknown): string[] {
 }
 
 /**
- * A linha de catálogo de UMA TAG montada do cache deste aparelho — `null` se a
- * ficha não está no cache. É a mesma montagem do item pendente (acima), agora
- * reaproveitada pela tela de containers de Inspeções para o cartão do
- * equipamento (foto, cliente, categoria, PMTA), depois de
- * `abrirEquipamentoParaInspecao` semear a TAG.
- */
-export function itemCatalogoLocal(tag: string): ItemCatalogo | null {
-  return ler<InfoEquipamento>(`${PREFIXO_INFO}${tag}`) ? montarItemCatalogoLocal(tag) : null;
-}
-
-function montarItemCatalogoLocal(tag: string): ItemCatalogo {
-  const info = ler<InfoEquipamento>(`${PREFIXO_INFO}${tag}`);
-
-  const cat = ler<CategoriaSalva>(`nr13_cat_${tag}`);
-  const emp = ler<{
-    nomeFantasia?: string;
-    razaoSocial?: string;
-    cidade?: string;
-    clienteId?: string;
-  }>(`nr13_emp_${tag}`);
-  const fotos = ler<FotoEquipamento[]>(`nr13_fotos_${tag}`) || [];
-  const calc = ler<CalculoSalvo>(`nr13_calc_${tag}`);
-  const vida = ler<{ vidaAnos?: number | null }>(`nr13_vida_${tag}`);
-  return {
-    tag,
-    descricao: info?.descricao ?? null,
-    tipo: info?.tipo ?? null,
-    subtipo: info?.subtipo || null,
-    categoria: cat?.catFinal ?? null,
-    fabricante: info?.fabricante ?? null,
-    numeroSerie: info?.numeroSerie ?? null,
-    localizacao: info?.localizacao ?? null,
-    ano: info?.ano ?? null,
-    // MESMA precedência do cartão antigo e da projeção: razão social
-    // primeiro. Este caminho monta a linha do item que ainda não voltou do
-    // servidor; divergir aqui faria o cartão TROCAR de nome ao sincronizar.
-    clienteNome: emp?.razaoSocial || emp?.nomeFantasia || null,
-    clienteCidade: emp?.cidade || null,
-    proximaInspecao: null,
-    temFoto: fotos.length > 0,
-    fotoRef: (fotos.find((f) => f.isCapa) ?? fotos[0])?.ref ?? null,
-    pmtaMpa: calc?.pmta ? Number(calc.pmta) : null,
-    pthMpa: calc?.pth ? Number(calc.pth) : null,
-    // As ADOTADAS saem da PRÓPRIA ficha que este caminho já leu (`info`) —
-    // zero parse a mais. Sem elas o equipamento recém-salvo mostraria "—"
-    // em PMTA/PTH e ganharia o valor ao sincronizar, que é o cartão
-    // TROCANDO de número sozinho — o defeito que este bloco existe para
-    // evitar. Sem adoção continua "—", igual à projeção.
-    pmtaAdotadaMpa: numeroMpa(info?.pmtaAdotadaMpa),
-    pthAdotadaMpa: numeroMpa(info?.pthAdotadaMpa),
-    resultado: calc?.resultado ?? null,
-    volumeM3: typeof cat?.volInput === 'number' ? cat.volInput : null,
-    fluido: cat?.fluidoInput ?? null,
-    classeFluido: cat?.classe ?? null,
-    vidaAnos: typeof vida?.vidaAnos === 'number' ? vida.vidaAnos : null,
-    temCliente: !!emp?.clienteId,
-    unidade: ler<string>(`nr13_pref_unidade_${tag}`),
-    sourceVersion: 0,
-    // `null`, e não `0`: quem conta os containers é a projeção, e este item
-    // ainda não chegou ao servidor. Contar aqui abrindo `nr13_docs_<TAG>`
-    // seria trazer de volta, por uma porta lateral, exatamente o parse que a
-    // 9F.1 está tirando da lista.
-    inspecoes: null,
-    // Idem para o prontuário (9F.2.2): abrir `nr13_prontuario_<TAG>` aqui
-    // para responder "tem ou não tem" devolveria o `JSON.parse` de 6,6 KB
-    // por item que esta etapa está removendo do render.
-    temProntuario: null,
-    // Idem para as calibrações (9F.3.1), e aqui a tentação é maior porque a
-    // lista está no aparelho: `listarCalibracoes(tag).length` responderia
-    // na hora. Mas seria o `JSON.parse` por cartão que esta etapa está
-    // removendo do render, de volta por uma porta lateral — e daria um
-    // número DIFERENTE do que o servidor vai projetar, porque item sem `id`
-    // não entra em `calibracoes_index`. Duas contagens para a mesma coisa é
-    // como as divergências de cartão nasceram na 9C.
-    calibracoes: null,
-    // Idem para o livro (9F.4.1). Aqui a tentação é ainda maior — o livro
-    // está no aparelho e `?? []` responderia de imediato. Mas contar aqui
-    // seria o `JSON.parse` do livro por item, de volta pela porta lateral, e
-    // o livro é a chave mais pesada da TAG. `null` = "ninguém contou", que é
-    // a verdade: este equipamento ainda não chegou ao servidor.
-    livroEntradas: null,
-    livroUltima: null,
-    pendente: true,
-  } satisfies ItemCatalogo;
-}
-
-/**
  * Os equipamentos que ESTE aparelho gravou e o servidor ainda não confirmou.
  *
  * É a rede de segurança do §6.5: item recém-salvo nunca some da lista. Sai da
@@ -366,5 +279,79 @@ function montarItemCatalogoLocal(tag: string): ItemCatalogo {
 export function equipamentosPendentesLocais(): ItemCatalogo[] {
   return listarPendentes()
     .filter((item) => item.chave.startsWith(PREFIXO_INFO) && item.op !== 'del')
-    .map((item) => montarItemCatalogoLocal(item.chave.slice(PREFIXO_INFO.length)));
+    .map((item) => {
+      const tag = item.chave.slice(PREFIXO_INFO.length);
+      const info = ler<InfoEquipamento>(item.chave);
+      const cat = ler<CategoriaSalva>(`nr13_cat_${tag}`);
+      const emp = ler<{
+        nomeFantasia?: string;
+        razaoSocial?: string;
+        cidade?: string;
+        clienteId?: string;
+      }>(`nr13_emp_${tag}`);
+      const fotos = ler<FotoEquipamento[]>(`nr13_fotos_${tag}`) || [];
+      const calc = ler<CalculoSalvo>(`nr13_calc_${tag}`);
+      const vida = ler<{ vidaAnos?: number | null }>(`nr13_vida_${tag}`);
+      return {
+        tag,
+        descricao: info?.descricao ?? null,
+        tipo: info?.tipo ?? null,
+        subtipo: info?.subtipo || null,
+        categoria: cat?.catFinal ?? null,
+        fabricante: info?.fabricante ?? null,
+        numeroSerie: info?.numeroSerie ?? null,
+        localizacao: info?.localizacao ?? null,
+        ano: info?.ano ?? null,
+        // MESMA precedência do cartão antigo e da projeção: razão social
+        // primeiro. Este caminho monta a linha do item que ainda não voltou do
+        // servidor; divergir aqui faria o cartão TROCAR de nome ao sincronizar.
+        clienteNome: emp?.razaoSocial || emp?.nomeFantasia || null,
+        clienteCidade: emp?.cidade || null,
+        proximaInspecao: null,
+        temFoto: fotos.length > 0,
+        fotoRef: (fotos.find((f) => f.isCapa) ?? fotos[0])?.ref ?? null,
+        pmtaMpa: calc?.pmta ? Number(calc.pmta) : null,
+        pthMpa: calc?.pth ? Number(calc.pth) : null,
+        // As ADOTADAS saem da PRÓPRIA ficha que este caminho já leu (`info`) —
+        // zero parse a mais. Sem elas o equipamento recém-salvo mostraria "—"
+        // em PMTA/PTH e ganharia o valor ao sincronizar, que é o cartão
+        // TROCANDO de número sozinho — o defeito que este bloco existe para
+        // evitar. Sem adoção continua "—", igual à projeção.
+        pmtaAdotadaMpa: numeroMpa(info?.pmtaAdotadaMpa),
+        pthAdotadaMpa: numeroMpa(info?.pthAdotadaMpa),
+        resultado: calc?.resultado ?? null,
+        volumeM3: typeof cat?.volInput === 'number' ? cat.volInput : null,
+        fluido: cat?.fluidoInput ?? null,
+        classeFluido: cat?.classe ?? null,
+        vidaAnos: typeof vida?.vidaAnos === 'number' ? vida.vidaAnos : null,
+        temCliente: !!emp?.clienteId,
+        unidade: ler<string>(`nr13_pref_unidade_${tag}`),
+        sourceVersion: 0,
+        // `null`, e não `0`: quem conta os containers é a projeção, e este item
+        // ainda não chegou ao servidor. Contar aqui abrindo `nr13_docs_<TAG>`
+        // seria trazer de volta, por uma porta lateral, exatamente o parse que a
+        // 9F.1 está tirando da lista.
+        inspecoes: null,
+        // Idem para o prontuário (9F.2.2): abrir `nr13_prontuario_<TAG>` aqui
+        // para responder "tem ou não tem" devolveria o `JSON.parse` de 6,6 KB
+        // por item que esta etapa está removendo do render.
+        temProntuario: null,
+        // Idem para as calibrações (9F.3.1), e aqui a tentação é maior porque a
+        // lista está no aparelho: `listarCalibracoes(tag).length` responderia
+        // na hora. Mas seria o `JSON.parse` por cartão que esta etapa está
+        // removendo do render, de volta por uma porta lateral — e daria um
+        // número DIFERENTE do que o servidor vai projetar, porque item sem `id`
+        // não entra em `calibracoes_index`. Duas contagens para a mesma coisa é
+        // como as divergências de cartão nasceram na 9C.
+        calibracoes: null,
+        // Idem para o livro (9F.4.1). Aqui a tentação é ainda maior — o livro
+        // está no aparelho e `?? []` responderia de imediato. Mas contar aqui
+        // seria o `JSON.parse` do livro por item, de volta pela porta lateral, e
+        // o livro é a chave mais pesada da TAG. `null` = "ninguém contou", que é
+        // a verdade: este equipamento ainda não chegou ao servidor.
+        livroEntradas: null,
+        livroUltima: null,
+        pendente: true,
+      } satisfies ItemCatalogo;
+    });
 }

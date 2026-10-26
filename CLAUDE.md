@@ -1252,36 +1252,22 @@ para `scripts/massa-escala/`; usar sempre o caminho do arquivo.
 Não se aplica só a exclusão: vale para qualquer ação irreversível disparada por
 automação (arquivar, trancar registro do Livro, resetar senha).
 
-## 15. Identidade visual (definida pelo dono em 25/10/2026; v5 na mesma data)
+## 15. Identidade visual (definida pelo dono em 25/10/2026)
 
-> **A identidade do sistema é a PROPOSTA v5 — `docs/design/proposta-v5.html`** — que
-> mantém a paleta B "Aço Frio" da 1ª prévia (`docs/design/preview.html`,
-> `docs/design/direcao.md`) e troca estrutura, fonte e interação, inspirada no hPanel.
-> As rodadas v2–v4 foram apagadas; só existem no git.
+> **A identidade do sistema é a PRIMEIRA prévia — `docs/design/preview.html` — com a
+> paleta B "Aço Frio" (`docs/design/direcao.md`).** Substitui o `design/` "Forja" como
+> fonte da verdade visual. As rodadas v2–v4 foram descartadas e apagadas (25/10/2026); só existem no histórico do git.
 
-- **Estrutura (shell v5):** topo ESCURO de 48px (`--topo-fundo #121820`) com marca, título
-  da rota, sincronização e conta; embaixo, TRILHO de ícones de 84px com o nome sempre
-  visível embaixo do ícone (Painel, Agenda, Equipamentos, Inspeções, Documentos,
-  Instrumentos, Cadastros; Ajuda no pé) e SUBMENU de 232px. O submenu mostra as páginas do
-  grupo (Documentos, Instrumentos, Cadastros) ou o que a tela puser nele por
-  `<ConteudoSubmenu>` (`src/app/submenu.tsx`, portal); sem nada a mostrar, some. Trocar
-  senha e Sair moram no menu da conta. No celular: gaveta + barra inferior.
-- **Cor:** fundo `#F3F4F6`, conteúdo branco, fios `#E3E5E8`. **Laranja `#BC560A` = ação
-  principal e item ativo** (texto branco). **Petróleo = INTERAÇÃO:** hover, foco de lista e
-  aviso informativo em `--interacao-bg #E8F2F5` / `--interacao-texto #0A5A6E` (camada única
-  no fim de `forja.css`, com `html body` para vencer as folhas de tela). Primário continua
-  escurecendo no laranja; destrutivo continua vermelho. Semânticas (`--st-*`) só em selo.
-- **Cor por TIPO de equipamento** (`TipoEquipamento`/`MiniaturaEquipamento`): vaso azul
-  `#285A8F`, caldeira vermelho `#B4321F` (chama), autoclave roxo `#6440C9` — só em ícone +
-  texto ou chip de tinta clara, NUNCA em fundo de linha (vermelho de caldeira não é status).
-- **Tabela:** cabeçalho em aço (`--tab-cab-bg #E6EAEE`, texto `#33404B` 600 12px), linhas
-  alternadas branco / `--tab-zebra #F7F8FA` (lista virtualizada: paridade pelo ÍNDICE do
-  item, nunca `nth-child`), hover petróleo.
-- **Tipo:** DM Sans (texto e títulos — hierarquia por peso/tamanho) e DM Mono (TAG, datas,
-  números), self-hosted por `@fontsource`. Escala 11/12/13/14/16/20/32.
-- **Forma e densidade:** cabeçalho de página = UMA barra de 44px (título já está no topo;
-  nada de título+subtítulo+contagem repetidos), controles de 32–36px (44 no toque), raio
-  4/6/8/10 (cantos discretos).
-- **Onde mora:** valores em `src/styles/tokens.css` (nomes Forja mantidos + semânticos em
-  português); **não definir `--surface`/`--border`**.
+- **Cor:** fundo `#F3F4F6`, superfícies brancas, fios `#E3E5E8`, sidebar `#111418`,
+  acento `#BC560A` com texto **branco** (o texto escuro reprova nele), link `#A34A08`.
+  Semânticas (`--st-ok/warn/crit/info`) só em selo, ponto e variação, sempre com ícone + texto.
+- **Tipo:** IBM Plex Sans (texto), Space Grotesk (títulos e números de destaque),
+  IBM Plex Mono (TAG, datas, números de tabela). Escala 11/12/13/14/16/20/32.
+- **Forma e densidade:** cabeçalho de 48px, toolbar de 44px, controles de 32px (44 no
+  toque), linha de tabela de 40px, raio 4/6/8. Aba segmentada: trilho cinza, ativo
+  **branco com sombra**. Cabeçalho de tabela 12px, caixa normal.
+- **Onde mora:** os VALORES em `src/styles/tokens.css` (nomes Forja mantidos — `--amber`,
+  `--line`, `--text-main` — para o app inteiro trocar num lugar só) e a camada semântica
+  em português (`--superficie`, `--texto-*`, `--acao`, `--fio`, `--st-*`, `--s-*`, `--h-*`).
+  **Não definir `--surface`/`--border`**: há dezenas de `var(--surface, #fff)` com fallback.
 - Travado por `src/__tests__/redesignPiloto.test.ts`.
