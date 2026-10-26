@@ -14,6 +14,8 @@ export type NomeIcone =
   | 'trash' | 'filter' | 'search' | 'book' | 'camera' | 'upload' | 'check'
   | 'building' | 'gauge' | 'refresh' | 'calculator' | 'download' | 'shield'
   | 'valvula-psv' | 'manometro' | 'link' | 'sigma' | 'cadeado' | 'info'
+  // v5: autoclave (câmara com porta) e pulso (medição de espessura por ultrassom)
+  | 'autoclave' | 'pulso' | 'menu'
   // Ícones GENÉRICOS de planilha (importação). Não reproduzem logotipo registrado
   // de nenhuma suíte — são desenhos próprios no traço do sprite, diferenciados
   // por cor via a prop `style` (verde/verde/azul/neutro) + rótulo textual ao lado.
@@ -56,6 +58,9 @@ const PATHS: Record<NomeIcone, ReactNode> = {
   x: (<><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>),
   flame: <path d="M12 2s-6 6-6 12a6 6 0 0 0 12 0c0-2-1-3-1-3s-1 2-2 2c1-3-1-5-1-7 0 2-2 3-2 5-1-1-1-3 0-5-1 1-2 3-2 5 0 1 .3 2 1 3-2 0-3-2-3-4 0-4 4-8 4-8z" />,
   fan: (<><circle cx="12" cy="12" r="2" /><path d="M12 2a4 4 0 0 1 4 4c0 2-2 3-2 6" /><path d="M12 22a4 4 0 0 1-4-4c0-2 2-3 2-6" /><path d="M2 12a4 4 0 0 1 4-4c2 0 3 2 6 2" /><path d="M22 12a4 4 0 0 1-4 4c-2 0-3-2-6-2" /></>),
+  autoclave: (<><rect x="4" y="7" width="16" height="13" rx="3" /><path d="M8 7V4h8v3" /><circle cx="12" cy="13.5" r="3" /></>),
+  pulso: <path d="M2 12h3l2-6 4 12 3-9 2 3h6" />,
+  menu: (<><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></>),
   cylinder: (<><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v14a8 3 0 0 0 16 0V5" /></>),
   tool: <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.5-3.5a6 6 0 0 1-8 8L6.4 20.6a2.1 2.1 0 0 1-3-3L10.2 10.8a6 6 0 0 1 8-8l-3.5 3.5z" />,
   filetext: (<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></>),

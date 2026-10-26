@@ -96,14 +96,14 @@
   }
 }
 
-/* ── Terminal de cálculo (log) — fonte e cores do design (IBM Plex Mono / Forja) ── */
+/* ── Terminal de cálculo (log) — fonte e cores do design (fonte mono do sistema) ── */
 .memorial-log {
   background: #ffffff;
   color: #2D3339;
   border: 1px solid #E7E7E3;
   border-radius: 12px;
   padding: 16px;
-  font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12.5px;
   line-height: 1.7;
   overflow-x: auto;
@@ -1152,7 +1152,7 @@
   border-left: 4px solid #005AB9;
   border-radius: 8px;
   color: #005AB9;
-  font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 13px;
   letter-spacing: .01em;
@@ -1200,7 +1200,7 @@
 .term-dot:nth-of-type(2) { background: #F3D08A; }
 .term-dot:nth-of-type(3) { background: #A7DBA9; }
 .term-filename {
-  font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 500;
   color: #6B7280;
@@ -1425,7 +1425,7 @@
 
 /* ── Cabeçalho do memorial dentro do terminal (título + "Gerado em ...") ── */
 .term-mc-head .term-mc-title {
-  font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
+  font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
   letter-spacing: -.01em;
@@ -1434,7 +1434,7 @@
 }
 
 .term-mc-head .term-mc-sub {
-  font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11.5px;
   color: #7A8790;
   margin: 0 0 16px;
@@ -1553,7 +1553,7 @@
   height: auto;
 }
 .memorial-log-vazio strong {
-  font-family: 'Space Grotesk', var(--font-display, inherit), sans-serif;
+  font-family: var(--font-display);
   font-size: 14px;
   color: #2d3339;
 }

@@ -2,9 +2,11 @@
    NR-13 — IDENTIDADE DO SISTEMA (definida pelo dono em 25/10/2026)
    = a PRIMEIRA prévia (docs/design/preview.html) com a paleta B "Aço Frio"
    (docs/design/direcao.md). Fundo #F3F4F6, superfícies brancas, fios
-   #E3E5E8, sidebar #111418, acento #BC560A com texto BRANCO, IBM Plex Sans +
-   Space Grotesk + IBM Plex Mono. As rodadas v2–v4 (apagadas; só no git) são
-   histórico: o que vale é a primeira prévia.
+   #E3E5E8, sidebar #111418, acento #BC560A com texto BRANCO. As rodadas v2–v4
+   (apagadas; só no git) são histórico.
+   v5 (25/10/2026, docs/design/proposta-v5.html): fonte DM Sans + DM Mono,
+   estrutura do hPanel (topo escuro, trilho de ícones, submenu), INTERAÇÃO em
+   azul petróleo (hover/foco/aviso) e cor por TIPO de equipamento.
 
    Os nomes abaixo são os da paleta Forja (03/07/2026). Os NOMES ficam — há
    centenas de `var(--amber)`, `var(--line)` e `var(--text-main)` espalhados —
@@ -120,12 +122,12 @@
   --t-fast: 0.14s cubic-bezier(0.4, 0, 0.2, 1);
   --t-base: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* ── Tipografia (identidade: a da 1ª prévia, docs/design/preview.html) ──
-     IBM Plex Sans no texto, Space Grotesk nos títulos e números de destaque,
-     IBM Plex Mono nos dados técnicos (TAG, datas, números de tabela). */
-  --font-base: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Space Grotesk', 'IBM Plex Sans', system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  /* ── Tipografia (v5): DM Sans no texto e nos títulos (a hierarquia vem do
+     peso e do tamanho, não de uma segunda família) e DM Mono nos dados
+     técnicos (TAG, datas, números de tabela). */
+  --font-base: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, Consolas, monospace;
   --font-size-base: 13px;
 }
 
@@ -172,7 +174,7 @@
   --r-xs: 4px;
   --r-sm: 6px;
   --r-md: 8px;
-  --r-lg: 12px;
+  --r-lg: 10px;
   --r-full: 999px;
 
   /* ── Sombras: só o que flutua tem sombra ── */
@@ -246,6 +248,33 @@
   --st-crit-bg: var(--crit-bg);
   --st-info: var(--blue);          /* #285A8F */
   --st-info-bg: var(--blue-bg);
+
+  /* ── INTERAÇÃO (v5): hover, foco de lista e aviso informativo em petróleo.
+        O laranja fica para ação principal e item ativo. #0A5A6E sobre
+        #E8F2F5 = 6,9:1. ── */
+  --interacao-bg: var(--petroleo-bg);   /* #E8F2F5 */
+  --interacao-texto: var(--petroleo);   /* #0A5A6E */
+  --interacao-fio: var(--petroleo-line);/* #BEDCE4 */
+
+  /* ── Tabela (v5): cabeçalho em aço, linhas alternadas ── */
+  --tab-cab-bg: #E6EAEE;
+  --tab-cab-texto: #33404B;             /* 9,9:1 no cabeçalho */
+  --tab-cab-fio: #D5DBE1;
+  --tab-zebra: #F7F8FA;
+
+  /* ── Cor por TIPO de equipamento: só em ícone + texto do tipo, nunca em
+        fundo de linha (vermelho de caldeira não é status crítico). ── */
+  --tipo-vaso: #285A8F;       --tipo-vaso-fundo: #E9F0F8;
+  --tipo-caldeira: #B4321F;   --tipo-caldeira-fundo: #FBEBE7;
+  --tipo-autoclave: #6440C9;  --tipo-autoclave-fundo: #F0ECFC;
+
+  /* ── Shell v5 ── */
+  --topo-fundo: #121820;
+  --topo-texto: #E5E7EB;
+  --topo-apagado: #A2A9B2;
+  --topo-hover: #26303B;
+  --trilho-largura: 84px;
+  --submenu-largura: 232px;
 }
 
 * {
@@ -268,7 +297,7 @@ body {
   background-color: var(--bg-body);
 }
 
-/* Títulos: Space Grotesk, peso alto, tracking levemente apertado (Forja) */
+/* Títulos: DM Sans em peso alto, tracking levemente apertado (v5) */
 h1, h2, h3, h4, .titulo-display {
   font-family: var(--font-display);
   font-weight: 600;

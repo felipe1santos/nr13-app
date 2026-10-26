@@ -1294,3 +1294,6 @@
 }
 /* Área de anexar foto: secundário (fio de campo), não âmbar. */
 .gallery-add-dropzone { border: 1px dashed var(--fio-campo); color: var(--texto-1); background: var(--panel); }
+
+/* v5 (25/10/2026): o título já está na barra do topo; aqui ele só repetia. */
+.equip-barra-titulo { display: none; }

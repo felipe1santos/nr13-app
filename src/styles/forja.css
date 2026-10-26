@@ -921,3 +921,84 @@ button.btn-danger-sm {
 }
 button.btn-remover:hover:not(:disabled),
 button.btn-danger-sm:hover:not(:disabled) { background: var(--st-crit-bg); color: var(--st-crit); }
+
+/* ============================================================================
+   INTERAÇÃO v5 (25/10/2026) — hover em AZUL PETRÓLEO em tudo que é secundário
+   O laranja continua sendo a ação principal (primário escurece no laranja) e
+   o vermelho continua no destrutivo. Aqui: botões claros, botões de ícone,
+   itens de menu, linhas e cartões clicáveis.
+   `html body` na frente de propósito: as folhas de tela carregam DEPOIS desta
+   (junto do chunk de cada rota) e cada uma tem o seu `:hover` cinza; com a
+   especificidade maior, a regra fica num lugar só, sem `!important`.
+   ============================================================================ */
+html body :is(
+  .btn-secundario, .btn-secundario-sm, .fj-btn-ghost, .btn-visualizar,
+  .btn-icone, .btn-info-secao, .cont-card-renomear, .btn-editar-pencil,
+  .cert-btn-icone, .mmais-botao, .mmais-item, .menu-conta-item, .vpdf-btn,
+  .reg-ajuda-btn, .predef-menu-btn, .predef-como, .predef-voltar, .pde-slot-btn,
+  .selo-sync, .fj-modal-close, .barra-doc-btn:not(.primaria)
+):hover:not(:disabled) {
+  background: var(--interacao-bg);
+  color: var(--interacao-texto);
+  border-color: var(--interacao-fio);
+}
+html body :is(.btn-icone, .cont-card-renomear, .btn-editar-pencil, .cert-btn-icone, .vpdf-btn):hover:not(:disabled) svg {
+  color: var(--interacao-texto);
+}
+
+/* Linhas e cartões clicáveis: só o FUNDO muda (o texto da linha inteira em
+   petróleo pesaria), e o contorno do cartão acompanha. */
+html body :is(
+  .rel-linha:not(.rel-linha-cabecalho), .pront-linha:not(.pront-linha-cabecalho),
+  .lrhist-linha, .sel-eq-linha, .resultado-item, .predef-linha, .mni-auto-item,
+  .fj-table tbody tr, .livro-timeline-item, .modelo-opcao, .wz-container
+):hover {
+  background: var(--interacao-bg);
+}
+html body :is(
+  .reg-card, .card-equipamento, .card-equipamento-horiz, .container-card-clicavel,
+  .plate-card, .portal-card-ativo
+):hover {
+  background: var(--interacao-bg);
+  border-color: var(--interacao-fio);
+}
+
+/* Foco por teclado em linha/cartão: o mesmo petróleo, para não depender do mouse. */
+html body :is(.container-card-clicavel, .reg-card, .card-equipamento):focus-visible {
+  outline: 2px solid var(--interacao-texto);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :is(
+    .btn-secundario, .fj-btn-ghost, .btn-visualizar, .btn-icone, .btn-info-secao,
+    .mmais-item, .menu-conta-item, .rel-linha, .pront-linha, .reg-card,
+    .card-equipamento, .container-card-clicavel, .fj-table tbody tr
+  ) {
+    transition: background-color var(--t-rapido), color var(--t-rapido), border-color var(--t-rapido);
+  }
+}
+
+/* ── Tipo de equipamento: ícone + texto na cor do tipo (v5) ── */
+.tipo-eq { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; }
+.tipo-eq svg { flex-shrink: 0; }
+.tipo-eq.vaso { color: var(--tipo-vaso); }
+.tipo-eq.caldeira { color: var(--tipo-caldeira); }
+.tipo-eq.autoclave { color: var(--tipo-autoclave); }
+.mini-eq {
+  width: 40px; height: 40px; flex-shrink: 0;
+  display: grid; place-items: center; overflow: hidden;
+  border-radius: var(--r-md);
+  background: var(--superficie-3); color: var(--texto-2);
+}
+.mini-eq > div, .mini-eq img { width: 100%; height: 100%; }
+.mini-eq.vaso { background: var(--tipo-vaso-fundo); color: var(--tipo-vaso); }
+.mini-eq.caldeira { background: var(--tipo-caldeira-fundo); color: var(--tipo-caldeira); }
+.mini-eq.autoclave { background: var(--tipo-autoclave-fundo); color: var(--tipo-autoclave); }
+/* O selo de tipo do cartão de equipamento: tinta clara + texto na cor do tipo. */
+.fj-type-badge.vaso { background: var(--tipo-vaso-fundo); color: var(--tipo-vaso); }
+.fj-type-badge.caldeira { background: var(--tipo-caldeira-fundo); color: var(--tipo-caldeira); }
+.fj-type-badge.autoclave { background: var(--tipo-autoclave-fundo); color: var(--tipo-autoclave); }
+/* `.eq-tipo` passou a ser o TipoEquipamento (ícone + texto coloridos), sem fundo. */
+.tipo-eq.eq-tipo { background: none; border: 0; padding: 0; font-size: var(--fs-12); }
+.fj-tag-ico.mini-eq { width: 28px; height: 28px; border-radius: var(--r-sm); }

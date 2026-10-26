@@ -17,6 +17,8 @@ export default function MenuUsuario({
   temAlerta,
   ultimoLogin,
   onNotificacoes,
+  onTrocarSenha,
+  onSair,
 }: {
   iniciais: string;
   email: string | null;
@@ -25,6 +27,9 @@ export default function MenuUsuario({
   /** "hoje às 03:05". Morava solto no cabeçalho; aqui ele não disputa a linha. */
   ultimoLogin?: string | null;
   onNotificacoes: () => void;
+  /** Shell v5: as ações da conta moram aqui, e não no rodapé do menu lateral. */
+  onTrocarSenha: () => void;
+  onSair: () => void;
 }) {
   const [aberto, setAberto] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
@@ -96,6 +101,31 @@ export default function MenuUsuario({
           </button>
 
           <BotaoInstalarPWA variante="item" aoConcluir={() => setAberto(false)} />
+
+          <button
+            type="button"
+            className="menu-conta-item"
+            role="menuitem"
+            onClick={() => {
+              setAberto(false);
+              onTrocarSenha();
+            }}
+          >
+            <Icone nome="key" tam={16} />
+            <span>Trocar senha</span>
+          </button>
+          <button
+            type="button"
+            className="menu-conta-item menu-conta-sair"
+            role="menuitem"
+            onClick={() => {
+              setAberto(false);
+              onSair();
+            }}
+          >
+            <Icone nome="logout" tam={16} />
+            <span>Sair</span>
+          </button>
         </div>
       )}
     </div>

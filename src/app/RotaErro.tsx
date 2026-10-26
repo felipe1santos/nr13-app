@@ -48,10 +48,10 @@ export default function RotaErro() {
         textAlign: 'center',
         background: '#F6F5F2',
         color: '#2D3339',
-        fontFamily: '"IBM Plex Sans", sans-serif',
+        fontFamily: '"DM Sans", sans-serif',
       }}
     >
-      <h1 style={{ fontFamily: '"Space Grotesk", sans-serif', fontSize: 22, margin: 0 }}>
+      <h1 style={{ fontFamily: '"DM Sans", sans-serif', fontSize: 22, margin: 0 }}>
         Ocorreu um erro inesperado
       </h1>
       <p style={{ color: '#7A8790', maxWidth: 420, margin: 0 }}>
@@ -105,7 +105,7 @@ export default function RotaErro() {
               lineHeight: 1.45,
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
-              fontFamily: '"IBM Plex Mono", monospace',
+              fontFamily: '"DM Mono", monospace',
               color: '#2D3339',
             }}
           >

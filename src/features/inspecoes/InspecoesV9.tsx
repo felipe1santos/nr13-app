@@ -28,7 +28,7 @@
  * a suíte alcança: o ambiente de teste é `node`, sem DOM.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import BuscaLista from '../../components/BuscaLista';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
 import * as buscaIndex from '../../services/buscaIndex';
@@ -45,6 +45,10 @@ import AjudaContainers from './AjudaContainers';
 import { abrirEquipamentoParaInspecao } from './catalogoInspecoes';
 import { criarContainer, listarContainers, removerContainer } from './inspecaoService';
 import { Icone } from '../../components/Icone';
+import { MiniaturaEquipamento, TipoEquipamento, ICONE_TIPO } from '../../components/TipoEquipamento';
+import { ConteudoSubmenu } from '../../app/submenu';
+import { rotaEquipamento } from '../../app/rotas';
+import { itemCatalogoLocal } from '../equipamento/equipamentoService';
 import type { ContainerInspecao, TipoEnsaio } from './tipos';
 import './visualizador.css';
 import '../../pages/relatorios.css';
@@ -57,8 +61,8 @@ const ROTULO_TIPO: Record<string, string> = {
   caldeira: 'Caldeira',
 };
 
-/** Altura estimada de uma linha; corrigida por medição no primeiro quadro. */
-const ALT_LINHA = 40;
+/** Altura estimada de uma linha (v5: 52px, com a miniatura); corrigida por medição no primeiro quadro. */
+const ALT_LINHA = 52;
 
 /** Abas da lista: o recorte por tipo que o catálogo do servidor já filtra. */
 const ABAS_TIPO: { valor: string; rotulo: string }[] = [
@@ -70,6 +74,7 @@ const ABAS_TIPO: { valor: string; rotulo: string }[] = [
 
 export default function InspecoesV9() {
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // ESTADO NA URL, como nas outras telas da fase: recarregar, voltar do
   // container e compartilhar continuam no mesmo lugar.
@@ -102,6 +107,24 @@ export default function InspecoesV9() {
   const [ajudaAberta, setAjudaAberta] = useState(false);
 
   const filtros: FiltrosBusca = useMemo(() => ({ termo, tipo }), [termo, tipo]);
+
+  /**
+   * O cartão do equipamento na tela de containers (v5). Lido do CACHE, depois
+   * que `abrirEquipamentoParaInspecao` semeou a TAG — por isso depende de
+   * `carregadoPara`, e não só da TAG: antes da semeadura, num aparelho novo,
+   * o cache não tem a ficha e o cartão simplesmente não aparece.
+   */
+  /**
+   * Linhas alternadas (v5): a lista é virtualizada, então a paridade vem do
+   * ÍNDICE do item na lista e não da posição no DOM — por posição, as faixas
+   * trocariam de cor a cada rolagem.
+   */
+  const indiceDaTag = useMemo(() => new Map(itens.map((i, k) => [i.tag, k])), [itens]);
+
+  const resumo = useMemo(
+    () => (tag && carregadoPara === tag ? itemCatalogoLocal(tag) : null),
+    [tag, carregadoPara],
+  );
 
   /** A resposta antiga não pode sobrescrever a nova — igual à 9C/9E. */
   const geracao = useRef(0);
@@ -238,62 +261,109 @@ export default function InspecoesV9() {
     setContainers(listarContainers(tag));
   }
 
-  // ── TELA DOS CONTAINERS ────────────────────────────────────────────────────
+  // ── TELA DOS CONTAINERS (v5, 25/10/2026) ──────────────────────────────────
+  // UMA barra (voltar · trilha · ajuda · Nova inspeção) em vez das três linhas
+  // de antes, e o cartão do equipamento com a foto: quem abre esta tela em
+  // campo precisa reconhecer o equipamento antes de criar a rodada.
   if (tag) {
+    const pmta =
+      resumo?.pmtaMpa != null ? formatarValor(resumo.pmtaMpa, (resumo.unidade as SistemaUnidade) ?? 'SI') : '—';
+    const cliente = resumo?.clienteNome
+      ? `${resumo.clienteNome}${resumo.clienteCidade ? ` · ${resumo.clienteCidade}` : ''}`
+      : null;
+    const carregandoContainers = abrindo || carregadoPara !== tag;
     return (
-      <div className="inspecoes-page">
-        {/* O <h1> saiu: a topbar já mostra o título da seção. */}
-        <div className="bloco-dados">
-          <div className="meta-breadcrumb">
-            <button type="button" className="btn-secundario" onClick={() => trocarParam('tag', '')}>
-              ← Voltar
-            </button>
-            {/* UX · a MESMA trilha de /relatorios e /prontuarios: chevron + chip
-                da TAG. Aqui era um `<strong>` solto, e a trilha lia diferente
-                em cada módulo do sistema. */}
-            <span className="breadcrumb-chevron">›</span>
+      <div className="inspecoes-page iv5-equip">
+        <div className="iv5-barra">
+          <button
+            type="button"
+            className="btn-icone iv5-voltar"
+            onClick={() => trocarParam('tag', '')}
+            aria-label="Voltar para a lista de equipamentos"
+            title="Voltar"
+          >
+            <Icone nome="arrowleft" tam={18} />
+          </button>
+          {/* A MESMA trilha de /relatorios e /prontuarios: módulo › chip da TAG. */}
+          <nav className="iv5-trilha" aria-label="Trilha">
+            <button type="button" onClick={() => trocarParam('tag', '')}>Inspeções</button>
+            <Icone nome="chevright" tam={14} />
             <span className="crumb-tag-chip">{tag}</span>
-          </div>
-          <div className="meta-card-header">
-            <h3>
-              Containers de Inspeção <span className="tag-equipamento-roxa">{tag}</span>
-              {/* A ajuda fica JUNTO do título, e não numa faixa fixa de texto
-                  no topo: é conteúdo que se lê uma vez e empurraria o trabalho
-                  para baixo da dobra em toda visita. Mesmo padrão de
-                  Calibrações e Certificados. */}
-              <button
-                type="button"
-                className="btn-info-secao"
-                title="Como funcionam os containers de inspeção"
-                aria-label="Como funcionam os containers de inspeção"
-                onClick={() => setAjudaAberta(true)}
-              >
-                <Icone nome="info" tam={15} />
-              </button>
-            </h3>
-            <button type="button" className="btn-primario" onClick={() => setModalAberto(true)}>
-              + Nova Inspeção
-            </button>
-          </div>
+          </nav>
+          <span className="iv5-esp" />
+          {/* A ajuda é conteúdo que se lê uma vez: fica num botão da barra, e
+              não numa faixa fixa que empurraria o trabalho para baixo. */}
+          <button
+            type="button"
+            className="btn-secundario iv5-btn"
+            title="Como funcionam os containers de inspeção"
+            onClick={() => setAjudaAberta(true)}
+          >
+            <Icone nome="info" tam={16} />
+            <span className="iv5-rot-largo">Como funciona</span>
+          </button>
+          <button type="button" className="btn-primario iv5-btn" onClick={() => setModalAberto(true)}>
+            <Icone nome="plus" tam={16} />
+            Nova inspeção
+          </button>
+        </div>
 
-          {abrindo || carregadoPara !== tag ? (
-            <p className="dashboard-vazio">Carregando as inspeções deste equipamento…</p>
-          ) : containers.length === 0 ? (
-            <p className="dashboard-vazio">Nenhum container de inspeção criado ainda para este equipamento.</p>
-          ) : (
-            <div className="containers-lista">
-              {containers.map((c) => (
-                <ContainerCard
-                  key={c.id}
-                  container={c}
-                  tag={tag}
-                  onExcluir={() => excluir(c.id)}
-                  onRenomear={() => setRenomeando(c)}
-                />
-              ))}
+        {resumo && (
+          <section className="iv5-ficha" aria-label={`Equipamento ${tag}`}>
+            <MiniaturaEquipamento tipo={resumo.tipo} fotoRef={resumo.fotoRef} tag={tag} className="iv5-ficha-foto" />
+            <div className="iv5-ficha-txt">
+              <div className="iv5-ficha-tit">
+                <h2>{tag}</h2>
+                <TipoEquipamento tipo={resumo.tipo} />
+              </div>
+              {resumo.descricao && <p className="iv5-ficha-desc">{resumo.descricao}</p>}
+              <dl className="iv5-dados">
+                <div>
+                  <dt>Cliente</dt>
+                  <dd>{cliente ?? <span className="iv5-vazio">Sem cliente</span>}</dd>
+                </div>
+                <div>
+                  <dt>Categoria</dt>
+                  <dd>{resumo.categoria ? <span className="iv5-selo-cat">Cat. {resumo.categoria}</span> : '—'}</dd>
+                </div>
+                <div>
+                  <dt>PMTA</dt>
+                  <dd className="iv4-mono">{pmta}</dd>
+                </div>
+              </dl>
             </div>
+            <button type="button" className="btn-secundario iv5-btn" onClick={() => navigate(rotaEquipamento(tag))}>
+              Abrir ficha
+            </button>
+          </section>
+        )}
+
+        <div className="iv5-secao-tit">
+          <h3>Rodadas de inspeção</h3>
+          {!carregandoContainers && (
+            <span>
+              {containers.length} {containers.length === 1 ? 'rodada' : 'rodadas'}
+            </span>
           )}
         </div>
+
+        {carregandoContainers ? (
+          <p className="dashboard-vazio">Carregando as inspeções deste equipamento…</p>
+        ) : containers.length === 0 ? (
+          <p className="dashboard-vazio">Nenhum container de inspeção criado ainda para este equipamento.</p>
+        ) : (
+          <div className="containers-lista">
+            {containers.map((c) => (
+              <ContainerCard
+                key={c.id}
+                container={c}
+                tag={tag}
+                onExcluir={() => excluir(c.id)}
+                onRenomear={() => setRenomeando(c)}
+              />
+            ))}
+          </div>
+        )}
 
         {modalAberto && (
           <ModalNovaInspecaoContainer
@@ -317,15 +387,35 @@ export default function InspecoesV9() {
     );
   }
 
-  // ── TELA DA LISTA (v4, 25/10/2026) ─────────────────────────────────────────
-  // Tabela de 40px por linha dentro de UM cartão, com a barra de ferramentas no
-  // topo dele (busca + tipo). As abas filtram por TIPO porque é o recorte que o
-  // servidor sabe fazer (`p_tipo`); a prévia da v4 desenhava abas de situação
-  // ("Em andamento", "Vencidas"), e o catálogo não tem esse dado por linha —
-  // derivar aqui seria afirmar um prazo que nenhuma regra do sistema calculou.
+  // ── TELA DA LISTA (v5, 25/10/2026) ─────────────────────────────────────────
+  // Tabela dentro de UM cartão, com a barra de ferramentas no topo dele. O
+  // filtro por TIPO mora no submenu (no celular, nas abas da barra), porque é o
+  // recorte que o servidor sabe fazer (`p_tipo`). O catálogo não tem situação
+  // por linha — derivar aqui seria afirmar um prazo que nenhuma regra do
+  // sistema calculou.
   return (
     <div className="inspecoes-page iv4">
-      {/* O <h1> saiu: a topbar já mostra o título da seção. */}
+      <ConteudoSubmenu>
+        <div className="submenu-secao">Tipo de equipamento</div>
+        {ABAS_TIPO.map((a) => (
+          <button
+            key={a.valor || 'todos'}
+            type="button"
+            className={`nav-item${tipo === a.valor ? ' active' : ''}`}
+            aria-pressed={tipo === a.valor}
+            onClick={() => trocarParam('tipo', a.valor)}
+          >
+            <span className="left">
+              <span className={`tipo-eq${a.valor ? ` ${a.valor}` : ''}`}>
+                <Icone nome={a.valor ? ICONE_TIPO[a.valor] : 'grid'} />
+              </span>
+              <span className="menu-text">{a.rotulo}</span>
+            </span>
+            {tipo === a.valor && contagem && <span className="nav-count">{contagem.total}</span>}
+          </button>
+        ))}
+      </ConteudoSubmenu>
+
       <section className="iv4-painel" aria-label="Equipamentos para inspeção">
         <div className="iv4-barra">
           <BuscaLista
@@ -374,6 +464,7 @@ export default function InspecoesV9() {
             {/* Cabeçalho visual da tabela. Cada linha é um BOTÃO com o texto
                 inteiro, então o leitor de tela não precisa dele. */}
             <div className="iv4-linha iv4-cab" aria-hidden="true">
+              <span />
               <span>TAG</span>
               <span>Equipamento</span>
               <span>Cliente</span>
@@ -405,17 +496,28 @@ export default function InspecoesV9() {
                 // afirmar um fato que ninguém mediu (ver `rotuloInspecoes`).
                 const qtd = rotuloInspecoes(item.inspecoes) ? String(item.inspecoes) : '—';
                 return (
-                  <button type="button" className="iv4-linha" onClick={() => trocarParam('tag', item.tag)}>
+                  <button
+                    type="button"
+                    className={`iv4-linha${(indiceDaTag.get(item.tag) ?? 0) % 2 === 1 ? ' iv4-zebra' : ''}`}
+                    onClick={() => trocarParam('tag', item.tag)}
+                  >
+                    <MiniaturaEquipamento tipo={item.tipo} fotoRef={item.fotoRef} tag={item.tag} className="iv4-mini" />
                     <span className="iv4-tag">{item.tag}</span>
-                    <span className="iv4-eq">{item.descricao || rotuloTipo}</span>
-                    <span className="iv4-sub iv4-col-cli">
+                    <span className="iv4-eq">
+                      <b>{item.descricao || rotuloTipo}</b>
+                      <TipoEquipamento tipo={item.tipo} tam={12} />
+                    </span>
+                    <span className={`iv4-sub iv4-col-cli${item.clienteNome ? '' : ' iv5-vazio'}`}>
                       {item.clienteNome
                         ? `${item.clienteNome}${item.clienteCidade ? ` · ${item.clienteCidade}` : ''}`
-                        : '—'}
+                        : 'Sem cliente'}
                     </span>
                     <span className="iv4-col-cat">
-                      <span className="iv4-rot-m">Categoria </span>
-                      {item.categoria ?? '—'}
+                      {item.categoria ? (
+                        <span className="iv5-selo-cat">Cat. {item.categoria}</span>
+                      ) : (
+                        <span className="iv5-vazio">—</span>
+                      )}
                     </span>
                     <span className="num iv4-mono iv4-col-pmta">
                       <span className="iv4-rot-m">PMTA </span>
@@ -423,9 +525,9 @@ export default function InspecoesV9() {
                         ? formatarValor(item.pmtaMpa, (item.unidade as SistemaUnidade) ?? 'SI')
                         : '—'}
                     </span>
-                    <span className="num iv4-mono iv4-col-qtd" title={rotuloInspecoes(item.inspecoes) ?? undefined}>
-                      <span className="iv4-rot-m">Inspeções </span>
-                      {qtd}
+                    <span className="num iv4-col-qtd" title={rotuloInspecoes(item.inspecoes) ?? undefined}>
+                      <Icone nome="clipboard" tam={14} />
+                      <b className="iv4-mono">{qtd}</b>
                     </span>
                     <Icone nome="chevright" tam={16} />
                   </button>

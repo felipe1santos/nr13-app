@@ -828,3 +828,15 @@
   color: var(--ok, #1fa971);
   padding: 0;
 }
+
+/* ── v5 (25/10/2026): cabeçalho de UMA linha ──
+   O item da norma (eyebrow) e o escudo de 52px saem da vista: o título já está
+   na barra do topo, e a referência normativa continua na ajuda (ⓘ) e dentro
+   do equipamento. Sobra uma linha de 44px com o nome e a ajuda. */
+.reg-hero { align-items: center; min-height: var(--h-toolbar); padding: 6px var(--s-4); }
+.reg-hero .fj-eyebrow, .reg-hero-ic { display: none; }
+.reg-hero h2 { font-size: var(--fs-14); line-height: var(--lh-14); font-weight: 700; margin: 0; }
+/* v5: o chip do tipo na cor do tipo (vaso azul, caldeira vermelha, autoclave roxa). */
+.reg-card-ic[data-tipo='vaso'] { background: var(--tipo-vaso-fundo); color: var(--tipo-vaso); }
+.reg-card-ic[data-tipo='caldeira'] { background: var(--tipo-caldeira-fundo); color: var(--tipo-caldeira); }
+.reg-card-ic[data-tipo='autoclave'] { background: var(--tipo-autoclave-fundo); color: var(--tipo-autoclave); }

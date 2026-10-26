@@ -578,3 +578,17 @@
   letter-spacing: 0;
   font-size: var(--fs-12);
 }
+
+/* ── v5 (25/10/2026): o cartão-título vira uma barra de 44px ── */
+.cert-intro.cert-intro-compacta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: var(--h-toolbar);
+  padding: 4px 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+.cert-intro.cert-intro-compacta h2 { margin: 0; font-size: var(--fs-14); line-height: var(--lh-14); font-weight: 700; }

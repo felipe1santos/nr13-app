@@ -60,6 +60,7 @@ import ModalFiltrosProntuarios, {
 } from './ModalFiltrosProntuarios';
 import { emissaoAtual } from './emissaoProntuario';
 import '../../pages/prontuarios.css';
+import { TipoEquipamento } from '../../components/TipoEquipamento';
 
 export const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -427,9 +428,7 @@ export default function CatalogoProntuariosV9({
                 <div className="card-eq-info">
                   <div className="eq-col">
                     <span className="eq-tag">{item.tag}</span>
-                    <span className="eq-tipo">
-                      {item.tipo ? (ROTULO_TIPO[item.tipo] ?? item.tipo) : '—'}
-                    </span>
+                    <TipoEquipamento tipo={item.tipo} tam={12} className="eq-tipo" />
                   </div>
                   <div className="eq-col">
                     <span className="eq-label">Categoria</span>

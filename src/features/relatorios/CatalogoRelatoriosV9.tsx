@@ -40,6 +40,7 @@ import type { ItemCatalogo } from '../../services/buscaIndex';
 import { contagensPorTag } from './catalogoRelatorios';
 import { formatarValor } from '../../calc/unidades';
 import type { SistemaUnidade } from '../../calc/unidades';
+import { TipoEquipamento } from '../../components/TipoEquipamento';
 
 /**
  * O tipo do equipamento como se escreve, e não como se guarda.
@@ -282,7 +283,7 @@ export default function CatalogoRelatoriosV9({
                 <div className="card-eq-info">
                   <div className="eq-col">
                     <span className="eq-tag">{eq.tag}</span>
-                    <span className="eq-tipo">{ROTULO_TIPO[eq.tipo ?? ''] ?? eq.tipo ?? '—'}</span>
+                    <TipoEquipamento tipo={eq.tipo} tam={12} className="eq-tipo" />
                   </div>
                   <div className="eq-col">
                     <span className="eq-label">Categoria</span>
