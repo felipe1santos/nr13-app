@@ -265,6 +265,7 @@ export function faltasDoForm(form: FormDados): string[] {
   const data = /^\d{2}\/\d{2}\/\d{4}$/;
   if (!data.test(form.dataCalibracao)) out.push('data da calibração');
   if (!data.test(form.dataProxCalibracao)) out.push('data da próxima calibração');
+  if (!form.numeroCertificado.trim()) out.push('nº do certificado');
   return out;
 }
 
@@ -275,7 +276,7 @@ export function converterForm(form: FormDados, tag: string, id: string): DadosCa
     tag,
     nome: form.nome || (form.tipo === 'manometro' ? 'Manômetro' : 'Válvula de Segurança'),
     criadoEm: hoje(),
-    numeroCertificado: form.numeroCertificado,
+    numeroCertificado: form.numeroCertificado.trim(),
     dataEmissao: form.dataEmissao,
     empresa: form.empresa,
     endereco: form.endereco,

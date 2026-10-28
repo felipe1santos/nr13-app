@@ -7,8 +7,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
  * Reestruturação de Calibrações (19/09/2026) · CADASTRE UMA VEZ → REUTILIZE.
  *
  * O formulário da calibração só pede o que muda a cada calibração. Item
- * (componente), padrão (Certificados) e certificado (nº e emissão) são
- * derivados — e este arquivo quebra se voltarem a ser inputs.
+ * (componente), padrão (Certificados) e data de emissão são derivados — e
+ * este arquivo quebra se voltarem a ser inputs. O nº do certificado é a
+ * exceção: vem sugerido e é editável até emitir.
  */
 const banco = new Map<string, unknown>();
 vi.mock('../../../services/storage', () => ({
@@ -156,10 +157,11 @@ describe('o FORMULÁRIO renderizado não tem input para dado derivado', () => {
       expect(valores, derivado).not.toContain(derivado);
       expect(h, derivado).toContain(derivado); // aparece — como texto
     }
-    // o nº do certificado desta calibração também é texto
-    expect(valores.some((v) => /^CERT-/.test(v))).toBe(false);
-    // inputs de texto que sobram = só o evento: 2 datas + temperatura, umidade, local
-    expect((h.match(/<input/g) ?? []).length).toBe(5);
+    // o nº do certificado desta calibração vem SUGERIDO e é editável no
+    // rascunho (pedido do dono, 28/10/2026): a empresa usa numeração própria
+    expect(valores.filter((v) => /^CERT-/.test(v))).toHaveLength(1);
+    // inputs de texto = nº do certificado + o evento: 2 datas + temperatura, umidade, local
+    expect((h.match(/<input/g) ?? []).length).toBe(6);
   });
 
   it('PSV: mesma regra, e sem padrão cadastrado oferece o cadastro em vez de inventar', () => {

@@ -23,7 +23,7 @@ import { ITENS_VISUAL_INTERNO } from '../../inspecoes/formularios/FormularioVisu
 import { itensDoExame } from '../../caldeira/itensVisuaisCaldeira';
 import type { RefFoto } from '../../../services/fotos';
 import { normalizarFotos, type FotoDescrita } from '../../inspecoes/fotosDescritas';
-import type { RelatorioMeta } from '../tipos';
+import { numeroDoRelatorio, type RelatorioMeta } from '../tipos';
 import { modeloAcumulacao, type ModeloAcumulacao } from './modeloAcumulacao';
 import { acumulacaoPreenchida, type DadosAcumulacao } from '../../inspecoes/acumulacao';
 import { rotuloClasseFluido, rotuloEnquadramento, rotuloResposta, rotuloResultado, rotuloSubtipo, rotuloTipoEquipamento } from './rotulos';
@@ -994,7 +994,7 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
       logo: txt(emp.logo ?? emp.logoUrl),
       logoRef: (emp.logoRef as RefFoto | undefined)?.path ? (emp.logoRef as RefFoto) : null,
     },
-    numeroRelatorio: textoOu(txt(meta?.codigo), ''),
+    numeroRelatorio: textoOu(txt(numeroDoRelatorio(meta)), ''),
     cliente: txt(emps.razaoSocial ?? emps.nomeFantasia),
     clienteCnpj: txt(emps.cnpj),
     clienteContato: [emps.telefone, emps.email].map(txt).filter(Boolean).join(" · ") || null,
@@ -1160,7 +1160,7 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
       // clicando na folha, em dois lugares independentes — capa e exames — que
       // podiam divergir no mesmo documento. Agora os dois leem daqui.
       art: txt(meta?.art),
-      numeroRelatorio: txt(meta?.codigo),
+      numeroRelatorio: txt(numeroDoRelatorio(meta)),
       ensaios: [
         { rotulo: 'EXAME EXTERNO', feito: temExameExterno },
         { rotulo: 'EXAME INTERNO', feito: temExameInterno },
@@ -1331,7 +1331,7 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
       info.tipo === 'caldeira'
         ? modeloAcumulacao(
             inj.acumulacao,
-            meta?.codigo,
+            numeroDoRelatorio(meta) || null,
             numeroDoStorage(info.pmtaAdotadaMpa) ?? numeroDoStorage(calc.pmta),
           )
         : null,
