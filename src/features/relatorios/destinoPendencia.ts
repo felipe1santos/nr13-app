@@ -40,8 +40,8 @@ export interface DestinoCampo {
 
 export const DESTINO_POR_CAMPO: Record<string, DestinoCampo> = {
   // ── Configurações do Relatório ───────────────────────────────────────────
-  'capa.n-do-relatorio': { onde: 'configuracoes', campo: 'codigo' },
-  'inspecao.numero-relatorio': { onde: 'configuracoes', campo: 'codigo' },
+  'capa.n-do-relatorio': { onde: 'configuracoes', campo: 'numero' },
+  'inspecao.numero-relatorio': { onde: 'configuracoes', campo: 'numero' },
   'capa.data-da-inspecao': { onde: 'configuracoes', campo: 'execucaoInspecao' },
   'datas.execucao': { onde: 'configuracoes', campo: 'execucaoInspecao' },
   'inspecao.data-inicio': { onde: 'configuracoes', campo: 'execucaoInspecao' },

@@ -54,7 +54,7 @@
  */
 import { ler, lerCru, salvar, excluirChave, listarChavesDaTag, bloqueadoParaEscrita } from '../../services/storage';
 import { excluirPorId, removido, visiveis } from '../../services/colecoes';
-import { ehRascunho, type RelatorioSalvo, type RelatorioIndiceItem } from './tipos';
+import { ehRascunho, numeroDoRelatorio, type RelatorioSalvo, type RelatorioIndiceItem } from './tipos';
 import { esquecerRascunho, registrarRascunho } from './rascunhos';
 
 /**
@@ -109,7 +109,7 @@ export function resumir(r: RelatorioSalvo): RelatorioIndiceItem {
     tipo: r.tipo,
     data: r.data,
     status: r.status,
-    codigo: r.meta?.codigo ?? '',
+    codigo: numeroDoRelatorio(r.meta),
     emissao: r.meta?.emissao ?? '',
     validade: r.meta?.validade ?? '',
     execucaoInspecao: r.meta?.execucaoInspecao ?? '',

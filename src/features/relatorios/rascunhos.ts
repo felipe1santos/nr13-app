@@ -1,7 +1,7 @@
 import { ler, salvar } from '../../services/storage';
 import { gravarNaColecao } from '../../services/colecaoSync';
 import { excluirPorId, visiveis } from '../../services/colecoes';
-import type { RelatorioSalvo, TipoInspecao } from './tipos';
+import { numeroDoRelatorio, type RelatorioSalvo, type TipoInspecao } from './tipos';
 
 /**
  * Fase 10B.1 · o índice dos relatórios EM RASCUNHO.
@@ -102,7 +102,7 @@ export function resumirRascunho(r: RelatorioSalvo, agora = new Date().toISOStrin
     tag: r.tagVaso,
     nome: r.nome,
     tipo: r.tipo,
-    codigo: r.meta?.codigo ?? r.id,
+    codigo: numeroDoRelatorio(r.meta) || r.id,
     criadoEm: anterior?.criadoEm ?? agora,
     atualizadoEm: agora,
     // Só o que a lista mostra. Vazio não vira chave: um `validade: ''` no

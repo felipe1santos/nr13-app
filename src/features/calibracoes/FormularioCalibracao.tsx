@@ -218,13 +218,22 @@ export default function FormularioCalibracao({
       {/* ── CERTIFICADO DESTA CALIBRAÇÃO (gerado) ───────────────────────── */}
       <section className="jcal-bloco derivado" aria-label="Certificado desta calibração">
         <div className="jcal-bloco-titulo">
-          Certificado desta calibração <span className="fonte">gerado pelo sistema</span>
+          Certificado desta calibração <span className="fonte">nº sugerido pelo sistema · editável até emitir</span>
+        </div>
+        <div className="jcal-campos">
+          {/* O nº vem sugerido (`CERT-<timestamp>`) e pode ser trocado pela
+              numeração da empresa enquanto for rascunho. Emitido congela
+              (`ehCongelada`) e não volta a este formulário. */}
+          <label className="jcal-campo">
+            <span>Nº do certificado *</span>
+            <input
+              data-campo="numero-certificado"
+              value={form.numeroCertificado}
+              onChange={(e) => set('numeroCertificado', e.target.value)}
+            />
+          </label>
         </div>
         <dl className="jcal-dl">
-          <div>
-            <dt>Nº do certificado</dt>
-            <dd data-campo="numero-certificado">{form.numeroCertificado}</dd>
-          </div>
           <div>
             <dt>Data de emissão</dt>
             <dd className="vazio">definida na emissão</dd>

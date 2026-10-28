@@ -86,7 +86,7 @@ import { ehRelatorioCompletoDeCaldeira, gerarPreviaRelatorio, gerarRelatorioVeto
 import { publicarArtefato, artefatoDe } from '../features/relatorios/artefatoRelatorio';
 import { anexarArt } from '../features/relatorios/anexoArt';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
-import { ehRascunho, temArtefato, temTemplateHtml, type RelatorioIndiceItem, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from '../features/relatorios/tipos';
+import { ehRascunho, numeroDoRelatorio, temArtefato, temTemplateHtml, type RelatorioIndiceItem, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from '../features/relatorios/tipos';
 import VisualizadorPdf, { abrirPdfEmAba, baixarPdfArquivado, baixarPdfDeBytes, imprimirPdfArquivado } from '../components/VisualizadorPdf';
 import { fonteDeImpressao, rotuloImpressao } from '../features/documentos/fonteImpressao';
 import { Icone } from '../components/Icone';
@@ -1509,7 +1509,7 @@ function RelatoriosLegado() {
           <BarraDocumento
             rotuloVoltar="Voltar"
             onVoltar={voltarParaHistorico}
-            titulo={meta?.codigo ?? 'Relatório'}
+            titulo={numeroDoRelatorio(meta) || 'Relatório'}
             detalhe={tag || undefined}
             onSlot={setSlotBarra}
             selos={
@@ -1848,8 +1848,11 @@ function RelatoriosLegado() {
                 <div className="rel-modal-corpo">
                   <div className="rel-config-grid">
                     <div className="meta-barra-campo">
-                      <label>Código</label>
-                      <input name="codigo" value={meta.codigo} disabled />
+                      {/* Nº IMPRESSO, editável até finalizar. O `codigo` segue
+                          como identidade (registro, overrides, laudo) e é o
+                          sugerido quando o campo fica vazio. */}
+                      <label>Nº do relatório</label>
+                      <input name="numero" value={meta.numero ?? meta.codigo} placeholder={meta.codigo} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('numero', e.target.value)} />
                     </div>
                     <div className="meta-barra-campo">
                       <label>Emissão</label>

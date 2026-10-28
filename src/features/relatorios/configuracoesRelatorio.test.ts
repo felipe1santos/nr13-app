@@ -53,8 +53,10 @@ const folhas = fonte('src/features/relatorios/pdfVetorial/folhas.ts');
  * binding que sumisse de um dos dois deixaria o documento coerente à primeira
  * vista e errado na página 8.
  */
-const CAMPOS: Array<{ controle: string; chave: string; leituras: number; onde: string }> = [
-  { controle: 'codigo', chave: 'codigo', leituras: 3, onde: 'capa + folha de exames + nº rastreável do ensaio de acumulação (código + /EA, só caldeira)' },
+const CAMPOS: Array<{ controle: string; chave: string; leituras: number; onde: string; leitor?: string }> = [
+  // O nº impresso é `meta.numero` com recuo no `meta.codigo` (identidade), e o
+  // modelo o lê só por `numeroDoRelatorio(meta)` — nunca `meta.codigo` direto.
+  { controle: 'numero', chave: 'numero', leitor: 'numeroDoRelatorio\\(meta\\)', leituras: 3, onde: 'capa + folha de exames + nº rastreável do ensaio de acumulação (código + /EA, só caldeira)' },
   { controle: 'emissao', chave: 'emissao', leituras: 1, onde: 'capa (só como reserva da execução)' },
   { controle: 'validade', chave: 'validade', leituras: 1, onde: 'capa + folha de datas' },
   { controle: 'execucaoInspecao', chave: 'execucaoInspecao', leituras: 4, onde: 'capa + datas + exames (início e término) + validade das calibrações do quadro 7.1.1' },
@@ -65,13 +67,13 @@ const CAMPOS: Array<{ controle: string; chave: string; leituras: number; onde: s
 ];
 
 describe('cada campo do modal continua sendo lido pelo documento', () => {
-  for (const { controle, chave, leituras, onde } of CAMPOS) {
+  for (const { controle, chave, leituras, onde, leitor } of CAMPOS) {
     it(`${controle} → meta.${chave} → ${onde}`, () => {
       // O controle existe no modal, com o `name` que o foco da barra de
       // pendências usa como endereço (`DESTINO_POR_CAMPO`).
       expect(modal, `o campo "${controle}" sumiu do modal`).toContain(`name="${controle}"`);
       // E o modelo do documento continua lendo a chave que ele grava.
-      const lidas = (modelo.match(new RegExp(`meta\\?\\.${chave}\\b`, 'g')) ?? []).length;
+      const lidas = (modelo.match(new RegExp(leitor ?? `meta\\?\\.${chave}\\b`, 'g')) ?? []).length;
       expect(lidas, `meta.${chave} deixou de ser lido pelo documento`).toBeGreaterThan(0);
       expect(lidas, `meta.${chave} mudou de ${leituras} para ${lidas} leituras — confira ${onde}`).toBe(
         leituras,

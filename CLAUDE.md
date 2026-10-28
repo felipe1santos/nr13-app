@@ -455,9 +455,14 @@ Medição: `docs/medicoes/2026-09-19-calibracoes-ux.md`.
   (datas, ambiente, resultados, conclusão). O registro grava o snapshot nos mesmos campos de
   sempre (`fabricante`, `padraoSerie`…) — mudar componente ou renovar o padrão depois não
   altera calibração nenhuma.
-- **NADA DERIVADO É INPUT.** Item, padrão e nº do certificado são resumo somente leitura;
-  corrigir o item é "Editar componente" (cadastro mestre). Nº gerado (`CERT-<timestamp>`,
-  reservado no rascunho), data de emissão carimbada NA EMISSÃO. Sem padrão cadastrado, o
+- **NADA DERIVADO É INPUT.** Item e padrão são resumo somente leitura;
+  corrigir o item é "Editar componente" (cadastro mestre). Nº do certificado vem SUGERIDO
+  (`CERT-<timestamp>`, reservado no rascunho) e é EDITÁVEL até emitir (28/10/2026: a empresa
+  usa numeração própria); data de emissão carimbada NA EMISSÃO.
+- **Nº DO RELATÓRIO idem (28/10/2026):** `meta.numero` é o nº IMPRESSO, editável nas
+  Configurações até finalizar; `meta.codigo` segue sendo a IDENTIDADE (chave do registro,
+  overrides, laudo) e nunca muda. Ler sempre por `numeroDoRelatorio(meta)`. Os templates
+  HTML do rollback raster ainda imprimem `meta.codigo`. Sem padrão cadastrado, o
   formulário manda cadastrar (entrada manual só por "Informar manualmente").
   `novaCalibracaoUx.test.ts` renderiza o formulário e quebra se algum volta a ser input.
 - **FLUXO**: "+ Nova calibração" → equipamento (catálogo em modo seleção) → componente

@@ -31,7 +31,7 @@ import type { InfoEquipamento } from '../../equipamento/tipos';
 import { listarCalibracoes } from '../../calibracoes/calibracaoService';
 import { ehOficial, type DadosCalibracao } from '../../calibracoes/tipos';
 import { diaDe } from '../../calibracoes/quadroInstrumentos';
-import type { RelatorioMeta } from '../tipos';
+import { numeroDoRelatorio, type RelatorioMeta } from '../tipos';
 
 export const UNIDADES_QUATRO: UnidadePressao[] = ['MPa', 'psi', 'kgf/cm²', 'bar'];
 
@@ -186,7 +186,7 @@ export function montarModeloCaldeira(
   const calc = ler<{ pmta?: unknown; pth?: unknown }>(`nr13_calc_${tag}`) ?? {};
   const memorial = ler<MemorialCaldeira>(`nr13_vaso_cald_${tag}`) ?? {};
   const dados = carregarDadosCaldeira(tag);
-  const codigo = typeof meta?.codigo === 'string' && meta.codigo.trim() ? meta.codigo.trim() : null;
+  const codigo = numeroDoRelatorio(meta).trim() || null;
   const rastreavel = (sufixo: string) => (codigo ? `${codigo}/${sufixo}` : null);
 
   const pmtaMpa = numeroDoStorage(info.pmtaAdotadaMpa) ?? numeroDoStorage(calc.pmta);

@@ -86,7 +86,14 @@ export interface AssinanteSnapshot {
 }
 
 export interface RelatorioMeta {
+  /** IDENTIDADE do relatório (chave do registro, overrides, laudo). Nunca muda. */
   codigo: string;
+  /**
+   * Nº IMPRESSO no documento, quando o usuário troca o sugerido pela numeração
+   * da empresa (editável até finalizar). Ausente/vazio = `codigo`. Ler sempre
+   * por `numeroDoRelatorio`.
+   */
+  numero?: string;
   emissao: string; // DD/MM/AAAA
   validade: string;
   execucaoInspecao: string;
@@ -181,6 +188,11 @@ export type StatusRelatorio = 'Aprovado' | 'Rascunho';
 /** Rascunho é o que DIZ que é. Ausente = finalizado (compatibilidade). */
 export function ehRascunho(status: string | null | undefined): boolean {
   return status === 'Rascunho';
+}
+
+/** O nº que o documento IMPRIME: o digitado pelo usuário, senão o `codigo`. */
+export function numeroDoRelatorio(meta: Pick<RelatorioMeta, 'codigo' | 'numero'> | null | undefined): string {
+  return (typeof meta?.numero === 'string' && meta.numero.trim()) || meta?.codigo || '';
 }
 
 export interface RelatorioSalvo {
