@@ -1,0 +1,94 @@
+/* ============================================================================
+   CARTÃO "PADRÃO OURO" — redesign Cobalto, fase 3 (18/11/2026)
+   Referência: o Dashboard do protótipo (docs/design/prototipo-cobalto/).
+   Página cinza #EBEBEB, cartão branco, canto 4px, sombra de elevação 1,
+   SEM borda. Título de cartão 20px peso 400; rótulo 12px cinza; valor 14px.
+
+   Importado DEPOIS do App (main.tsx) para vir depois do CSS das telas: as
+   classes de cartão compartilhadas (fj-panel, bloco-dados, equipamento-secao,
+   fj-modal-box) mudam aqui, num lugar só. Listas (`.painel-lista`) ficam de
+   fora — lista é página branca, não cartão (styles/listas-cobalto.css).
+   Só aparência: nenhuma regra de layout que esconda ou mova conteúdo.
+   ============================================================================ */
+
+.fj-panel,
+.bloco-dados:not(.painel-lista) {
+  border: 0;
+  border-radius: var(--card-r);
+  background: #fff;
+  box-shadow: var(--card-sh);
+}
+
+.fj-panel-head {
+  min-height: 52px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--neutro-100);
+}
+.fj-panel-head h2,
+.bloco-dados > h3,
+.bloco-dados .meta-card-header h3 {
+  font: 400 20px/26px var(--font);
+  color: #1A1A1A;
+  letter-spacing: 0;
+}
+.fj-eyebrow { font: var(--t-caption); color: #6B6B6B; }
+.fj-panel-foot { border-top: 1px solid var(--neutro-100); }
+
+/* Modais: canto reto e a sombra de diálogo do Material */
+.fj-modal-box {
+  border-radius: var(--card-r);
+  box-shadow: 0 11px 15px -7px rgba(0, 0, 0, 0.2), 0 24px 38px 3px rgba(0, 0, 0, 0.14), 0 9px 46px 8px rgba(0, 0, 0, 0.12);
+}
+.fj-modal-head h2 { font: 500 20px/28px var(--font); letter-spacing: 0; }
+
+/* Botões: canto 4px, azul de destaque no primário (tokens), controle 14px/500 */
+.fj-btn { border-radius: var(--card-r); font: var(--t-control); }
+.fj-btn-primary:hover { background: var(--amber-deep); }
+
+/* Selos de estado com o verde de aprovado do Cobalto */
+.fj-badge.ok { background: var(--aprovado-bg); color: var(--aprovado); }
+
+/* Ficha do equipamento: UMA coluna vertical, até 1240px (pedido do dono) */
+.equipamento-page { max-width: 1240px; padding: 24px; }
+.equipamento-page .equipamento-secao,
+.equipamento-page .bloco-dados:not(.painel-lista) { border: 0; box-shadow: var(--card-sh); border-radius: var(--card-r); }
+
+/* Rótulo/valor dentro dos cartões (ficha, empresa, memorial) */
+.bloco-dados label,
+.bloco-dados .label,
+.bloco-dados dt { font: var(--t-caption); color: #6B6B6B; }
+
+/* Dado técnico em evidência: pressões em azul petróleo */
+.calc-pmta-valor,
+.quick-valor { color: var(--petroleo); font-weight: 600; }
+
+@media (max-width: 700px) {
+  .equipamento-page { padding: 12px; }
+}
+
+/* ── Dashboard: KPI dominante e secundários como cartões padrão ouro ── */
+.pc-kpi-dom,
+.pc-kpi-sec { border: 0; border-radius: var(--card-r); box-shadow: var(--card-sh); }
+.pc-kpi-val { font: var(--t-display); color: var(--destaque); }
+.pc-kpi-rot { font: var(--t-caption); color: #6B6B6B; }
+.painel-compacto .fj-panel { border-radius: var(--card-r); }
+
+/* ── Agenda: cartões e grade no padrão SimplesDental ── */
+.ag-kpi,
+.ag-resumo-item { border: 0; border-radius: var(--card-r); box-shadow: var(--card-sh); background: #fff; }
+.ag-day { border-color: #DDDDDD; border-radius: 0; }
+.ag-serv { border: 0; border-radius: var(--card-r); box-shadow: var(--card-sh); }
+.ag-arrow { border: 0; border-radius: 50%; background: transparent; }
+.ag-arrow:hover { background: #E9E9E9; }
+.ag-mes { font: var(--t-section); color: #1A1A1A; }
+.ag-day.hoje { background: #F3FAFE; }
+
+/* ── Certificados: um cartão por padrão, faixa colorida no topo ── */
+.cert-card { border: 0; border-top: 3px solid var(--destaque); border-radius: var(--card-r); box-shadow: var(--card-sh); background: #fff; }
+.cert-card.ok { border-color: var(--destaque); }
+.cert-card-tit strong { font: 400 20px/26px var(--font); color: #1A1A1A; }
+
+/* ── Memorial: painéis padrão ouro; aprovado no verde do Cobalto ── */
+.memorial-painel-campos { border: 0; border-radius: var(--card-r); box-shadow: var(--card-sh); }
+.msg-aprovado { background: var(--aprovado-bg); color: var(--aprovado); border-radius: var(--card-r); }
+.msg-reprovado { border-radius: var(--card-r); }

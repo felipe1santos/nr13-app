@@ -21,6 +21,8 @@ import './styles/tokens.css'
 import './styles/forja.css'
 import './styles/listas-cobalto.css'
 import App from './App.tsx'
+// Depois do App de propósito: vem depois do CSS das telas (cartão padrão ouro).
+import './styles/cartoes-cobalto.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
