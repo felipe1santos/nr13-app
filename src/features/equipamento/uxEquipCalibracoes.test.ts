@@ -28,7 +28,8 @@ describe('/equipamentos: uma barra só', () => {
 
   it('contexto e visualização entram pelo `antes` da busca', () => {
     expect(equip).toContain('className="equip-barra-esq"');
-    expect(equip).toContain('className="equip-barra-titulo"');
+    // Cobalto: o título deu lugar aos chips de tipo com contagem (protótipo).
+    expect(equip).toContain('className="rel-chips equip-chips"');
     expect(equip).toContain('className="equip-visao"');
     // A alternância grade/lista continua funcionando como antes.
     expect(equip).toContain("setVisao('grade')");

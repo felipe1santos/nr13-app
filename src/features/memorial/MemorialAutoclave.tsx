@@ -21,25 +21,6 @@ interface Props {
   subtipo: 'retangular' | 'cilindrica' | 'vertical';
 }
 
-function playClick() {
-  try {
-    const Ctx = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
-    const ctx = new Ctx();
-    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.04), ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    const decay = ctx.sampleRate * 0.005;
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / decay);
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    const gain = ctx.createGain();
-    gain.gain.value = 0.3;
-    src.connect(gain);
-    gain.connect(ctx.destination);
-    src.start();
-    src.onended = () => ctx.close();
-  } catch { /* silently ignore */ }
-}
-
 export default function MemorialAutoclave(props: Props) {
   return <MemorialAutoclaveInner key={`${props.tag}-${props.subtipo}`} {...props} />;
 }
@@ -78,7 +59,6 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
   }
 
   function handleCalcular() {
-    playClick();
     setResultado(calcularAutoclave(subtipo, dados));
     setGeradoEm(new Date());
     setCalcCount((c) => c + 1);

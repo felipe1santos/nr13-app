@@ -37,7 +37,6 @@ import ListaVirtualizada from '../../components/ListaVirtualizada';
 import { classeCategoria, iconeDoTipo } from '../../components/listaCobalto';
 import { vidaDaBarra } from './barraVida';
 import { Icone } from '../../components/Icone';
-import FotoImg from '../../components/FotoImg';
 import * as buscaIndex from '../../services/buscaIndex';
 import type { Contagem, FiltrosBusca, ItemCatalogo } from '../../services/buscaIndex';
 import * as catalogo from '../../services/catalogoLocal';
@@ -78,6 +77,10 @@ export default function EquipamentosV9() {
   const [contagem, setContagem] = useState<Contagem | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
+  // Cobalto · chips de tipo com contagem (Todos / Vasos / Caldeiras / Autoclaves).
+  // Contagens do SERVIDOR, com o termo e a categoria aplicados; sem resposta, o
+  // número some (nunca "0" inventado).
+  const [porTipo, setPorTipo] = useState<Record<string, number | null>>({});
   // Cobalto: a TABELA é a visão de abertura (protótipo); a grade de cartões
   // continua a um clique. A escolha fica neste aparelho.
   const [visao, setVisao] = useState<'grade' | 'lista'>(() => {
@@ -234,6 +237,22 @@ export default function EquipamentosV9() {
     }
   }, [temMais, carregando, carregandoMais, cursor, offline, filtros]);
 
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const tipos = ['', 'vaso', 'caldeira', 'autoclave'];
+    void Promise.all(
+      tipos.map((t) =>
+        buscaIndex
+          .contar({ termo, tipo: t, categoria: fCategoria }, ctrl.signal)
+          .then((c) => [t, c.total] as const)
+          .catch(() => [t, null] as const),
+      ),
+    ).then((pares) => {
+      if (!ctrl.signal.aborted) setPorTipo(Object.fromEntries(pares));
+    });
+    return () => ctrl.abort();
+  }, [termo, fCategoria]);
+
   const temFiltro = !!(termo || fTipo || fCategoria || recorte.empresa || recorte.fabricante);
 
   /*
@@ -333,7 +352,25 @@ export default function EquipamentosV9() {
         compacto
         antes={
           <div className="equip-barra-esq">
-            <span className="equip-barra-titulo">Equipamentos</span>
+            <div className="rel-chips equip-chips" role="group" aria-label="Tipo de equipamento">
+              {([['', 'Todos'], ['vaso', 'Vasos'], ['caldeira', 'Caldeiras'], ['autoclave', 'Autoclaves']] as const).map(([v, r]) => (
+                <button key={v || 'todos'} type="button" aria-pressed={fTipo === v} onClick={() => trocarParam('tipo', v)}>
+                  {r} {porTipo[v] != null && <i>{porTipo[v]}</i>}
+                </button>
+              ))}
+            </div>
+          </div>
+        }
+      >
+        {/* O funil no lugar dos selects: os filtros abrem num modal central. */}
+        <button
+          type="button"
+          className={`fj-btn fj-btn-ghost equip-btn-filtro${temAlgumFiltroEquip(filtroUi) ? ' filtro-ativo' : ''}`}
+          aria-haspopup="dialog"
+          onClick={() => setFiltroAberto(true)}
+        >
+          <Icone nome="filter" tam={14} /> <span className="equip-btn-rotulo">Filtrar</span>
+        </button>
             <div className="equip-visao" role="group" aria-label="Modo de visualização">
               <button
                 type="button"
@@ -354,17 +391,15 @@ export default function EquipamentosV9() {
                 <Icone nome="filetext" tam={15} />
               </button>
             </div>
-          </div>
-        }
-      >
-        {/* O funil no lugar dos selects: os filtros abrem num modal central. */}
+        {/* Importar planilha (protótipo): o mesmo modal de arrastar o arquivo. */}
         <button
           type="button"
-          className={`fj-btn fj-btn-ghost equip-btn-filtro${temAlgumFiltroEquip(filtroUi) ? ' filtro-ativo' : ''}`}
-          aria-haspopup="dialog"
-          onClick={() => setFiltroAberto(true)}
+          className="equip-btn-importar"
+          title="Importar equipamentos de planilha"
+          aria-label="Importar equipamentos de planilha"
+          onClick={() => setImportAberto(true)}
         >
-          <Icone nome="filter" tam={14} /> <span className="equip-btn-rotulo">Filtrar</span>
+          <Icone nome="planilha" tam={19} />
         </button>
         <button type="button" className="fj-btn fj-btn-primary equip-btn-criar" onClick={() => setModalAberto(true)}>
           <Icone nome="plus" tam={14} /> <span className="equip-btn-rotulo">Criar equipamento</span>
@@ -447,6 +482,7 @@ export default function EquipamentosV9() {
             </div>
           )}
           <ListaVirtualizada
+            key={visao}
             // `visiveis`, não `itens`: é aqui que o recorte por cliente e
             // fabricante aparece. Com `itens`, o contador dizia "1 resultado" e
             // a grade continuava com os cinco — visto em produção em
@@ -525,11 +561,7 @@ function LinhaCatalogo({ item, zebra, aoAbrir }: { item: ItemCatalogo; zebra?: b
   return (
     <button type="button" className="eq2-linha lc-linha" onClick={aoAbrir} data-z={zebra || undefined}>
       <span className={`lc-ico ${tipo}`} aria-hidden="true">
-        {item.fotoRef ? (
-          <FotoImg foto={{ ref: item.fotoRef }} alt="" variante="thumb" placeholder="" />
-        ) : (
-          <Icone nome={iconeDoTipo(item.tipo)} tam={18} />
-        )}
+        <Icone nome={iconeDoTipo(item.tipo)} tam={18} />
       </span>
       <span className="lc-tag">{item.tag}</span>
       <span className="lc-nome">{item.descricao?.trim() || (ROTULO_TIPO[item.tipo ?? ''] ?? item.tipo ?? '—')}</span>

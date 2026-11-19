@@ -50,31 +50,6 @@ function novoComponentes(orientacao: OrientacaoVaso): ComponenteVasoSalvo[] {
   ];
 }
 
-// Som de CONCLUSÃO ao gerar o memorial: dois tons ascendentes suaves (C5 → G5),
-// sensação de tarefa concluída — substitui o estalo antigo.
-function playSucesso() {
-  try {
-    const Ctx = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
-    const ctx = new Ctx();
-    const notas = [523.25, 783.99];
-    notas.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      const t0 = ctx.currentTime + i * 0.13;
-      gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.exponentialRampToValueAtTime(0.22, t0 + 0.025);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.38);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(t0);
-      osc.stop(t0 + 0.42);
-    });
-    setTimeout(() => { void ctx.close(); }, 900);
-  } catch { /* silently ignore */ }
-}
-
 interface Props {
   tag: string;
   sufixo?: string;
@@ -199,7 +174,6 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
   }
 
   function handleCalcular() {
-    playSucesso();
     setResumo(calcularResumoVaso(vaso));
     setGeradoEm(new Date());
     setCalcCount((c) => c + 1);

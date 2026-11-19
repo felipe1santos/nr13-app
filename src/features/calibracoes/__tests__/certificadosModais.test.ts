@@ -82,7 +82,9 @@ describe('o card mostra o estado e dá acesso ao PDF', () => {
   it('"Ver certificado" só existe quando há PDF para abrir', () => {
     const i = TELA.indexOf('Ver certificado');
     expect(i).toBeGreaterThan(0);
-    expect(TELA.slice(i - 400, i)).toContain('{completo && (');
+    // Cobalto: o botão mora na linha do PDF, que só existe com arquivo
+    // (sem ele, a linha vira "Falta anexar o PDF").
+    expect(TELA.slice(i - 900, i)).toContain('{completo ? (');
   });
 
   /**

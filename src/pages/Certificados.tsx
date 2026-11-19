@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { parseDataPrazo, statusPrazo } from '../services/vencimentos';
 import { Icone, type NomeIcone } from '../components/Icone';
 import AjudaCertificados from '../features/calibracoes/AjudaCertificados';
 import ModalCertificado from '../features/calibracoes/ModalCertificado';
@@ -231,29 +232,57 @@ export default function Certificados() {
           para baixo da dobra em telas curtas. O texto foi reaproveitado quase
           inteiro em `AjudaCertificados`: ele estava certo, estava no lugar
           errado. */}
-      <div className="cert-intro cert-intro-compacta">
-        <h2>Certificados de calibração dos padrões</h2>
-        {/* [i] Informações — a explicação inteira vive no modal, com a
-            ilustração do fluxo. */}
+      {/* Cobalto · topo do protótipo: título, subtítulo e o resumo à direita.
+          A explicação inteira continua em AjudaCertificados (cert-intro-compacta). */}
+      <div className="cert-intro cert-intro-compacta cert2-topo">
+        <div className="t">
+          <h2>Certificados de calibração dos padrões</h2>
+          <p>Instrumentos de referência usados nas inspeções e calibrações</p>
+        </div>
+        <span className="cert2-resumo">
+          <b>{PADROES.filter((p) => !!registroDoTipo(p.tipo)).length}</b> de {PADROES.length} padrões cadastrados
+          {(() => {
+            const semPdf = PADROES.filter((p) => {
+              const r = registroDoTipo(p.tipo);
+              return !!r && !temPdfDe(r);
+            }).length;
+            return semPdf > 0 ? <em> · {semPdf} sem PDF</em> : null;
+          })()}
+        </span>
         <button
           type="button"
-          className="fj-btn fj-btn-ghost cal-btn-info"
+          className="cert2-ajuda cal-btn-info"
           aria-haspopup="dialog"
+          title="Como funcionam os certificados dos padrões"
+          aria-label="Como funcionam os certificados dos padrões"
           onClick={() => setAjudaAberta(true)}
         >
-          <Icone nome="alerttri" tam={13} /> Informações
+          <Icone nome="info" tam={18} />
         </button>
       </div>
 
       {ajudaAberta && <AjudaCertificados aoFechar={() => setAjudaAberta(false)} />}
 
-      <div className="cert-cards">
+      <div className="cert-cards cert2-cards">
         {PADROES.map((p) => {
           const r = registroDoTipo(p.tipo);
           const completo = !!r && temPdfDe(r);
           const injeta = !!r && injetaNoRelatorio(r);
+          const venc = r ? parseDataPrazo(r.validade) : null;
+          const hoje = new Date();
+          const dias = venc ? statusPrazo(venc, new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())).dias : null;
+          const versoes = listarRastreabilidades().filter((x) => x.tipoInstrumento === p.tipo).length;
+          const ensaio = r && p.tipo === 'ultrassom'
+            ? ([
+                ['Cabeçote', r.cabecote],
+                ['Velocidade sônica', r.velocidadeSonica ? `${r.velocidadeSonica} m/s` : ''],
+                ['Acoplante', r.acoplante],
+                ['Superfície', r.estadoSuperficie],
+                ['Temperatura', r.tempSuperficie],
+              ] as [string, string | undefined][]).filter(([, v]) => !!v?.trim())
+            : [];
           return (
-            <div key={p.tipo} className={`cert-card${completo && injeta ? ' ok' : ''}`}>
+            <div key={p.tipo} className={`cert-card cert2-card cert2-${p.tipo}${completo && injeta ? ' ok' : ''}`}>
               <div className="cert-card-topo">
                 <div className="cert-card-ic">
                   <Icone nome={p.icone} tam={20} />
@@ -262,104 +291,134 @@ export default function Certificados() {
                   <strong>{p.titulo}</strong>
                   <span>{p.sub}</span>
                 </div>
-                {/* "Cadastrado" ganha check e verde: é o estado que o usuário
-                    procura ao bater o olho na tela, e um badge neutro fazia os
-                    três cards parecerem iguais. Os outros dois estados seguem
-                    neutros de propósito — cor é para o que está resolvido. */}
-                <span className={`fj-badge ${completo && injeta ? 'cert-badge-ok' : 'neutro'}`}>
-                  {completo && injeta && <Icone nome="check" tam={12} />}
-                  {!completo ? 'Pendente' : injeta ? 'Cadastrado' : 'Fora do relatório'}
-                </span>
+                {/* Situação: validade quando há certificado; o selo verde
+                    "Cadastrado" segue a mesma regra de antes (PDF + injeção). */}
+                {r && dias !== null ? (
+                  <span className={`cert2-prazo ${dias < 0 ? 'crit' : dias <= 30 ? 'warn' : 'ok'}`}>
+                    <Icone nome={dias < 0 ? 'alerttri' : dias <= 30 ? 'clock' : 'check'} tam={13} />
+                    {dias < 0
+                      ? `Vencido há ${Math.abs(dias)} dia${Math.abs(dias) === 1 ? '' : 's'}`
+                      : dias <= 30
+                        ? `Vence em ${dias} dia${dias === 1 ? '' : 's'}`
+                        : `Válido até ${formatarValidade(r.validade)}`}
+                  </span>
+                ) : (
+                  <span className={`fj-badge ${completo && injeta ? 'cert-badge-ok' : 'neutro'}`}>
+                    {completo && injeta && <Icone nome="check" tam={12} />}
+                    {!completo ? 'Pendente' : injeta ? 'Cadastrado' : 'Fora do relatório'}
+                  </span>
+                )}
               </div>
 
               <div className="cert-card-destino">
-                <Icone nome="arrowright" tam={12} /> {p.destino}
+                <Icone nome="arrowright" tam={12} /> <span className="vai">Vai para:</span> {p.destino}
               </div>
 
               {r ? (
-                <dl className="cert-card-dados">
-                  <div>
-                    <dt>Instrumento</dt>
-                    <dd>{r.nome || <span className="fj-dash">—</span>}</dd>
-                  </div>
-                  <div>
-                    <dt>Nº do certificado</dt>
-                    <dd className="mono">{r.certificadoPadrao || <span className="fj-dash">—</span>}</dd>
-                  </div>
-                  <div>
-                    <dt>Validade</dt>
-                    <dd className="mono">
-                      {r.validade ? formatarValidade(r.validade) : <span className="fj-dash">—</span>}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>PDF</dt>
-                    <dd>
-                      {completo ? (
-                        <span className="cert-ok">
-                          <Icone nome="check" tam={12} /> Anexado
-                        </span>
-                      ) : (
-                        <span className="cert-falta">Falta anexar</span>
-                      )}
-                    </dd>
-                  </div>
-                </dl>
+                <>
+                  <dl className="cert-card-dados cert2-dados">
+                    <div>
+                      <dt>Instrumento</dt>
+                      <dd>{r.nome || r.aparelho || <span className="fj-dash">—</span>}</dd>
+                    </div>
+                    <div>
+                      <dt>Fabricante</dt>
+                      <dd>{r.fabricante || <span className="fj-dash">—</span>}</dd>
+                    </div>
+                    <div>
+                      <dt>Nº de série</dt>
+                      <dd>{r.numeroSerie || <span className="fj-dash">—</span>}</dd>
+                    </div>
+                    <div>
+                      <dt>Nº do certificado</dt>
+                      <dd className="mono">{r.certificadoPadrao || <span className="fj-dash">—</span>}</dd>
+                    </div>
+                    <div>
+                      <dt>Validade</dt>
+                      <dd className={`mono${dias !== null && dias <= 30 ? (dias < 0 ? ' v-crit' : ' v-warn') : ''}`}>
+                        {r.validade ? formatarValidade(r.validade) : <span className="fj-dash">—</span>}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Versão</dt>
+                      <dd>
+                        v{Math.max(1, versoes)}
+                        {r.criadoEm ? ` · desde ${r.criadoEm}` : ''}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  {ensaio.length > 0 && (
+                    <div className="cert2-ensaio">
+                      <b>Dados do ensaio injetados na folha de ultrassom</b>
+                      <span>
+                        {ensaio.map(([k, v]) => (
+                          <span key={k}>
+                            {k} <strong>{v}</strong>
+                          </span>
+                        ))}
+                      </span>
+                    </div>
+                  )}
+
+                  {completo ? (
+                    <div className="cert2-pdf">
+                      <Icone nome="pdf" tam={22} />
+                      <span className="t">
+                        <b>{r.certificadoPadrao ? `Certificado ${r.certificadoPadrao}.pdf` : 'Certificado do padrão.pdf'}</b>
+                        <small>PDF original{r.pdfBytes ? ` · ${Math.max(1, Math.round((r.pdfBytes * 0.75) / 1024))} KB` : ''}</small>
+                      </span>
+                      <button type="button" className="cert2-ra cert-btn-ver" onClick={() => setVendo(r)} title="Ver certificado" aria-label="Ver certificado">
+                        <Icone nome="eye" tam={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="cert2-pdf falta">
+                      <Icone nome="alerttri" tam={18} />
+                      <span className="t">
+                        <b>Falta anexar o PDF do certificado</b>
+                        <small>Sem o PDF, o certificado não vai para o fim do relatório</small>
+                      </span>
+                      <button type="button" className="cert2-btn" onClick={() => void abrir(p.tipo)}>
+                        <Icone nome="upload" tam={15} /> Anexar
+                      </button>
+                    </div>
+                  )}
+                </>
               ) : (
-                /* Estado vazio com ilustração: um card que só diz "nenhum
-                   certificado" em texto some no meio dos outros dois. A imagem
-                   é decorativa — `alt` vazio para o leitor de tela não anunciar
-                   um desenho que não acrescenta informação ao texto ao lado. */
+                /* Estado vazio com ilustração (decorativa: alt vazio). */
                 <div className="cert-card-vazio">
                   <img src="/ilustracoes/ilus-A2-certificado-selo.webp" alt="" width={440} height={406} loading="lazy" />
                   <p>Nenhum certificado cadastrado para este padrão.</p>
                 </div>
               )}
 
-              {r && (
-                <label className="cert-injetar" title="Anexa o PDF deste certificado ao final do relatório">
-                  <input
-                    type="checkbox"
-                    checked={injetaNoRelatorio(r)}
-                    onChange={() => void alternarInjecao(r)}
-                  />
-                  <span>Injetar no final do relatório</span>
-                </label>
-              )}
-
-              <div className="cert-card-acoes">
+              <div className="cert-card-acoes cert2-rodape">
                 {r ? (
                   <>
-                    {/* Ver o PDF é o gesto mais frequente depois de cadastrar —
-                        conferir validade e se é mesmo o documento certo. Fica
-                        primeiro, e só existe quando há arquivo para abrir. */}
-                    {completo && (
-                      <button
-                        type="button"
-                        className="fj-btn fj-btn-ghost cert-btn-ver"
-                        onClick={() => setVendo(r)}
-                        title="Visualizar certificado"
-                      >
-                        <Icone nome="eye" tam={14} /> Ver certificado
-                      </button>
-                    )}
+                    <label className="cert-injetar cert2-chave" title="Anexa o PDF deste certificado ao final do relatório">
+                      <input type="checkbox" checked={injetaNoRelatorio(r)} onChange={() => void alternarInjecao(r)} />
+                      <span className="sw" aria-hidden />
+                      <span>Injetar no final do relatório</span>
+                    </label>
+                    <span className="grow" />
                     <button
                       type="button"
-                      className="fj-btn cert-btn-icone"
+                      className="cert2-ra cert-btn-icone"
                       onClick={() => void abrir(p.tipo)}
                       title="Editar certificado"
                       aria-label="Editar certificado"
                     >
-                      <Icone nome="pencil" tam={14} />
+                      <Icone nome="pencil" tam={15} />
                     </button>
                     <button
                       type="button"
-                      className="fj-btn fj-btn-danger"
+                      className="cert2-ra del fj-btn-danger"
                       onClick={() => excluir(r)}
                       title="Excluir certificado"
                       aria-label="Excluir certificado"
                     >
-                      <Icone nome="trash" tam={14} />
+                      <Icone nome="trash" tam={15} />
                     </button>
                   </>
                 ) : (
