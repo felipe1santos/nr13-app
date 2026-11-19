@@ -505,3 +505,18 @@
 .dash2 .dash2-tabela .fj-badge.warn { background: #FFEDD5; color: #C2410C; }
 .dash2 .dash2-tabela .fj-badge.ok { background: var(--aprovado-bg); color: var(--aprovado); }
 .dash2-kpi-ic svg { width: 30px; height: 30px; }
+
+/* ── Inspeções: "Criar nova inspeção" e o seletor de equipamento ── */
+.iv4-criar { flex-shrink: 0; }
+.iv4-seg { margin-left: 0; }
+.fj-modal-box.iv4-escolha { max-width: 560px; }
+.iv4-escolha-corpo { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px 20px; }
+.iv4-escolha-corpo .lc-busca { flex: none; height: 40px; }
+.iv4-escolha-lista { display: flex; flex-direction: column; max-height: 52vh; overflow-y: auto; border-top: 1px solid #EDF0F5; }
+.iv4-escolha-item { position: relative; display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 10px; border: 0; border-bottom: 1px solid #EDF0F5; background: #fff; text-align: left; cursor: pointer; }
+.iv4-escolha-item:hover, .iv4-escolha-item:focus-visible { background: var(--row-hover); box-shadow: inset 3px 0 0 var(--row-mark); outline: none; }
+.iv4-escolha-item .t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.iv4-escolha-item .t b { font: var(--t-strong); color: #1A1A1A; }
+.iv4-escolha-item .t small { font: var(--t-caption); color: #5F6B82; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.iv4-escolha-item:hover .lc-seta { color: var(--row-mark); }
+.iv4-escolha-dica { margin: 8px 0 0; font: var(--t-caption); color: #6B6B6B; }

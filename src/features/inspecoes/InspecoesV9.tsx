@@ -101,6 +101,10 @@ export default function InspecoesV9() {
    */
   const [carregadoPara, setCarregadoPara] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
+  // Cobalto: "Criar nova inspeção" na LISTA — escolhe o equipamento e abre o
+  // MESMO modal de sempre na tela do equipamento (?tag=X&nova=1).
+  const [escolhendo, setEscolhendo] = useState(false);
+  const [filtroEscolha, setFiltroEscolha] = useState('');
   // 10/09/2026 · renomear a rodada e a ajuda da sessão.
   const [renomeando, setRenomeando] = useState<ContainerInspecao | null>(null);
   const [ajudaAberta, setAjudaAberta] = useState(false);
@@ -231,6 +235,22 @@ export default function InspecoesV9() {
     }
   }, [temMais, carregando, carregandoMais, cursor, filtros, offline]);
 
+  // Chegou com ?nova=1 e a TAG já carregou: abre o modal e limpa o parâmetro.
+  useEffect(() => {
+    if (!tag || params.get('nova') !== '1' || carregadoPara !== tag) return;
+    setModalAberto(true);
+    trocarParam('nova', '');
+  }, [tag, params, carregadoPara, trocarParam]);
+
+  function escolherParaNova(t: string) {
+    setEscolhendo(false);
+    setFiltroEscolha('');
+    const novos = new URLSearchParams(params);
+    novos.set('tag', t);
+    novos.set('nova', '1');
+    setParams(novos, { replace: true });
+  }
+
   async function criar(ensaios: TipoEnsaio[], nome: string) {
     await criarContainer(tag, ensaios, nome);
     setContainers(listarContainers(tag));
@@ -353,6 +373,9 @@ export default function InspecoesV9() {
                 </button>
               ))}
             </div>
+            <button type="button" className="lc-criar iv4-criar" onClick={() => setEscolhendo(true)}>
+              <Icone nome="plus" tam={18} /> Criar nova inspeção
+            </button>
           </BuscaLista>
         </div>
 
@@ -452,6 +475,59 @@ export default function InspecoesV9() {
           </>
         )}
       </section>
+
+      {escolhendo && (
+        // fecha-pelo-fundo: só ESCOLHE o equipamento — nada digitado se perde.
+        <div className="fj-modal-overlay" onClick={(e) => e.target === e.currentTarget && setEscolhendo(false)}>
+          <div className="fj-modal-box iv4-escolha" role="dialog" aria-modal="true" aria-labelledby="iv4-escolha-tit">
+            <div className="fj-modal-head">
+              <div>
+                <h2 id="iv4-escolha-tit">Nova inspeção</h2>
+                <div className="fj-eyebrow">Escolha o equipamento</div>
+              </div>
+              <button type="button" className="fj-modal-close" onClick={() => setEscolhendo(false)} aria-label="Fechar">
+                <Icone nome="x" tam={15} />
+              </button>
+            </div>
+            <div className="iv4-escolha-corpo">
+              <label className="lc-busca">
+                <Icone nome="search" tam={16} />
+                <input
+                  autoFocus
+                  value={filtroEscolha}
+                  onChange={(e) => setFiltroEscolha(e.target.value)}
+                  placeholder="Buscar por TAG, equipamento ou cliente"
+                  aria-label="Buscar equipamento"
+                />
+              </label>
+              <div className="iv4-escolha-lista">
+                {itens
+                  .filter((i) =>
+                    `${i.tag} ${i.descricao ?? ''} ${i.clienteNome ?? ''}`.toLowerCase().includes(filtroEscolha.trim().toLowerCase()),
+                  )
+                  .map((i) => (
+                    <button key={i.tag} type="button" className="iv4-escolha-item" onClick={() => escolherParaNova(i.tag)}>
+                      <span className={`lc-ico ${i.tipo ?? 'outro'}`} aria-hidden="true">
+                        <Icone nome={iconeDoTipo(i.tipo)} tam={18} />
+                      </span>
+                      <span className="t">
+                        <b>{i.tag}</b>
+                        <small>
+                          {i.descricao || (i.tipo ? ROTULO_TIPO[i.tipo] ?? i.tipo : '—')}
+                          {i.clienteNome ? ` · ${i.clienteNome}` : ''}
+                        </small>
+                      </span>
+                      <Icone nome="chevright" tam={16} className="lc-seta" />
+                    </button>
+                  ))}
+                {temMais && (
+                  <p className="iv4-escolha-dica">Não achou? Use a busca da lista para trazer mais equipamentos.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
