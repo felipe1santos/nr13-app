@@ -152,10 +152,16 @@ describe('Dashboard: um KPI dominante, quatro secundários, sem bloco colorido',
     expect(DASH).not.toMatch(/k-(azul|ambar|vermelho|verde)/);
   });
 
-  it('um dominante e exatamente quatro secundários', () => {
-    expect(DASH.match(/className=\{`pc-kpi-dom/g)).toHaveLength(1);
-    const sec = DASH.slice(DASH.indexOf('className="pc-kpi-sec"'), DASH.indexOf('<SeloPainel'));
-    expect(sec.match(/className="pc-kpi-rot"/g)).toHaveLength(4);
+  // Cobalto (18/11/2026): layout "Indicadores" do SimplesDental — três
+  // indicadores com "Ver", e conformidade/serviços no cartão Operação.
+  it('três indicadores no topo (vencidos, 30 dias, equipamentos) e o cartão Operação', () => {
+    expect(DASH.match(/className=\{?[`"]dash2-kpi[ `"]/g)).toHaveLength(3);
+    expect(DASH).toContain('Prazos vencidos');
+    expect(DASH).toContain('Vencendo nos próximos 30 dias');
+    expect(DASH).toContain('textoContador(kpis.aVencer30)');
+    expect(DASH).toContain('textoContador(kpis.total)');
+    expect(DASH).toContain('Taxa de conformidade');
+    expect(DASH).toContain("kpis.conformidade === undefined ? '—'");
   });
 
   it('contador indefinido continua sendo "sem resposta", nunca zero', () => {

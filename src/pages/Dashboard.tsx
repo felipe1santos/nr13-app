@@ -50,6 +50,18 @@ const ROTULO_ORIGEM: Record<ItemVencimento['origem'], string> = {
   certificado: 'Certificado',
 };
 
+/** Abas de origem do quadro de prazos ('' = todas). */
+const ORIGENS: ReadonlyArray<readonly ['' | ItemVencimento['origem'], string]> = [
+  ['', 'Todos'],
+  ['inspecao', 'Inspeções'],
+  ['calibracao', 'Calibrações'],
+  ['certificado', 'Certificados'],
+];
+const MESES_DASH = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+
 function ChipOrigem({ origem }: { origem: ItemVencimento['origem'] }) {
   return <span className={`orig-chip orig-${origem}`}>{ROTULO_ORIGEM[origem]}</span>;
 }
@@ -67,6 +79,7 @@ export default function Dashboard() {
   const [listaExpandida, setListaExpandida] = useState(false);
   const [modalTag, setModalTag] = useState<string | null>(null);
   const [filtroPrazo, setFiltroPrazo] = useState<FiltroPrazo>(FILTRO_PRAZO_PADRAO);
+  const [origem, setOrigem] = useState<'' | ItemVencimento['origem']>('');
   const painelPrazos = useRef<HTMLElement>(null);
 
   // Fase 10A · a Agenda saiu do Dashboard e virou tela própria. O que ficou
@@ -105,7 +118,10 @@ export default function Dashboard() {
   // A regra vive em `vencimentos.ts` (função pura, com teste) — aqui só se
   // aplica. Ela era três ternários dentro do JSX, e por isso nunca teve teste.
   const filtrados = comPrazo.filter((i) => noFiltroPrazo(i, filtroPrazo));
-  const tabela = listaExpandida ? filtrados : filtrados.slice(0, 6);
+  // Aba de origem: recorte SÓ de exibição sobre a mesma lista já filtrada.
+  const porOrigem = origem ? filtrados.filter((i) => i.origem === origem) : filtrados;
+  const contarOrigem = (o: '' | ItemVencimento['origem']) => (o ? filtrados.filter((i) => i.origem === o).length : filtrados.length);
+  const tabela = listaExpandida ? porOrigem : porOrigem.slice(0, 6);
   const primeiroVencido = vencidos[0];
 
   /**
@@ -123,9 +139,18 @@ export default function Dashboard() {
     navigate(rotaEquipamento(it.pertenceA ?? it.tag));
   }
 
+  /** "Ver" de uma janela de prazo: filtra o quadro e rola até ele. */
+  function verJanela(j: FiltroPrazo) {
+    setFiltroPrazo(j);
+    setOrigem('');
+    setListaExpandida(true);
+    painelPrazos.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   /** "Ver todos os vencidos": a lista já está nesta tela — filtra e rola até ela. */
   function verVencidos() {
     setFiltroPrazo('vencidos');
+    setOrigem('');
     setListaExpandida(true);
     painelPrazos.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -138,213 +163,260 @@ export default function Dashboard() {
   const tomDominante = nVencidos === undefined ? 'neutro' : nVencidos > 0 ? 'crit' : 'ok';
 
   return (
-    <div className="dash-page painel-compacto">
-      {/* ===== KPIs: um dominante + quatro secundários numa faixa ===== */}
-      <div className="pc-kpis">
-        <section className={`pc-kpi-dom pc-${tomDominante}`} aria-labelledby="pc-kpi-dom-rot">
-          <div className="pc-kpi-rot" id="pc-kpi-dom-rot">
-            <Icone nome={tomDominante === 'ok' ? 'checkcircle' : tomDominante === 'crit' ? 'alerttri' : 'cloudoff'} tam={14} />
-            Vencidos
+    <div className="dash-page dash2">
+      {/* ===== ABAS (padrão Indicadores do SimplesDental) =====
+          Só navegação: cada aba leva à tela que já existe. À direita, a
+          procedência do painel (hora do agregado, truncamento, falha). */}
+      <nav className="dash2-abas" aria-label="Painéis">
+        <button type="button" className="on" aria-current="page">Indicadores</button>
+        <button type="button" onClick={() => navigate('/relatorios')}>Relatórios</button>
+        <button type="button" onClick={() => navigate('/agenda')}>Agenda</button>
+        <button type="button" onClick={() => navigate('/vencimentos')}>Vencimentos</button>
+        <span className="grow" />
+        <SeloPainel painel={painel} />
+      </nav>
+
+      <div className="dash2-corpo">
+        {/* ===== TRÊS INDICADORES ===== */}
+        <div className="dash2-kpis">
+          <section className={`dash2-kpi pc-${tomDominante}`} aria-labelledby="dash2-venc">
+            <span className="dash2-kpi-ic crit">
+              <Icone nome={tomDominante === 'ok' ? 'checkcircle' : tomDominante === 'crit' ? 'alerttri' : 'cloudoff'} tam={26} />
+            </span>
+            <div className="dash2-kpi-txt">
+              <div className="dash2-kpi-n">
+                <b>{textoContador(nVencidos)}</b>
+                {(nVencidos ?? 0) > 0 && (
+                  <button type="button" className="dash2-ver" onClick={verVencidos}>Ver</button>
+                )}
+              </div>
+              <div className="dash2-kpi-rot" id="dash2-venc">Prazos vencidos</div>
+              <div className="dash2-kpi-sub">
+                {nVencidos === undefined ? (
+                  'Sem resposta do servidor — o número não pôde ser conferido.'
+                ) : nVencidos === 0 ? (
+                  'Nenhum prazo vencido entre inspeções, calibrações e certificados.'
+                ) : primeiroVencido ? (
+                  /* O texto nomeia a CATEGORIA do primeiro item: a lista agrega
+                     inspeção, calibração e certificado de padrão. */
+                  <>
+                    {vencidos.length === 1
+                      ? `1 ${ROTULO_ORIGEM[primeiroVencido.origem].toLowerCase()} vencid${primeiroVencido.origem === 'inspecao' ? 'a' : 'o'}: `
+                      : 'O mais antigo: '}
+                    <button type="button" className="dash2-link" onClick={() => irParaItem(primeiroVencido)}>
+                      {primeiroVencido.tag}
+                    </button>{' '}
+                    · {textoPrazo(primeiroVencido).toLowerCase()}
+                  </>
+                ) : (
+                  'Requer ação imediata.'
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="dash2-kpi" aria-labelledby="dash2-30">
+            <span className="dash2-kpi-ic warn"><Icone nome="clock" tam={26} /></span>
+            <div className="dash2-kpi-txt">
+              <div className="dash2-kpi-n">
+                <b>{textoContador(kpis.aVencer30)}</b>
+                {kpis.aVencer30 !== undefined && (
+                  <button type="button" className="dash2-ver" onClick={() => verJanela(30)}>Ver</button>
+                )}
+              </div>
+              {/* A janela de 30 dias conta TAMBÉM os certificados dos padrões. */}
+              <div className="dash2-kpi-rot" id="dash2-30">Vencendo nos próximos 30 dias</div>
+              <div className="dash2-kpi-sub">inspeções, calibrações e certificados</div>
+            </div>
+          </section>
+
+          <section className="dash2-kpi" aria-labelledby="dash2-eq">
+            <span className="dash2-kpi-ic info"><Icone nome="box" tam={26} /></span>
+            <div className="dash2-kpi-txt">
+              <div className="dash2-kpi-n">
+                <b>{textoContador(kpis.total)}</b>
+                {kpis.total !== undefined && (
+                  <button type="button" className="dash2-ver" onClick={() => navigate('/equipamentos')}>Ver</button>
+                )}
+              </div>
+              <div className="dash2-kpi-rot" id="dash2-eq">Equipamentos cadastrados sob NR-13</div>
+            </div>
+          </section>
+        </div>
+
+        {/* ===== PRAZOS E VENCIMENTOS ===== */}
+        <section className="fj-panel pc-painel dash2-card" ref={painelPrazos} aria-labelledby="pc-prazos-tit">
+          <div className="dash2-card-hd">
+            {/* O título não diz "Equipamentos": a lista agrega inspeção do
+                equipamento, calibração do acessório e certificado do padrão. */}
+            <h2 id="pc-prazos-tit">Prazos e vencimentos</h2>
           </div>
-          <div className="pc-kpi-val">{textoContador(nVencidos)}</div>
-          <div className="pc-kpi-txt">
-            {nVencidos === undefined ? (
-              'Sem resposta do servidor — o número não pôde ser conferido.'
-            ) : nVencidos === 0 ? (
-              'Nenhum prazo vencido entre inspeções, calibrações e certificados.'
-            ) : primeiroVencido ? (
-              /* "1 equipamento vencido" era mentira desde que a lista passou a
-                 agregar certificados de padrão (07/09/2026): o texto nomeia a
-                 CATEGORIA do primeiro item, como o banner fazia. */
-              <>
-                {vencidos.length === 1
-                  ? `1 ${ROTULO_ORIGEM[primeiroVencido.origem].toLowerCase()} vencid${primeiroVencido.origem === 'inspecao' ? 'a' : 'o'}: `
-                  : 'O mais antigo: '}
-                <b className="mono">{primeiroVencido.tag}</b> · {primeiroVencido.tipoEquip}
-                {primeiroVencido.pertenceA ? ` · pertence a ${primeiroVencido.pertenceA}` : ''} ·{' '}
-                {textoPrazo(primeiroVencido).toLowerCase()}
-              </>
-            ) : (
-              'Requer ação imediata.'
-            )}
+          <div className="dash2-filtro">
+            <label>
+              Exibindo prazos
+              <select
+                value={String(filtroPrazo)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setFiltroPrazo(v === 'vencidos' ? 'vencidos' : (Number(v) as FiltroPrazo));
+                }}
+              >
+                {FILTROS_PRAZO.map(([valor, rotulo]) => (
+                  <option key={String(valor)} value={String(valor)}>
+                    {valor === 'vencidos' ? 'só os vencidos' : `vencendo em até ${rotulo}`}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
-          {primeiroVencido && (nVencidos ?? 0) > 0 && (
-            <div className="pc-kpi-acoes">
-              <button type="button" className="pc-link" onClick={() => irParaItem(primeiroVencido)}>
-                {primeiroVencido.origem === 'certificado' ? 'Ver certificados' : 'Ver equipamento'}
-                <Icone nome="arrowright" tam={13} />
+          <div className="dash2-origens" role="group" aria-label="Origem do prazo">
+            {ORIGENS.map(([valor, rotulo]) => (
+              <button key={valor} type="button" aria-pressed={origem === valor} onClick={() => setOrigem(valor)}>
+                {rotulo} <span>{contarOrigem(valor)}</span>
               </button>
-              {(nVencidos ?? 0) > 1 && (
-                <button type="button" className="pc-link" onClick={verVencidos}>
-                  Ver os {nVencidos} vencidos
-                </button>
-              )}
+            ))}
+          </div>
+          {/* ESTADO VAZIO SÓ DEPOIS DE CONFERIR (§21 da rodada, 07/09/2026).
+              "Nenhum prazo cadastrado" é uma AFIRMAÇÃO sobre a organização.
+              Enquanto a consulta não voltou inteira, a tela diz o que não sabe. */}
+          {consultaIncompleta ? (
+            <div className="fj-empty">
+              <div className="fj-empty-ic"><Icone nome="cloudoff" tam={22} /></div>
+              <div className="fj-empty-title">
+                {painel.carregando ? 'Consultando os prazos…' : 'Prazos não conferidos'}
+              </div>
+              {painel.carregando
+                ? 'Um instante — o painel está sendo montado a partir dos dados da organização.'
+                : 'O servidor não respondeu por completo. Recarregue a página: nada foi apagado, e esta lista não representa a organização.'}
+            </div>
+          ) : comPrazo.length === 0 ? (
+            <div className="fj-empty">
+              <div className="fj-empty-ic"><Icone nome="calendar" tam={22} /></div>
+              <div className="fj-empty-title">Nenhum prazo cadastrado</div>
+              Calcule a Vida Remanescente na ficha do equipamento, cadastre calibrações ou registre a validade dos certificados dos padrões para acompanhar os vencimentos aqui.
+            </div>
+          ) : tabela.length === 0 ? (
+            <div className="fj-empty">
+              <div className="fj-empty-ic"><Icone nome="filter" tam={22} /></div>
+              <div className="fj-empty-title">Nada neste filtro</div>
+              Nenhum item {filtroPrazo === 'vencidos' ? 'vencido' : `vencido ou vencendo em até ${filtroPrazo} dias`}
+              {origem ? ` entre ${ROTULO_ORIGEM[origem].toLowerCase()}s` : ''}.
+            </div>
+          ) : (
+            <div className="fj-table-wrap">
+              <table className="fj-table dash2-tabela">
+                <thead>
+                  <tr><th>Tag</th><th>Origem</th><th className="col-ultima">Última</th><th>Vencimento</th><th>Prazo</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {/* Certificado de padrão não tem ficha de equipamento: a linha
+                      leva para Certificados, onde ele se resolve. */}
+                  {tabela.map((it, i) => (
+                    <tr
+                      key={`${it.tag}${i}`}
+                      className={i % 2 ? 'z' : undefined}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() =>
+                        it.origem === 'certificado'
+                          ? navigate('/certificados')
+                          : setModalTag(it.pertenceA ?? it.tag)
+                      }
+                    >
+                      <td className="cel-titulo">
+                        <div className="fj-tag-cell">
+                          <div className="fj-tag-ico"><Icone nome={ICONE_TIPO[it.tipoEquip] ?? 'box'} tam={15} /></div>
+                          <div>
+                            <div className="fj-tag-code">{it.tag}</div>
+                            <div className="fj-eq-name">
+                              {it.tipoEquip}
+                              {it.pertenceA ? ` · pertence a ${it.pertenceA}` : ''}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td data-rot="Origem"><ChipOrigem origem={it.origem} /></td>
+                      <td className="mono col-ultima" data-rot="Última">{it.ultima ? it.ultima.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
+                      <td className="mono" data-rot="Vencimento">{it.vencimento ? it.vencimento.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
+                      <td className={`fj-days ${it.status === 'crit' ? 'crit' : it.status === 'warn' ? 'warn' : ''}`} data-rot="Prazo">
+                        <span className={`fj-prazo${(it.dias ?? 0) > 60 ? ' folgado' : ''}`}>{textoPrazo(it)}</span>
+                      </td>
+                      <td data-rot="Status"><BadgeStatus status={it.status} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {porOrigem.length > 6 && (
+            <div className="fj-panel-foot">
+              <button type="button" className="fj-link" onClick={() => setListaExpandida((v) => !v)}>
+                {listaExpandida ? 'Recolher lista' : `Ver todos os vencimentos (${porOrigem.length})`}
+                <Icone nome={listaExpandida ? 'chevup' : 'chevdown'} tam={13} />
+              </button>
             </div>
           )}
         </section>
 
-        <section className="pc-kpi-sec" aria-label="Indicadores">
-          <div>
-            <div className="pc-kpi-rot">Equipamentos cadastrados</div>
-            <div className="pc-kpi-val">{textoContador(kpis.total)}</div>
-            <div className="pc-kpi-txt">ativos sob NR-13</div>
+        {/* ===== FATURAMENTO DA AGENDA (mês corrente) ===== */}
+        <section className="fj-panel dash2-card" aria-labelledby="dash2-fat">
+          <div className="dash2-card-hd">
+            <h2 id="dash2-fat">Faturamento da agenda</h2>
+            <span className="dash2-mes">{MESES_DASH[new Date().getMonth()]} {new Date().getFullYear()}</span>
           </div>
-          <div>
-            <div className="pc-kpi-rot">A vencer em 30 dias</div>
-            <div className="pc-kpi-val">{textoContador(kpis.aVencer30)}</div>
-            {/* A janela de 30 dias conta TAMBÉM os certificados dos padrões
-                (07/09/2026). Dizer só "inspeções e calibrações" descreveria um
-                número que já não é esse. */}
-            <div className="pc-kpi-txt">inspeções, calibrações e certificados</div>
-          </div>
-          <div>
-            <div className="pc-kpi-rot">Taxa de conformidade</div>
-            {/* Conformidade indefinida = o painel não pôde ser lido. Mostrar
-                100 % aqui seria a mentira mais cara desta tela. */}
-            <div className="pc-kpi-val">
-              {kpis.conformidade === undefined ? '—' : kpis.conformidade.toLocaleString('pt-BR')}
-              <span className="pc-kpi-unid">%</span>
-            </div>
-            {/* O texto diz o ESCOPO da métrica: ela mede os itens COM PRAZO
-                deste painel, não a conformidade normativa da planta. */}
-            <div className="pc-kpi-txt">
-              {kpis.conformidade === undefined ? 'sem resposta do servidor' : 'dos prazos deste painel em dia'}
-            </div>
-          </div>
-          <div>
-            <div className="pc-kpi-rot">Serviços no mês</div>
-            <div className="pc-kpi-val">{resumoAgenda.quantidade}</div>
-            <div className="pc-kpi-txt">
-              previsto {formatarBRL(resumoAgenda.previsto)} · realizado {formatarBRL(resumoAgenda.realizado)}
-            </div>
+          <div className="dash2-fat">
+            <BarraFaturamento
+              rotulo="Realizado"
+              tom="ok"
+              valor={resumoAgenda.realizado}
+              total={resumoAgenda.realizado + resumoAgenda.previsto}
+              nota={`${resumoAgenda.concluidos} serviço${resumoAgenda.concluidos === 1 ? '' : 's'} concluído${resumoAgenda.concluidos === 1 ? '' : 's'}`}
+              extra={`Total do mês: ${formatarBRL(resumoAgenda.realizado + resumoAgenda.previsto)}`}
+            />
+            <BarraFaturamento
+              rotulo="Previsto"
+              tom="info"
+              valor={resumoAgenda.previsto}
+              total={resumoAgenda.realizado + resumoAgenda.previsto}
+              nota={`${resumoAgenda.agendados} serviço${resumoAgenda.agendados === 1 ? '' : 's'} agendado${resumoAgenda.agendados === 1 ? '' : 's'}`}
+              /* Valor não informado NÃO é zero: sem esta linha, um mês de
+                 serviços sem preço passaria por mês sem faturamento. */
+              extra={resumoAgenda.semValor > 0 ? `${resumoAgenda.semValor} sem valor informado` : undefined}
+            />
+            {resumoAgenda.cancelados > 0 && (
+              <div className="dash2-fat-canc">
+                {resumoAgenda.cancelados} serviço{resumoAgenda.cancelados === 1 ? '' : 's'} cancelado{resumoAgenda.cancelados === 1 ? '' : 's'} · fora das contas
+              </div>
+            )}
           </div>
         </section>
-      </div>
-      {/* O selo de procedência fica DEPOIS dos indicadores, numa linha fina:
-          diz a hora do agregado, o truncamento e a falha. */}
-      <SeloPainel painel={painel} />
 
-      <div className="dash-cols">
-        <div className="dash-col">
-          {/* O card "Minha Empresa" saiu daqui em 12/08/2026: virou o item "Meus dados"
-              do menu, apontando para a MESMA tela /minha-empresa. */}
-          <section className="fj-panel pc-painel" ref={painelPrazos} aria-labelledby="pc-prazos-tit">
-            <div className="pc-painel-hd">
-              {/* O título não diz "Equipamentos" desde 07/09/2026: a lista
-                  agrega inspeção do equipamento, calibração do acessório e
-                  certificado do padrão de bancada. */}
-              <h2 id="pc-prazos-tit">Prazos e vencimentos</h2>
-              <div className="pc-seg" role="group" aria-label="Janela de prazo">
-                {FILTROS_PRAZO.map(([valor, rotulo]) => (
-                  <button
-                    key={String(valor)}
-                    type="button"
-                    aria-pressed={filtroPrazo === valor}
-                    onClick={() => setFiltroPrazo(valor)}
-                  >
-                    {rotulo}
-                  </button>
-                ))}
+        {/* ===== OPERAÇÃO ===== */}
+        <section className="fj-panel dash2-card" aria-labelledby="dash2-op">
+          <div className="dash2-card-hd">
+            <h2 id="dash2-op">Operação</h2>
+          </div>
+          <ul className="dash2-op">
+            <li>
+              <div><b>{textoContador(kpis.total)}</b><small>Equipamentos cadastrados</small></div>
+              <button type="button" className="dash2-ver" onClick={() => navigate('/equipamentos')}>Ver</button>
+            </li>
+            <li>
+              {/* Conformidade indefinida = o painel não pôde ser lido. Mostrar
+                  100 % aqui seria a mentira mais cara desta tela. O texto diz o
+                  ESCOPO: os itens COM PRAZO deste painel. */}
+              <div>
+                <b>{kpis.conformidade === undefined ? '—' : `${kpis.conformidade.toLocaleString('pt-BR')}%`}</b>
+                <small>{kpis.conformidade === undefined ? 'Taxa de conformidade · sem resposta do servidor' : 'Taxa de conformidade · prazos deste painel em dia'}</small>
               </div>
-            </div>
-            {/* ESTADO VAZIO SÓ DEPOIS DE CONFERIR (§21 da rodada, 07/09/2026).
-                "Nenhum prazo cadastrado" é uma AFIRMAÇÃO sobre a organização, e
-                foi ela que escondeu o certificado do usuário. Enquanto a consulta
-                não voltou inteira — carregando, com erro, ou com os certificados
-                não conferidos — a tela diz o que não sabe, e nunca "não há". */}
-            {consultaIncompleta ? (
-              <div className="fj-empty">
-                <div className="fj-empty-ic"><Icone nome="cloudoff" tam={22} /></div>
-                <div className="fj-empty-title">
-                  {painel.carregando ? 'Consultando os prazos…' : 'Prazos não conferidos'}
-                </div>
-                {painel.carregando
-                  ? 'Um instante — o painel está sendo montado a partir dos dados da organização.'
-                  : 'O servidor não respondeu por completo. Recarregue a página: nada foi apagado, e esta lista não representa a organização.'}
-              </div>
-            ) : comPrazo.length === 0 ? (
-              <div className="fj-empty">
-                <div className="fj-empty-ic"><Icone nome="calendar" tam={22} /></div>
-                <div className="fj-empty-title">Nenhum prazo cadastrado</div>
-                Calcule a Vida Remanescente na ficha do equipamento, cadastre calibrações ou registre a validade dos certificados dos padrões para acompanhar os vencimentos aqui.
-              </div>
-            ) : tabela.length === 0 ? (
-              <div className="fj-empty">
-                <div className="fj-empty-ic"><Icone nome="filter" tam={22} /></div>
-                <div className="fj-empty-title">Nada neste filtro</div>
-                Nenhum item {filtroPrazo === 'vencidos' ? 'vencido' : `vencido ou vencendo em até ${filtroPrazo} dias`}.
-              </div>
-            ) : (
-              <div className="fj-table-wrap">
-                <table className="fj-table">
-                  <thead>
-                    {/* col-ultima: escondida neste painel de meia largura (ver
-                        dashboard-novo.css). Continua na tela cheia de /vencimentos. */}
-                    <tr><th>Tag</th><th>Origem</th><th className="col-ultima">Última</th><th>Vencimento</th><th>Prazo</th><th>Status</th></tr>
-                  </thead>
-                  <tbody>
-                    {/* Certificado de padrão não tem ficha de equipamento: a
-                        linha leva para Certificados, que é onde ele se resolve.
-                        Ver `irParaItem`. */}
-                    {tabela.map((it, i) => (
-                      <tr
-                        key={`${it.tag}${i}`}
-                        style={{ cursor: 'pointer' }}
-                        onClick={() =>
-                          it.origem === 'certificado'
-                            ? navigate('/certificados')
-                            : setModalTag(it.pertenceA ?? it.tag)
-                        }
-                      >
-                        {/* data-rot: rótulo de cada campo quando a tabela vira cartão no
-                            celular (forja.css) — sem cabeçalho, três datas seguidas não
-                            dizem qual é a última inspeção e qual é o vencimento. */}
-                        <td className="cel-titulo">
-                          <div className="fj-tag-cell">
-                            <div className="fj-tag-ico"><Icone nome={ICONE_TIPO[it.tipoEquip] ?? 'box'} tam={15} /></div>
-                            <div>
-                              <div className="fj-tag-code">{it.tag}</div>
-                              <div className="fj-eq-name">
-                                {it.tipoEquip}
-                                {it.pertenceA ? ` · pertence a ${it.pertenceA}` : ''}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td data-rot="Origem"><ChipOrigem origem={it.origem} /></td>
-                        <td className="mono col-ultima" data-rot="Última">{it.ultima ? it.ultima.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
-                        <td className="mono" data-rot="Vencimento">{it.vencimento ? it.vencimento.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
-                        {/* `folgado`: mais de 60 dias até vencer — sem mudar o
-                            cálculo de status, que vem do motor de vencimentos. */}
-                        <td className={`fj-days ${it.status === 'crit' ? 'crit' : it.status === 'warn' ? 'warn' : ''}`} data-rot="Prazo">
-                          <span className={`fj-prazo${(it.dias ?? 0) > 60 ? ' folgado' : ''}`}>{textoPrazo(it)}</span>
-                        </td>
-                        <td data-rot="Status"><BadgeStatus status={it.status} /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            {filtrados.length > 6 && (
-              <div className="fj-panel-foot">
-                <button type="button" className="fj-link" onClick={() => setListaExpandida((v) => !v)}>
-                  {listaExpandida ? 'Recolher lista' : `Ver todos os vencimentos (${filtrados.length})`}
-                  <Icone nome={listaExpandida ? 'chevup' : 'chevdown'} tam={13} />
-                </button>
-              </div>
-            )}
-          </section>
-        </div>
-
-        <div className="dash-col">
-          <section className="fj-panel pc-painel" aria-labelledby="pc-agenda-tit">
-            <div className="pc-painel-hd">
-              <h2 id="pc-agenda-tit">Próximos serviços</h2>
-              <button type="button" className="pc-link" onClick={() => navigate('/agenda')}>
-                Abrir agenda <Icone nome="arrowright" tam={13} />
-              </button>
-            </div>
+              <button type="button" className="dash2-ver" onClick={() => navigate('/vencimentos')}>Ver</button>
+            </li>
+            <li>
+              <div><b>{resumoAgenda.quantidade}</b><small>Serviços no mês</small></div>
+              <button type="button" className="dash2-ver" onClick={() => navigate('/agenda')}>Ver</button>
+            </li>
+          </ul>
+          <div className="dash2-prox">
+            <h3>Próximos serviços</h3>
             {proximosServicos.length === 0 ? (
               <div className="pc-vazio">Nada agendado daqui para frente.</div>
             ) : (
@@ -364,13 +436,45 @@ export default function Dashboard() {
                 })}
               </ul>
             )}
-          </section>
-        </div>
+          </div>
+        </section>
       </div>
 
       {modalTag && (
         <ModalDetalheEquipamento tag={modalTag} itens={itens} onClose={() => setModalTag(null)} />
       )}
+    </div>
+  );
+}
+
+/** Uma barra do faturamento: rótulo, valor e a fração do total do mês. */
+function BarraFaturamento({
+  rotulo,
+  tom,
+  valor,
+  total,
+  nota,
+  extra,
+}: {
+  rotulo: string;
+  tom: 'ok' | 'info';
+  valor: number;
+  total: number;
+  nota: string;
+  extra?: string;
+}) {
+  const pct = total > 0 ? Math.round((valor / total) * 100) : 0;
+  return (
+    <div className={`dash2-barra ${tom}`}>
+      <div className="dash2-barra-top">
+        <span className="rot">{rotulo}</span>
+        <span className="nota">{nota}</span>
+      </div>
+      <b>{formatarBRL(valor)}</b>
+      <div className="trilho" role="img" aria-label={`${rotulo}: ${pct}% do total do mês`}>
+        <i style={{ width: `${pct}%` }} />
+      </div>
+      {extra && <div className="extra">{extra}</div>}
     </div>
   );
 }

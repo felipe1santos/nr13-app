@@ -811,3 +811,86 @@
 .lrhist-linha:hover { border-left-color: transparent; }
 .lrhist-rot { font-size: var(--fs-12); text-transform: none; letter-spacing: 0; color: var(--texto-3); }
 .lrhist-forte { color: var(--texto-1); }
+
+/* ============================================================================
+   DASHBOARD · COBALTO (18/11/2026) — layout "Indicadores" do SimplesDental
+   (docs/design/prototipo-cobalto). Abas de navegação no topo, três
+   indicadores, e cartões padrão ouro numa coluna: Prazos e vencimentos,
+   Faturamento da agenda e Operação.
+   ============================================================================ */
+.dash-page.dash2 { padding: 0; background: var(--page-cards); min-height: 100%; }
+.dash2-abas { position: sticky; top: 0; z-index: 4; display: flex; align-items: center; gap: 4px; padding: 0 16px; background: #fff; border-bottom: 1px solid #E0E0E0; }
+.dash2-abas > button { height: 48px; padding: 0 16px; border: 0; border-bottom: 2px solid transparent; background: none; color: #555; font: 500 14px/1 var(--font); letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; }
+.dash2-abas > button:hover { background: #F5F7FB; color: var(--destaque); }
+.dash2-abas > button.on { color: var(--destaque); border-bottom-color: var(--destaque); }
+.dash2-abas > button:focus-visible { outline: 2px solid var(--destaque); outline-offset: -2px; }
+.dash2-abas .grow { flex: 1; }
+.dash2-corpo { max-width: 1240px; margin: 0 auto; padding: 20px 24px 32px; display: flex; flex-direction: column; gap: 16px; }
+
+.dash2-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.dash2-kpi { display: flex; align-items: flex-start; gap: 16px; padding: 18px 20px; background: #fff; border-radius: var(--card-r); box-shadow: var(--card-sh); }
+.dash2-kpi-ic { flex-shrink: 0; display: grid; place-items: center; width: 36px; height: 36px; }
+.dash2-kpi-ic.crit { color: #DC2626; }
+.dash2-kpi.pc-ok .dash2-kpi-ic.crit { color: var(--aprovado); }
+.dash2-kpi.pc-neutro .dash2-kpi-ic.crit { color: #8C97AB; }
+.dash2-kpi-ic.warn { color: #E2A400; }
+.dash2-kpi-ic.info { color: var(--destaque); }
+.dash2-kpi-txt { min-width: 0; }
+.dash2-kpi-n { display: flex; align-items: baseline; gap: 12px; }
+.dash2-kpi-n b { font: var(--t-display); color: var(--destaque); }
+.dash2-kpi-rot { font: var(--t-body); color: #555; }
+.dash2-kpi-sub { margin-top: 4px; font: var(--t-caption); color: #6B6B6B; }
+.dash2-ver { border: 0; background: none; padding: 2px 4px; border-radius: 4px; color: var(--destaque); font: 600 13px/1 var(--font); letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; }
+.dash2-ver:hover { background: var(--destaque-bg); }
+.dash2-link { border: 0; background: none; padding: 0; color: var(--destaque); font: 600 12px/16px var(--font); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+
+.dash2-card { margin: 0; }
+.dash2-card-hd { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 6px; }
+.dash2-card-hd h2 { margin: 0; font: 400 20px/26px var(--font); color: #1A1A1A; letter-spacing: 0; }
+.dash2-mes { font: var(--t-body); color: #555; }
+
+.dash2-filtro { padding: 4px 20px 6px; }
+.dash2-filtro label { display: inline-flex; align-items: center; gap: 10px; font: var(--t-body); color: #1A1A1A; }
+.dash2-filtro select { height: 34px; padding: 0 28px 0 8px; border: 0; border-bottom: 1px solid #9E9E9E; border-radius: 0; background: transparent; font: 500 14px/1 var(--font); color: #1A1A1A; cursor: pointer; }
+.dash2-filtro select:focus { outline: none; border-bottom: 2px solid var(--destaque); }
+
+.dash2-origens { display: flex; gap: 4px; padding: 0 20px; border-bottom: 1px solid #E0E0E0; overflow-x: auto; }
+.dash2-origens button { height: 44px; padding: 0 14px; border: 0; border-bottom: 2px solid transparent; background: none; color: #555; font: 500 13.5px/1 var(--font); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; cursor: pointer; }
+.dash2-origens button span { color: #8C97AB; font-weight: 400; margin-left: 2px; }
+.dash2-origens button:hover { color: var(--destaque); }
+.dash2-origens button[aria-pressed="true"] { color: var(--destaque); border-bottom-color: var(--destaque); }
+
+.dash2-tabela { width: 100%; }
+.dash2-tabela thead th { background: #fff; font: 300 12px/16px var(--font); color: rgba(0, 0, 0, 0.87); text-transform: none; letter-spacing: 0; border-bottom: 1px solid #E0E0E0; }
+.dash2-tabela tbody td { height: var(--row-h); border-bottom: 1px solid #EDF0F5; font: var(--t-body); }
+.dash2-tabela tbody tr.z td { background: var(--row-zebra); }
+.dash2-tabela tbody tr:hover td { background: var(--row-hover); }
+.dash2-tabela tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--row-mark); }
+.dash2-tabela .fj-tag-code { font: var(--t-strong); color: #1A1A1A; }
+
+.dash2-fat { display: flex; flex-direction: column; gap: 18px; padding: 8px 20px 20px; }
+.dash2-barra-top { display: flex; justify-content: space-between; gap: 12px; }
+.dash2-barra .rot { font: 400 11px/16px var(--font); letter-spacing: 0.06em; text-transform: uppercase; color: #8A8A8A; }
+.dash2-barra .nota, .dash2-barra .extra { font: var(--t-caption); color: #8A8A8A; text-align: right; }
+.dash2-barra b { display: block; font: 400 17px/24px var(--font); }
+.dash2-barra.ok b { color: #2E7D32; }
+.dash2-barra.info b { color: #1F6FD1; }
+.dash2-barra .trilho { height: 3px; margin-top: 4px; background: #EDEDED; }
+.dash2-barra .trilho i { display: block; height: 100%; }
+.dash2-barra.ok .trilho i { background: #43A047; }
+.dash2-barra.info .trilho i { background: #1F6FD1; }
+.dash2-fat-canc { font: var(--t-caption); color: #C62828; }
+
+.dash2-op { margin: 0; padding: 0 20px; list-style: none; }
+.dash2-op li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #EDEDED; }
+.dash2-op li b { display: block; font: 400 20px/26px var(--font); color: var(--destaque); }
+.dash2-op li small { font: var(--t-caption); color: #8A8A8A; }
+.dash2-prox { padding: 14px 20px 20px; }
+.dash2-prox h3 { margin: 0 0 8px; font: var(--t-heading); color: #1A1A1A; }
+
+@media (max-width: 900px) {
+  .dash2-kpis { grid-template-columns: 1fr; }
+  .dash2-corpo { padding: 12px; }
+  .dash2-abas { overflow-x: auto; padding: 0 4px; }
+  .dash2-abas > button { padding: 0 12px; flex-shrink: 0; }
+}
