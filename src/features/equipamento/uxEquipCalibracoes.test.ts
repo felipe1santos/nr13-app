@@ -116,30 +116,27 @@ describe('recorte por fabricante', () => {
   });
 });
 
-describe('/calibracoes: instrução e card', () => {
-  it('a linha roxa aparece acima da lista', () => {
-    expect(cal).toContain('[ selecione o equipamento para iniciar ]');
-    expect(cal).toContain('className="cal-instrucao"');
-    // Antes do painel da lista, não depois.
-    expect(cal.indexOf('cal-instrucao')).toBeLessThan(cal.indexOf('className="bloco-dados"'));
-    expect(cssCal).toContain('color: var(--purple, #7c5cfc);');
+describe('/calibracoes: lista do protótipo (Cobalto)', () => {
+  it('colunas do protótipo: TAG, equipamento, cliente, acessórios, próximo vencimento e prazo', () => {
+    for (const col of ['<span>TAG</span>', '<span>Equipamento</span>', '>Cliente</span>', '<span>Acessórios</span>', '<span>Próximo vencimento</span>', '<span>Prazo</span>']) {
+      expect(cal).toContain(col);
+    }
+    expect(cal).toContain('aria-label="Situação das calibrações"');
   });
 
-  it('o card ganhou fabricante e PMTA, sem consulta nova', () => {
-    // Os três campos já vinham na MESMA linha da projeção que a lista busca.
-    expect(cal).toContain('cal-card-info');
-    expect(cal).toContain('<span className="eq-label">Fabricante</span>');
-    expect(cal).toContain('<span className="eq-label">PMTA</span>');
-    expect(cal).toContain('formatarValor(item.pmtaMpa');
+  it('prazo e acessórios vêm do AGREGADO do servidor, não do cache por TAG', () => {
+    expect(cal).toContain('usePainelVencimentos()');
+    expect(cal).toContain("it.origem !== 'calibracao'");
     expect(cal).toContain('rotuloCalibracoes(item.calibracoes)');
   });
 
   it('nenhum campo é inventado: o que falta vira travessão', () => {
-    expect(cal).toContain("{item.fabricante?.trim() || '—'}");
-    // Cobalto: a categoria ganhou o selo colorido; sem categoria, travessão.
-    expect(cal).toMatch(/item\.categoria \? \([\s\S]*?lc-cat[\s\S]*?\) : \(\s*'—'\s*\)/);
+    expect(cal).toContain("<b className=\"vazio\">—</b>");
+    expect(cal).toContain("rotuloCalibracoes(item.calibracoes) || '—'");
   });
+});
 
+describe('/calibracoes: colunas', () => {
   it('as colunas somem por largura, na ordem certa', () => {
     // Fabricante sai primeiro: é o campo mais longo e o menos usado para
     // ESCOLHER o equipamento que vai calibrar.

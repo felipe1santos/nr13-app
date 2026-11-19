@@ -495,6 +495,18 @@ export default function Calibracoes() {
             contagensLocais={contagensLocais}
             acoes={
               <>
+                {/* [i] Informações na barra da SESSÃO: a explicação do fluxo com a
+                    ilustração, sem ocupar área fixa acima da lista. */}
+                <button
+                  type="button"
+                  className="fj-btn fj-btn-ghost cal-btn-info"
+                  title="Como funciona a calibração"
+                  aria-haspopup="dialog"
+                  onClick={() => setAjudaAberta(true)}
+                >
+                  <Icone nome="info" tam={18} />{" "}
+                  <span className="pront-btn-rotulo">Informações</span>
+                </button>
                 {/* Reestruturação (19/09/2026) · o caminho óbvio: equipamento
                     → componente → calibração, sem passar por lote. */}
                 <button
@@ -504,17 +516,6 @@ export default function Calibracoes() {
                   onClick={() => setNovaCal({ passo: 'equipamento' })}
                 >
                   <Icone nome="plus" tam={14} /> Nova calibração
-                </button>
-                {/* [i] Informações na barra da SESSÃO: a explicação do fluxo com a
-                    ilustração, sem ocupar área fixa acima da lista. */}
-                <button
-                  type="button"
-                  className="fj-btn fj-btn-ghost cal-btn-info"
-                  aria-haspopup="dialog"
-                  onClick={() => setAjudaAberta(true)}
-                >
-                  <Icone nome="alerttri" tam={13} />{" "}
-                  <span className="pront-btn-rotulo">Informações</span>
                 </button>
               </>
             }

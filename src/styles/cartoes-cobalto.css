@@ -905,3 +905,78 @@
 @media (max-width: 1000px) {
   .equipamento-page .memorial-resumo-grid, .equipamento-page .categoria-resultado { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
 }
+
+/* ============================================================================
+   CALIBRAÇÕES · LISTA EXATA do protótipo (cal3-*): chips de situação, busca,
+   ferramentas; tabela 30 · 120 · 1.1fr · 1fr · 150 · 200 · 130 · 20, linha de
+   44px, cabeçalho de 34px, zebra pelo índice (data-z), faixa e seta vermelhas.
+   ============================================================================ */
+.calibracoes-page > .bloco-dados:has(.cal3) { margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; background: #fff !important; }
+.calibracoes-page .busca-lista:has(.cal3-chips) { margin: 0; padding: 16px 16px 8px; }
+.cal3-chips button.s-ok[aria-pressed="true"] { background: var(--aprovado-bg); color: var(--aprovado); box-shadow: none; }
+.cal3-chips button.s-warn[aria-pressed="true"] { background: #FFEDD5; color: #7C2D12; box-shadow: none; }
+.cal3-chips button.s-crit[aria-pressed="true"] { background: var(--crit-bg); color: #B42318; box-shadow: none; }
+.calibracoes-page .cal-btn-info,
+.calibracoes-page .busca-lista .pront-btn-filtro { width: 36px; height: 36px; min-width: 36px; padding: 0 !important; display: inline-grid; place-items: center; border: 0 !important; border-radius: 4px; background: #E9E9E9 !important; color: rgba(0, 0, 0, .75) !important; }
+.calibracoes-page .cal-btn-info:hover,
+.calibracoes-page .busca-lista .pront-btn-filtro:hover { background: var(--destaque) !important; color: #fff !important; }
+.calibracoes-page .busca-lista .pront-btn-filtro.filtro-ativo { background: var(--destaque-bg) !important; color: var(--destaque) !important; }
+.calibracoes-page .cal-btn-info .pront-btn-rotulo,
+.calibracoes-page .busca-lista .pront-btn-filtro .pront-btn-rotulo { display: none; }
+.calibracoes-page .cal-btn-nova { height: 36px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; background: var(--criar, #43A047); color: #fff; font: 600 14px/1 var(--font); box-shadow: 0 2px 6px rgba(67, 160, 71, .35); }
+.calibracoes-page .cal-btn-nova:hover { background: #388E3C; }
+
+.cal3 { margin: 0 10px !important; padding: 0 6px 16px !important; border-top: 1px solid #DDDDDD !important; }
+.cal3 .lista-virt { padding: 0 !important; }
+.cal3-cab,
+.cal3-linha {
+  display: grid;
+  grid-template-columns: 30px 120px minmax(170px, 1.1fr) minmax(170px, 1fr) 150px 200px 130px 20px;
+  align-items: center;
+  column-gap: 14px;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+.cal3-cab { position: sticky; top: 0; z-index: 3; height: 34px; background: #fff; border-bottom: 1px solid #DDDDDD; font: 300 12px/1 var(--font); color: rgba(0, 0, 0, .87); }
+.cal3-lista { display: block !important; }
+.cal3-linha { position: relative; width: 100%; height: 44px; border: 0; border-bottom: 1px solid #F0F0F0; border-radius: 0; background: #fff; text-align: left; cursor: pointer; font: inherit; transition: background-color .12s linear; }
+.cal3-linha[data-z] { background: var(--row-zebra, #F8F9FA); }
+.cal3-linha::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 0 3px 3px 0; background: var(--row-mark, #E5484D); opacity: 0; transition: opacity .12s linear; }
+.cal3-linha:hover, .cal3-linha:focus-visible { background: var(--row-hover, #FFF5F4); outline: none; }
+.cal3-linha:hover::before, .cal3-linha:focus-visible::before { opacity: 1; }
+.cal3-linha > * { min-width: 0; }
+.cal3-linha .lc-ico { width: 30px; height: 30px; }
+.cal3-tag { font: 600 14px/20px var(--font); color: #1A1A1A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal3-eq { font: 500 14px/20px var(--font); color: #1A1A1A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal3-cli { font: var(--t-caption); color: #6B6B6B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal3-cli b { font-weight: 500; color: #3A3F47; }
+.cal3-acs { display: flex; align-items: center; gap: 3px; }
+.cal3-acs b { margin-left: 6px; font: 600 14px/1 var(--font); color: var(--destaque); }
+.cal3-acs small { font: var(--t-caption); color: #6B6B6B; }
+.cal3-mini { width: 24px; height: 24px; border-radius: 4px; display: grid; place-items: center; background: var(--ic-bg); color: var(--ic); }
+.i-man { --ic: #0C4F9B; --ic-bg: #E7EFF8; }
+.i-psv { --ic: #C2410C; --ic-bg: #FFEDD5; }
+.i-ter { --ic: #BE185D; --ic-bg: #FDEBF3; }
+.i-vac { --ic: #6D28D9; --ic-bg: #F1EDFF; }
+.i-prs { --ic: #0F766E; --ic-bg: #CCFBF1; }
+.i-tra { --ic: #0E7490; --ic-bg: #E2F5F9; }
+.cal3-venc { display: flex; flex-direction: column; line-height: 1.25; }
+.cal3-venc b { font: 400 14px/18px var(--font); color: #3A3F47; font-variant-numeric: tabular-nums; }
+.cal3-venc b.vazio { color: #A0A0A0; }
+.cal3-venc small { font: var(--t-caption); color: #6B6B6B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal3-prazo { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 4px; font: 600 12px/1 var(--font); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cal3-prazo.crit { background: var(--crit-bg); color: #B42318; }
+.cal3-prazo.warn { background: #FFEDD5; color: #7C2D12; }
+.cal3-prazo.ok { background: var(--aprovado-bg); color: var(--aprovado); }
+.cal3-prazo.folgado { background: #F8FAFD; color: #5F6B82; box-shadow: inset 0 0 0 1px #E3E7EF; }
+.cal3-seta { color: #A0A0A0; transition: transform .12s linear, color .12s linear; }
+.cal3-linha:hover .cal3-seta { color: var(--row-mark, #E5484D); transform: translateX(2px); }
+@media (max-width: 1280px) {
+  .cal3-cab, .cal3-linha { grid-template-columns: 30px 110px minmax(160px, 1fr) 140px 190px 120px 20px; }
+  .cal3-cab > .c-cli, .cal3-linha > .c-cli { display: none; }
+}
+@media (max-width: 760px) {
+  .cal3-cab { display: none; }
+  .cal3-linha { grid-template-columns: 30px 1fr auto; height: auto; min-height: 56px; padding: 8px; row-gap: 2px; }
+  .cal3-linha > .cal3-eq, .cal3-linha > .cal3-acs, .cal3-linha > .cal3-venc, .cal3-linha > .cal3-seta { display: none; }
+}

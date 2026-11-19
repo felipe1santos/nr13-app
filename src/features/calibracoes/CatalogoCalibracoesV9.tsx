@@ -38,8 +38,10 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BuscaLista from '../../components/BuscaLista';
-import { classeCategoria } from '../../components/listaCobalto';
-import { Icone } from '../../components/Icone';
+import { iconeDoTipo } from '../../components/listaCobalto';
+import { Icone, type NomeIcone } from '../../components/Icone';
+import { usePainelVencimentos } from '../../services/vencimentosServidor';
+import type { ItemVencimento } from '../../services/vencimentos';
 import ModalFiltrosProntuarios, {
   FILTRO_PRONT_PADRAO,
   temAlgumFiltroPront,
@@ -47,9 +49,6 @@ import ModalFiltrosProntuarios, {
 } from '../prontuarios/ModalFiltrosProntuarios';
 import './ilustracoes.css';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
-import FotoImg from '../../components/FotoImg';
-import { formatarValor } from '../../calc/unidades';
-import type { SistemaUnidade } from '../../calc/unidades';
 import * as buscaIndex from '../../services/buscaIndex';
 import { rotuloCalibracoes, textoCliente } from '../../services/buscaIndex';
 import type { Contagem, FiltrosBusca, ItemCatalogo } from '../../services/buscaIndex';
@@ -77,7 +76,7 @@ const ROTULO_TIPO: Record<string, string> = {
 };
 
 /** Altura estimada de uma linha; corrigida por medição no primeiro quadro. */
-const ALT_LINHA = 92;
+const ALT_LINHA = 44;
 
 export interface PropsCatalogoCalibracoes {
   /** Termo aplicado — mora na URL, no pai. */
@@ -250,8 +249,6 @@ export default function CatalogoCalibracoesV9({
       ),
     [itens, recorte, contagensLocais],
   );
-  // Cobalto: zebra pelo índice (lista virtualizada).
-  const posicao = useMemo(() => new Map(visiveis.map((it, n) => [it.tag, n])), [visiveis]);
   /**
    * Revisão do engenheiro, fase 2 · o "bug do ZZ-UNID-BAR". Equipamento com 0
    * calibrações existe, a busca o encontra, e o recorte PADRÃO ("só com
@@ -265,30 +262,70 @@ export default function CatalogoCalibracoesV9({
     ? { total: visiveis.length, exato: !temMais }
     : contagem;
 
+  // ── Cobalto · a lista do protótipo ──────────────────────────────────────
+  // Acessórios, próximo vencimento e prazo vêm do AGREGADO do servidor
+  // (`vencimentos_org`, o mesmo do Dashboard): uma linha por acessório com a
+  // calibração oficial mais recente. Nada é lido do cache por TAG e nada é
+  // inventado — equipamento sem acessório com prazo mostra "—".
+  const painel = usePainelVencimentos();
+  const acessoriosPorTag = useMemo(() => {
+    const m = new Map<string, ItemVencimento[]>();
+    for (const it of painel.itens) {
+      if (it.origem !== 'calibracao' || !it.pertenceA || it.dias === undefined) continue;
+      const l = m.get(it.pertenceA) ?? [];
+      l.push(it);
+      m.set(it.pertenceA, l);
+    }
+    for (const l of m.values()) l.sort((x, y) => (x.dias ?? 0) - (y.dias ?? 0));
+    return m;
+  }, [painel.itens]);
+  const situacaoDe = useCallback(
+    (tag: string): SituacaoCal => {
+      const s = acessoriosPorTag.get(tag)?.[0]?.status;
+      return s === 'ok' || s === 'warn' || s === 'crit' ? s : '';
+    },
+    [acessoriosPorTag],
+  );
+  const [fSit, setFSit] = useState<SituacaoCal>('');
+  const naTela = useMemo(
+    () => (fSit ? visiveis.filter((i) => situacaoDe(i.tag) === fSit) : visiveis),
+    [visiveis, fSit, situacaoDe],
+  );
+  const zebra = useMemo(() => new Map(naTela.map((it, n) => [it.tag, n])), [naTela]);
+  const contarSit = (v: SituacaoCal) => (v ? visiveis.filter((i) => situacaoDe(i.tag) === v).length : visiveis.length);
+
   return (
     <>
-      {/* BARRA ÚNICA · filtro e busca na mesma linha.
-          O painel de filtros ficava aberto entre a busca e a lista, com três
-          controles que a maioria das visitas não usa — a mesma faixa que saiu
-          de /prontuarios. Aqui ele reusa o MESMO modal, no modo de
-          equipamentos: são a mesma pergunta, feita em duas telas. */}
+      {/* BARRA ÚNICA (protótipo): situação · filtro · busca · contagem · ações. */}
       <BuscaLista
         valor={termo}
         aoMudar={aoMudarTermo}
-        placeholder="Buscar por TAG, equipamento, fabricante ou cliente…"
+        placeholder="Buscar TAG, equipamento, fabricante ou cliente"
         carregando={carregando || varrendo}
-        contagem={contagemNaTela}
+        contagem={fSit ? { total: naTela.length, exato: !temMais } : contagemNaTela}
         offline={offline}
         compacto
         antes={
-          <button
-            type="button"
-            className={`fj-btn fj-btn-ghost pront-btn-filtro${temAlgumFiltroPront(filtroUi) ? ' filtro-ativo' : ''}`}
-            aria-haspopup="dialog"
-            onClick={() => setFiltroAberto(true)}
-          >
-            <Icone nome="filter" tam={14} /> <span className="pront-btn-rotulo">Filtrar</span>
-          </button>
+          <>
+            {modo === 'lista' && (
+              <div className="rel-chips cal3-chips" role="group" aria-label="Situação das calibrações">
+                {SITUACOES.map(([v, r]) => (
+                  <button key={v || 'todos'} type="button" className={v ? `s-${v}` : ''} aria-pressed={fSit === v} onClick={() => setFSit(v)}>
+                    {r} <i>{contarSit(v)}</i>
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              className={`fj-btn fj-btn-ghost pront-btn-filtro${temAlgumFiltroPront(filtroUi) ? ' filtro-ativo' : ''}`}
+              aria-haspopup="dialog"
+              title="Filtrar por tipo, cliente e situação"
+              onClick={() => setFiltroAberto(true)}
+            >
+              <Icone nome="filter" tam={14} /> <span className="pront-btn-rotulo">Filtrar</span>
+            </button>
+          </>
         }
       >
         {acoes}
@@ -325,12 +362,8 @@ export default function CatalogoCalibracoesV9({
         </div>
       )}
 
-      {/* A instrução de uso da tela, discreta: a lista aqui não é o fim, é o
-          começo — escolher o equipamento é o que abre lotes e componentes. */}
-      <p className="cal-instrucao">[ selecione o equipamento para iniciar ]</p>
-
-      <div className="bloco-dados">
-        {!carregando && !varrendo && visiveis.length === 0 && !erro ? (
+      <div className="bloco-dados cal3">
+        {!carregando && !varrendo && naTela.length === 0 && !erro ? (
           <p className="dashboard-vazio">
             {escondidosPeloFiltro > 0 ? (
               <>
@@ -348,33 +381,33 @@ export default function CatalogoCalibracoesV9({
                   Mostrar
                 </button>
               </>
-            ) : termo
-              ? `Nenhum equipamento encontrado para ${termo}.`
-              : recorte.soComDocumento
-                ? 'Nenhum equipamento com calibração registrada. Desmarque "Só equipamentos com calibração" para cadastrar a primeira.'
-                : 'Nenhum equipamento cadastrado ainda.'}
+            ) : fSit
+              ? 'Nenhum equipamento nesta situação.'
+              : termo
+                ? `Nenhum equipamento encontrado para ${termo}.`
+                : recorte.soComDocumento
+                  ? 'Nenhum equipamento com calibração registrada. Desmarque "Só equipamentos com calibração" para cadastrar a primeira.'
+                  : 'Nenhum equipamento cadastrado ainda.'}
           </p>
         ) : (
           <>
-          {/* Cobalto: cabeçalho de colunas — a lista vira tabela (protótipo). */}
-          <div className="cal2-cab" aria-hidden="true">
+          <div className="cal3-cab" aria-hidden="true">
             <span />
             <span>TAG</span>
-            <span>Proprietário</span>
-            <span>Fabricante</span>
-            <span>Categoria</span>
-            <span>PMTA</span>
-            <span>Calibrações</span>
+            <span>Equipamento</span>
+            <span className="c-cli">Cliente</span>
+            <span>Acessórios</span>
+            <span>Próximo vencimento</span>
+            <span>Prazo</span>
+            <span />
           </div>
           <ListaVirtualizada
-            itens={visiveis}
+            itens={naTela}
             chaveDe={(i) => i.tag}
             alturaEstimada={ALT_LINHA}
-            classeGrade="lista-cards-horiz cal2-lista"
-            // Busca nova é lista nova: a rolagem volta ao começo. Sem isto, quem
-            // busca com a lista rolada fica olhando para o vazio enquanto o
-            // cabeçalho anuncia resultados — o defeito que o gate da 9F.1 pegou.
-            chaveDoConjunto={`${termo}|${fTipo}|${recorte.empresa}|${recorte.soComDocumento}`}
+            classeGrade="cal3-lista"
+            // Busca nova é lista nova: a rolagem volta ao começo.
+            chaveDoConjunto={`${termo}|${fTipo}|${recorte.empresa}|${recorte.soComDocumento}|${fSit}`}
             aoChegarNoFim={carregarMais}
             rodape={
               carregandoMais ? (
@@ -383,73 +416,109 @@ export default function CatalogoCalibracoesV9({
                 </div>
               ) : null
             }
-            desenhar={(item) => (
-              <button
-                type="button"
-                className="card-equipamento-horiz"
-                onClick={() => aoEscolher(item.tag)}
-                data-z={(posicao.get(item.tag) ?? 0) % 2 === 1 || undefined}
-              >
-                <div className="card-eq-img">
-                  {item.fotoRef ? (
-                    <FotoImg foto={{ ref: item.fotoRef }} alt={item.tag} variante="thumb" />
-                  ) : (
-                    <span className="card-eq-img-vazio">{item.tag.slice(0, 2)}</span>
-                  )}
-                </div>
-                <div className="card-eq-info cal-card-info">
-                  <div className="eq-col">
-                    <span className="eq-tag">{item.tag}</span>
-                    <span className="eq-tipo">
-                      {item.tipo ? (ROTULO_TIPO[item.tipo] ?? item.tipo) : '—'}
-                    </span>
-                  </div>
-                  <div className="eq-col">
-                    <span className="eq-label">Proprietário</span>
-                    {/* Vem da MESMA linha da projeção. Na tela antiga isto era
-                        `ler('nr13_emp_' + tag)` — três vezes por quadro. */}
-                    <span className="eq-value">{textoCliente(item) || '—'}</span>
-                  </div>
-                  {/* Fabricante, categoria e PMTA vêm da MESMA linha da
-                      projeção que já era buscada: nenhuma consulta a mais, e
-                      nenhum dado inventado — o campo que não existe some. */}
-                  <div className="eq-col">
-                    <span className="eq-label">Fabricante</span>
-                    <span className="eq-value">{item.fabricante?.trim() || '—'}</span>
-                  </div>
-                  <div className="eq-col">
-                    <span className="eq-label">Categoria</span>
-                    <span className="eq-value">
-                      {item.categoria ? (
-                        <span className={`lc-cat ${classeCategoria(item.categoria)}`}>Cat. {item.categoria}</span>
-                      ) : (
-                        '—'
-                      )}
-                    </span>
-                  </div>
-                  <div className="eq-col">
-                    <span className="eq-label">PMTA</span>
-                    <span className="eq-value">
-                      {item.pmtaMpa !== null
-                        ? formatarValor(item.pmtaMpa, (item.unidade as SistemaUnidade) ?? 'SI')
-                        : '—'}
-                    </span>
-                  </div>
-                </div>
-                {/* O rótulo SOME quando ninguém contou. "Nenhuma calibração" ali
-                    seria afirmar uma ausência que não foi medida — e é o número
-                    que decide se uma válvula vai para a bancada. */}
-                {rotuloCalibracoes(item.calibracoes) && (
-                  <span className={`badge-relatorios ${item.calibracoes ? 'tem' : ''}`}>
-                    {rotuloCalibracoes(item.calibracoes)}
+            desenhar={(item) => {
+              const acs = acessoriosPorTag.get(item.tag) ?? [];
+              const prox = acs[0];
+              const cli = [item.clienteNome?.trim(), item.clienteCidade?.trim()].filter(Boolean);
+              return (
+                <button
+                  type="button"
+                  className="cal3-linha"
+                  onClick={() => aoEscolher(item.tag)}
+                  data-z={(zebra.get(item.tag) ?? 0) % 2 === 1 || undefined}
+                >
+                  <span className={`lc-ico ${item.tipo ?? 'outro'}`} aria-hidden>
+                    <Icone nome={iconeDoTipo(item.tipo)} tam={18} />
                   </span>
-                )}
-              </button>
-            )}
+                  <span className="cal3-tag">{item.tag}</span>
+                  <span className="cal3-eq">{item.descricao?.trim() || (item.tipo ? (ROTULO_TIPO[item.tipo] ?? item.tipo) : '—')}</span>
+                  <span className="cal3-cli c-cli">
+                    {cli.length ? (
+                      <>
+                        <b>{cli[0]}</b>
+                        {cli[1] ? ` · ${cli[1]}` : ''}
+                      </>
+                    ) : (
+                      textoCliente(item) || '—'
+                    )}
+                  </span>
+                  <span className="cal3-acs">
+                    {acs.length > 0 ? (
+                      <>
+                        {acs.slice(0, 4).map((a, n) => (
+                          <span key={n} className={`cal3-mini ${classeInstrumento(a.tipoEquip)}`} title={`${a.tag} · ${a.tipoEquip}`}>
+                            <Icone nome={iconeInstrumento(a.tipoEquip)} tam={14} />
+                          </span>
+                        ))}
+                        <b>{acs.length}</b>
+                      </>
+                    ) : (
+                      // O rótulo SOME quando ninguém contou: "Nenhuma calibração"
+                      // seria afirmar uma ausência que não foi medida.
+                      <small>{rotuloCalibracoes(item.calibracoes) || '—'}</small>
+                    )}
+                  </span>
+                  <span className="cal3-venc">
+                    {prox?.vencimento ? (
+                      <>
+                        <b>{prox.vencimento.toLocaleDateString('pt-BR')}</b>
+                        <small>
+                          {prox.tag} · {prox.tipoEquip}
+                        </small>
+                      </>
+                    ) : (
+                      <b className="vazio">—</b>
+                    )}
+                  </span>
+                  <span>
+                    {prox && prox.dias !== undefined ? (
+                      <span className={`cal3-prazo ${prox.dias < 0 ? 'crit' : prox.dias <= 30 ? 'warn' : prox.dias > 60 ? 'folgado' : 'ok'}`}>
+                        <Icone nome={prox.dias < 0 ? 'alerttri' : prox.dias <= 30 ? 'clock' : 'check'} tam={13} />
+                        {prazoCurto(prox.dias)}
+                      </span>
+                    ) : null}
+                  </span>
+                  <Icone nome="chevright" tam={16} className="cal3-seta" />
+                </button>
+              );
+            }}
           />
           </>
         )}
       </div>
     </>
   );
+}
+
+type SituacaoCal = '' | 'ok' | 'warn' | 'crit';
+const SITUACOES: ReadonlyArray<readonly [SituacaoCal, string]> = [
+  ['', 'Todos'],
+  ['ok', 'Em dia'],
+  ['warn', 'A vencer'],
+  ['crit', 'Vencidas'],
+];
+
+function prazoCurto(dias: number): string {
+  if (dias < 0) return `Vencido há ${Math.abs(dias)} dia${Math.abs(dias) === 1 ? '' : 's'}`;
+  if (dias === 0) return 'Vence hoje';
+  return `Em ${dias} dia${dias === 1 ? '' : 's'}`;
+}
+
+/** Cor do instrumento (mesma família do protótipo), pelo rótulo do painel. */
+function classeInstrumento(rotulo: string): string {
+  const r = rotulo.toLowerCase();
+  if (r.startsWith('manôm') || r.startsWith('manom')) return 'i-man';
+  if (r.startsWith('válv') || r.startsWith('valv') || r.includes('psv')) return 'i-psv';
+  if (r.startsWith('term')) return 'i-ter';
+  if (r.startsWith('vacu')) return 'i-vac';
+  if (r.startsWith('press')) return 'i-prs';
+  if (r.startsWith('trans')) return 'i-tra';
+  return 'i-man';
+}
+
+function iconeInstrumento(rotulo: string): NomeIcone {
+  const c = classeInstrumento(rotulo);
+  if (c === 'i-psv') return 'valvula-psv';
+  if (c === 'i-man') return 'manometro';
+  return 'gauge';
 }
