@@ -47,6 +47,15 @@ export interface DadosCabecalho {
   rodape: [string, string, string];
   /** A linha do alto: qual documento é este. Sem valor, é o relatório. */
   titulo?: string;
+  /**
+   * Cobalto (19/11/2026) · `prontuario` troca o cabeçalho pelo do protótipo:
+   * "Prontuário NR-13 — <folha>", a linha "cliente · TAG · equipamento", a
+   * folha e o nº à direita e o fio azul. Ausente = o cabeçalho do relatório,
+   * que não muda.
+   */
+  estilo?: 'prontuario';
+  /** A linha de baixo do título (cliente · TAG · descrição). Só no prontuário. */
+  subtitulo?: string;
 }
 
 function corTexto(pdf: jsPDF, cor: string): void {
@@ -298,7 +307,7 @@ export function imagemEncaixada(
   pdf: jsPDF,
   dataUrl: string,
   quadro: { x: number; y: number; largura: number; altura: number },
-  opcoes: { alinhamento?: 'left' | 'center'; proporcao?: number } = {},
+  opcoes: { alinhamento?: 'left' | 'center' | 'right'; proporcao?: number } = {},
 ): void {
   const razao = proporcaoReal(pdf, dataUrl, opcoes.proporcao);
   let larg = quadro.largura;
@@ -309,7 +318,9 @@ export function imagemEncaixada(
   }
   const x = opcoes.alinhamento === 'left'
     ? quadro.x
-    : quadro.x + (quadro.largura - larg) / 2;
+    : opcoes.alinhamento === 'right'
+      ? quadro.x + quadro.largura - larg
+      : quadro.x + (quadro.largura - larg) / 2;
   // Vertical: sempre centralizada. Logo colada no topo da faixa brigaria com o
   // fio do cabeçalho.
   const y = quadro.y + (quadro.altura - alt) / 2;
@@ -409,4 +420,67 @@ export function novaFolha(ctx: Contexto, pagina: number, total: number, primeira
 /** O conteúdo cabe no que falta da folha? */
 export function cabeNaFolha(y: number, alturaNecessaria: number): boolean {
   return y + alturaNecessaria <= LIMITE_CORPO;
+}
+
+
+/** Azul de destaque do sistema (Cobalto) — o fio do cabeçalho do prontuário. */
+export const AZUL_PRONTUARIO = '#0C4F9B';
+
+/**
+ * O cabeçalho do PRONTUÁRIO (protótipo Cobalto): título da folha à esquerda,
+ * com a linha "cliente · TAG · equipamento" abaixo; à direita, a logo (quando
+ * houver), "Folha N de T" e o nº do documento; embaixo, o fio azul de 2 px.
+ * Ocupa a MESMA altura do cabeçalho do relatório, então o corpo começa no
+ * mesmo `CORPO.y` e nenhuma quebra de folha muda por causa dele.
+ */
+export function cabecalhoProntuario(
+  ctx: Contexto,
+  pagina: number,
+  total: number,
+  tituloFolha: string,
+): void {
+  const { pdf } = ctx;
+  const y = CAIXA.y;
+  const dir = CAIXA.x + CAIXA.largura;
+
+  // Direita: logo pequena, folha e nº.
+  let larguraDireita = 0;
+  if (ctx.cabecalho.logo) {
+    try {
+      imagemEncaixada(pdf, ctx.cabecalho.logo, { x: dir - 30, y: y - 0.5, largura: 30, altura: 8 }, { alinhamento: 'right' });
+      larguraDireita = 30;
+    } catch {
+      // Logo ilegível não impede a emissão.
+    }
+  }
+  pdf.setFont(FAMILIA, 'normal');
+  pdf.setFontSize(7.5);
+  corTexto(pdf, '#666666');
+  const folha = total > 0 ? `Folha ${pagina} de ${total}` : `Folha ${pagina}`;
+  pdf.text(folha, dir, y + 11.2, { align: 'right' });
+  pdf.setFont(FAMILIA, 'bold');
+  pdf.setFontSize(8);
+  corTexto(pdf, '#333333');
+  pdf.text(ctx.cabecalho.numeroRelatorio ? `Nº ${ctx.cabecalho.numeroRelatorio}` : 'Nº —', dir, y + 14.6, { align: 'right' });
+  larguraDireita = Math.max(larguraDireita, 34);
+
+  // Esquerda: título e subtítulo.
+  const larguraTitulo = CAIXA.largura - larguraDireita - 6;
+  pdf.setFont(FAMILIA, 'bold');
+  pdf.setFontSize(12);
+  corTexto(pdf, '#1A1A1A');
+  const titulo = pdf.splitTextToSize(`Prontuário NR-13 — ${tituloFolha}`, larguraTitulo) as string[];
+  pdf.text(titulo[0] ?? '', CAIXA.x, y + 9);
+  if (ctx.cabecalho.subtitulo) {
+    pdf.setFont(FAMILIA, 'normal');
+    pdf.setFontSize(8);
+    corTexto(pdf, '#666666');
+    const sub = pdf.splitTextToSize(ctx.cabecalho.subtitulo, larguraTitulo) as string[];
+    pdf.text(sub[0] ?? '', CAIXA.x, y + 13.6);
+  }
+
+  // O fio azul de 2 px (0,53 mm).
+  pdf.setDrawColor(AZUL_PRONTUARIO);
+  pdf.setLineWidth(0.53);
+  pdf.line(CAIXA.x, y + 16.5, dir, y + 16.5);
 }

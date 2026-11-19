@@ -40,6 +40,8 @@ export interface ResultadoProntuario {
   modelo: ModeloProntuario;
   /** Croquis que não puderam ser convertidos — nunca somem calados. */
   croquisFalhos: string[];
+  /** Cada seção e a folha em que ela começa (lista lateral da prévia). */
+  secoes: { titulo: string; pagina: number }[];
 }
 
 /**
@@ -193,6 +195,13 @@ export async function gerarProntuarioVetorial(tag: string, fontes: FontesProntua
     // documento carimbado com o nome do outro é erro de conteúdo, não de
     // estilo.
     titulo: 'PRONTUÁRIO DO EQUIPAMENTO — NR-13 N°',
+    // Cobalto (19/11/2026): o desenho do protótipo — título da folha, linha
+    // "cliente · TAG · equipamento", fio azul, títulos limpos e tabelas claras.
+    estilo: 'prontuario' as const,
+    subtitulo: [modelo.cliente.razao, modelo.tag, modelo.identificacao['TIPO DE EQUIPAMENTO']]
+      .map((x) => (x ?? '').trim())
+      .filter((x) => x && x !== '—')
+      .join(' · '),
   };
 
   // 1ª passagem: contar. Mesmo motivo da Fase 11 — `putTotalPages` não é
@@ -205,12 +214,14 @@ export async function gerarProntuarioVetorial(tag: string, fontes: FontesProntua
   const total = contagem.getNumberOfPages();
 
   // 2ª passagem: para valer.
+  let secoes: { titulo: string; pagina: number }[] = [];
   const desenhar = (totalDoRodape: number) => {
     const p = novoPdf();
     return registrarCarlito(p).then(() => {
       const d = new Documento(p, cab, totalDoRodape);
       (d as unknown as { __croquis: Map<string, { png: string; proporcao: number }> }).__croquis = cache;
       emitir(d, modelo);
+      secoes = [...d.marcos];
       return p;
     });
   };
@@ -238,5 +249,6 @@ export async function gerarProntuarioVetorial(tag: string, fontes: FontesProntua
     ms: Math.round(performance.now() - inicio),
     modelo,
     croquisFalhos,
+    secoes,
   };
 }

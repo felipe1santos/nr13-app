@@ -301,26 +301,35 @@ describe('a exclusão saiu da barra', () => {
   });
 });
 
-describe('a barra do visualizador é uma linha', () => {
-  it('as ações principais são duas; o resto está no menu', () => {
-    // Há DUAS barras `pront-barra` desde 06/09 — o formulário ganhou a sua. A
-    // do visualizador é a que vive dentro do bloco daquela tela.
-    const barra = pagina.slice(
-      pagina.indexOf("{tela === 'visualizador' && ("),
-      pagina.indexOf("{palco.estado !== 'pronto'"),
-    );
-    expect(barra.length).toBeGreaterThan(100);
-    expect(barra).toContain('Editar');
-    expect(barra).toContain('<MaisAcoesProntuario');
-    // Imprimir e abrir o emitido saíram da linha principal.
-    expect(barra).not.toContain('Abrir documento emitido');
+const previaVet = readFileSync('src/features/prontuarios/PreviaProntuarioVetorial.tsx', 'utf8');
+
+describe('a prévia é a janela do protótipo (Cobalto)', () => {
+  const janela = () => pagina.slice(pagina.indexOf("{tela === 'visualizador' && ("), pagina.indexOf('{mostrarModelador && ('));
+
+  it('cabeçalho, seções à esquerda e documento no centro', () => {
+    const j = janela();
+    expect(j).toContain('className="pv-modal"');
+    expect(j).toContain("'Prévia · Prontuário'");
+    expect(j).toContain('Documento ainda não emitido — a prévia não grava nada.');
+    expect(previaVet).toContain('className="pv-folhas"');
+    expect(previaVet).toContain('irParaPonto={ir}');
   });
 
-  it('os assinantes ficam recolhidos', () => {
-    expect(pagina).toContain('<details className="pront-assinantes-caixa">');
-    expect(pagina).toContain('pront-assinantes-resumo');
+  it('as ações principais ficam no rodapé; o resto está no menu', () => {
+    const j = janela();
+    expect(j).toContain('Voltar à edição');
+    expect(j).toContain('<MaisAcoesProntuario');
+    expect(j).toContain("emissao ? 'Emitir revisão' : 'Emitir'");
+    expect(j).not.toContain('Abrir documento emitido');
   });
 
+  it('os assinantes ficam à vista no rodapé e só se gravam ao salvar/emitir', () => {
+    expect(janela()).toContain('className="pv-assinantes pront-assinantes"');
+    expect(janela()).toContain("trocarAssinante('engenheiroId'");
+  });
+});
+
+describe('a barra do formulário', () => {
   it('no celular a barra quebra em duas linhas organizadas', () => {
     // Procura no arquivo inteiro: há mais de um bloco de 640px desde que o
     // formulário ganhou o seu.

@@ -45,6 +45,10 @@ export default function PreviaProntuarioVetorial({
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState('');
   const [falhas, setFalhas] = useState<string[]>([]);
+  // Cobalto · a lista lateral do protótipo: cada seção e a folha em que começa.
+  const [secoes, setSecoes] = useState<{ titulo: string; pagina: number }[]>([]);
+  const [ativa, setAtiva] = useState(0);
+  const [ir, setIr] = useState<{ pagina: number; fracaoY: number; pedido: number } | undefined>(undefined);
 
   const gerar = useCallback(async () => {
     setGerando(true);
@@ -56,6 +60,7 @@ export default function PreviaProntuarioVetorial({
       // Croqui que não converteu volta NOMEADO: o documento sai sem ele, e
       // ninguém descobre isso depois de assinar.
       setFalhas(r.croquisFalhos);
+      setSecoes(r.secoes);
     } catch (e) {
       setErro(textoDoErro(e, 'Não foi possível gerar a pré-visualização do prontuário.'));
     } finally {
@@ -64,13 +69,33 @@ export default function PreviaProntuarioVetorial({
   }, [tag, espessura, assinantes]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- gera o documento ao abrir e quando a versão dos dados muda
     void gerar();
   }, [gerar, versao]);
 
   return (
-    <div className="previa">
-      <div className="previa-barra">
-        <button type="button" className="btn-secundario barra-btn" onClick={() => void gerar()} disabled={gerando}>
+    <div className="pv-c">
+      <nav className="pv-folhas" aria-label="Seções do prontuário">
+        {secoes.map((sec, i) => (
+          <button
+            key={`${sec.titulo}-${i}`}
+            type="button"
+            className={i === ativa ? 'on' : ''}
+            onClick={() => {
+              setAtiva(i);
+              setIr({ pagina: sec.pagina, fracaoY: 0, pedido: Date.now() });
+            }}
+          >
+            <span className="n">{i + 1}</span>
+            <span>
+              <b>{sec.titulo}</b>
+              <small>Folha {sec.pagina}</small>
+            </span>
+          </button>
+        ))}
+        {secoes.length === 0 && <p className="pv-folhas-vazio">{gerando ? 'Montando as folhas…' : '—'}</p>}
+        <span className="pv-folhas-grow" />
+        <button type="button" className="pv-atualizar" onClick={() => void gerar()} disabled={gerando}>
           <Icone nome="refresh" tam={14} /> {gerando ? 'Gerando…' : 'Atualizar prévia'}
         </button>
         {falhas.length > 0 && (
@@ -78,20 +103,22 @@ export default function PreviaProntuarioVetorial({
             <Icone nome="alerttri" tam={13} /> Croqui não convertido: {falhas.join(', ')}
           </span>
         )}
+      </nav>
+
+      <div className="pv-folha">
+        {erro && <p className="med-erro">{erro}</p>}
+        {bytes ? (
+          <VisualizadorPdfBytes
+            bytes={bytes}
+            nomeArquivo={nomeArquivo}
+            paginas={paginas}
+            selo="Prévia — não é o documento emitido"
+            irParaPonto={ir}
+          />
+        ) : (
+          !erro && <p className="previa-painel-vazio">{gerando ? 'Montando o prontuário…' : 'Prévia ainda não gerada.'}</p>
+        )}
       </div>
-
-      {erro && <p className="med-erro">{erro}</p>}
-
-      {bytes ? (
-        <VisualizadorPdfBytes
-          bytes={bytes}
-          nomeArquivo={nomeArquivo}
-          paginas={paginas}
-          selo="Prévia — não é o documento emitido"
-        />
-      ) : (
-        !erro && <p className="previa-painel-vazio">{gerando ? 'Montando o prontuário…' : 'Prévia ainda não gerada.'}</p>
-      )}
     </div>
   );
 }

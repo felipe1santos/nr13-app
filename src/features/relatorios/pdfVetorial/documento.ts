@@ -17,7 +17,7 @@ import {
   LIMITE_CORPO,
   alturaLinha,
 } from './documentoA4';
-import { cabecalho, foto, rodape, type DadosCabecalho } from './primitivas';
+import { AZUL_PRONTUARIO, cabecalho, cabecalhoProntuario, foto, rodape, type DadosCabecalho } from './primitivas';
 import type { FormulaDesenhavel } from './formulaMatematica';
 
 /**
@@ -108,6 +108,21 @@ export class Documento {
    * que ela terá no arquivo final.
    */
   numeroDaPagina?: (p: number) => number;
+
+  /**
+   * Cobalto · o TÍTULO DA FOLHA do prontuário ("Identificação", "Dados
+   * técnicos"…). Quem abre a folha o define antes de `novaFolha()`; a folha de
+   * continuação herda o mesmo título. Ignorado no relatório.
+   */
+  tituloFolha = '';
+
+  /** Onde começa cada seção do prontuário — a lista lateral da prévia. */
+  readonly marcos: { titulo: string; pagina: number }[] = [];
+
+  /** O documento é o prontuário no desenho do protótipo? */
+  get ehProntuario(): boolean {
+    return this.cab.estilo === 'prontuario';
+  }
 
   /** Os campos editáveis desta geração, na ordem em que foram desenhados. */
   get editaveis(): CampoEditavel[] {
@@ -405,6 +420,7 @@ export class Documento {
   }
 
   private fundoDaCelula(cel: CelulaDoc): string {
+    if (this.ehProntuario && cel.rotulo && !cel.destaque) return '#F6F7F9';
     return corDeFundo(cel, this.modo);
   }
 
@@ -416,12 +432,21 @@ export class Documento {
       this.folhaDaSecao++;
       this.linhasNaFolhaAtual = 0;
     }
-    cabecalho(
-      { pdf: this.pdf, cabecalho: this.cab },
-      this.numeroDaPagina ? this.numeroDaPagina(this.pagina) : this.pagina,
-      this.total,
-      this.modo === 'preview',
-    );
+    if (this.ehProntuario) {
+      cabecalhoProntuario(
+        { pdf: this.pdf, cabecalho: this.cab },
+        this.numeroDaPagina ? this.numeroDaPagina(this.pagina) : this.pagina,
+        this.total,
+        this.tituloFolha || 'Prontuário do equipamento',
+      );
+    } else {
+      cabecalho(
+        { pdf: this.pdf, cabecalho: this.cab },
+        this.numeroDaPagina ? this.numeroDaPagina(this.pagina) : this.pagina,
+        this.total,
+        this.modo === 'preview',
+      );
+    }
     rodape({ pdf: this.pdf, cabecalho: this.cab });
     this.cursor = CORPO.y;
 
@@ -619,7 +644,29 @@ export class Documento {
     this.cursor += altura;
   }
 
+  /**
+   * Cobalto · título de seção do PRONTUÁRIO — texto, sem caixa: é o `h3` do
+   * protótipo. `nivel` 1 substitui o banner; 2, a faixa.
+   */
+  private tituloSecaoProntuario(conteudo: string, nivel: 1 | 2): void {
+    const tamanho = nivel === 1 ? 11.5 : 9.5;
+    const altura = alturaLinha(tamanho);
+    this.garantirEspaco(altura + 8);
+    if (this.cursor > CORPO.y) this.cursor += nivel === 1 ? 4.2 : 2.8;
+    this.pdf.setFont(FAMILIA, 'bold');
+    this.pdf.setFontSize(tamanho);
+    this.pdf.setTextColor(nivel === 1 ? '#1A1A1A' : '#3A3F47');
+    const frase = fraseProntuario(conteudo);
+    if (nivel === 1) this.marcos.push({ titulo: frase.replace(/^\d+\.\s*/, ''), pagina: this.pagina });
+    this.pdf.text(frase, CAIXA.x, this.cursor + altura * 0.78);
+    this.cursor += altura + (nivel === 1 ? 1.6 : 1.1);
+  }
+
   banner(conteudo: string): void {
+    if (this.ehProntuario) {
+      this.tituloSecaoProntuario(conteudo, 1);
+      return;
+    }
     const altura = alturaLinha(FONTE.banner) + 1.4;
     this.garantirEspaco(altura + 6); // banner órfão no pé da folha é ruído
     // `margin: 3mm 0 1.2mm` na referência. O respiro DE CIMA estava faltando, e
@@ -638,6 +685,10 @@ export class Documento {
   }
 
   faixa(conteudo: string): void {
+    if (this.ehProntuario) {
+      this.tituloSecaoProntuario(conteudo, 2);
+      return;
+    }
     const altura = alturaLinha(FONTE.faixa) + 1.4;
     this.garantirEspaco(altura + 8);
     // `margin: 2.4mm 0 0` na referência. Estava a cargo do chamador (`doc.y +=
@@ -814,9 +865,9 @@ export class Documento {
       if (!opcoes.cabecalho) return;
       let x = CAIXA.x;
       this.pdf.setLineWidth(BORDA_FINA);
-      this.pdf.setDrawColor(COR.bordaTabela);
+      this.pdf.setDrawColor(this.ehProntuario ? BORDA_PRONTUARIO : COR.bordaTabela);
       for (let i = 0; i < opcoes.cabecalho.length; i++) {
-        this.pdf.setFillColor(COR.fundoCabecalhoTabela);
+        this.pdf.setFillColor(this.ehProntuario ? '#E7EFF8' : COR.fundoCabecalhoTabela);
         this.pdf.rect(x, this.cursor, larguras[i], alturaCab, 'FD');
         this.pdf.setFont(FAMILIA, 'bold');
         this.pdf.setFontSize(tamanho);
@@ -905,7 +956,7 @@ export class Documento {
           );
         }
         this.pdf.setLineWidth(BORDA_FINA);
-        this.pdf.setDrawColor(COR.bordaTabela);
+        this.pdf.setDrawColor(this.ehProntuario ? BORDA_PRONTUARIO : COR.bordaTabela);
         this.pdf.setFillColor(this.fundoDaCelula(cel));
         this.pdf.rect(x, this.cursor, larg, altura, 'FD');
 
@@ -919,7 +970,9 @@ export class Documento {
             : cel.destaque === 'menor'
               ? COR.textoMenorEspessura
               : cel.valor
-                ? COR.valor
+                ? this.ehProntuario
+                  ? '#222222'
+                  : COR.valor
                 : COR.texto,
         );
         const linhasCel = this.pdf.splitTextToSize(cel.texto, larg - padX * 2) as string[];
@@ -1248,4 +1301,32 @@ export interface PilulaDoc {
   id?: string;
   rotuloCampo?: string;
   destaque?: boolean;
+}
+
+
+/** Borda das tabelas do prontuário (protótipo: `#DDD`). */
+const BORDA_PRONTUARIO = '#DDDDDD';
+void AZUL_PRONTUARIO;
+
+/** Siglas que continuam em maiúsculas quando o título vira frase. */
+const SIGLAS = new Set([
+  'NR-13', 'PMTA', 'PTH', 'PMO', 'ASME', 'CREA', 'CNPJ', 'TAG', 'ART', 'TH', 'ME', 'PSV',
+  'VIII', 'II', 'III', 'IV', 'I', 'V', 'MPA', 'NBR', 'UG', 'CA', 'P.V.', 'PV',
+]);
+
+/**
+ * "IDENTIFICAÇÃO DO EQUIPAMENTO" → "Identificação do equipamento". Os títulos
+ * do prontuário foram escritos em caixa alta para a faixa cinza; no desenho do
+ * protótipo eles são frase. Sigla e palavra com número ficam como estão.
+ */
+export function fraseProntuario(texto: string): string {
+  const palavras = texto.trim().split(/\s+/);
+  return palavras
+    .map((w, i) => {
+      const nu = w.toUpperCase();
+      if (SIGLAS.has(nu.replace(/[():,;]/g, '')) || /\d/.test(w)) return w;
+      const min = w.toLocaleLowerCase('pt-BR');
+      return i === 0 ? min.charAt(0).toLocaleUpperCase('pt-BR') + min.slice(1) : min;
+    })
+    .join(' ');
 }

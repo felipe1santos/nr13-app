@@ -114,7 +114,7 @@ beforeAll(async () => {
 }, 300_000);
 
 /** A folha que traz o quadro PRESSÕES. */
-const folhaPressoes = (tag: string) => paginas[tag].find((p) => p.includes('PRESSÕES GRANDEZA')) ?? '';
+const folhaPressoes = (tag: string) => paginas[tag].find((p) => p.includes('Pressões GRANDEZA')) ?? '';
 
 /**
  * SÓ o quadro PRESSÕES — do cabeçalho até a faixa seguinte.
@@ -125,16 +125,16 @@ const folhaPressoes = (tag: string) => paginas[tag].find((p) => p.includes('PRES
  */
 function quadroPressoes(tag: string): string {
   const f = folhaPressoes(tag);
-  const i = f.indexOf('PRESSÕES GRANDEZA');
-  const j = f.indexOf('ASPECTOS OPERACIONAIS', i);
+  const i = f.indexOf('Pressões GRANDEZA');
+  const j = f.indexOf('Aspectos operacionais', i);
   return i < 0 ? '' : f.slice(i, j < 0 ? undefined : j);
 }
 
 /** SÓ o bloco da categorização. */
 function blocoCategoria(tag: string): string {
-  const f = paginas[tag].find((p) => p.includes('CATEGORIZAÇÃO DO EQUIPAMENTO')) ?? '';
-  const i = f.indexOf('CATEGORIZAÇÃO DO EQUIPAMENTO');
-  const j = f.indexOf('PROCEDIMENTOS DE INSPEÇÃO', i);
+  const f = paginas[tag].find((p) => p.includes('Categorização do equipamento')) ?? '';
+  const i = f.indexOf('Categorização do equipamento');
+  const j = f.indexOf('Procedimentos de inspeção', i);
   return i < 0 ? '' : f.slice(i, j < 0 ? undefined : j);
 }
 

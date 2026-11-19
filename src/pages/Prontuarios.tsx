@@ -1410,189 +1410,157 @@ export default function Prontuarios() {
       )}
 
       {tela === 'visualizador' && (
-        <>
-          {/* BARRA ÚNICA E COMPACTA.
-              Eram três faixas empilhadas — trilha, cabeçalho com título, e uma
-              linha com até seis botões do mesmo tamanho —, mais os dois selects
-              de assinatura, tudo acima do documento. Agora: uma linha só, com o
-              voltar, a identificação, as ações principais e um "Mais ações" que
-              guarda o que é raro. O documento ganhou o espaço de volta. */}
-          <div className="bloco-dados pront-topo">
-          <div className="pront-barra">
-            <button
-              type="button"
-              className="fj-btn fj-btn-ghost pront-barra-voltar"
-              onClick={() => setTela(visualizandoSemSalvar ? 'formulario' : 'equipamentos')}
-            >
-              ← <span className="pront-btn-rotulo">{visualizandoSemSalvar ? 'Edição' : 'Voltar'}</span>
-            </button>
-            <div className="pront-barra-id">
-              <strong>{tag}</strong>
-              {/* A FAIXA DE METADADOS SUBIU PARA CÁ (07/09/2026). "Documento
-                  emitido em … · 3 páginas · código de verificação …" era um
-                  parágrafo de largura inteira entre a barra e a prévia, e
-                  empurrava o documento para baixo em toda abertura. */}
-              <span title={emissao ? `Código de verificação: ${emissao.sha256}` : undefined}>
-                {visualizandoSemSalvar
-                  ? 'pré-visualização · não salvo'
-                  : emissao
-                    ? [
-                        `emitido · rev. ${String(revisaoAtual).padStart(2, '0')}`,
-                        emissao.emissao,
-                        `${emissao.paginas} páginas`,
-                        emissao.pdfPendente ? 'no aparelho' : 'arquivado',
-                        `verificação ${emissao.sha256.slice(0, 8)}…`,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')
-                    : 'rascunho'}
-              </span>
-            </div>
-            <div className="pront-visualizador-acoes">
-                {visualizandoSemSalvar ? (
-                  <button type="button" className={`btn-primario ${salvando ? 'is-loading' : ''}`} onClick={salvar} disabled={salvando}>
+        // Cobalto · a prévia é a JANELA do protótipo: folhas à esquerda, o
+        // documento sobre o fundo cinza, ações no rodapé. Não fecha pelo fundo:
+        // há assinantes escolhidos na tela que só se gravam ao salvar/emitir.
+        <div className="pv-ov">
+          <div className="pv-modal" role="dialog" aria-modal="true" aria-labelledby="pv-tit">
+            <header className="pv-h">
+              <div className="t">
+                <h2 id="pv-tit">
+                  {emissao && !visualizandoSemSalvar ? 'Prontuário' : 'Prévia · Prontuário'} {tag}
+                </h2>
+                {/* A linha de metadados: o que é o documento aberto. */}
+                <small title={emissao ? `Código de verificação: ${emissao.sha256}` : undefined}>
+                  {visualizandoSemSalvar
+                    ? 'Pré-visualização — ainda não salvo.'
+                    : emissao
+                      ? [
+                          `emitido · rev. ${String(revisaoAtual).padStart(2, '0')}`,
+                          emissao.emissao,
+                          `${emissao.paginas} páginas`,
+                          emissao.pdfPendente ? 'no aparelho' : 'arquivado',
+                          `verificação ${emissao.sha256.slice(0, 8)}…`,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')
+                      : 'Documento ainda não emitido — a prévia não grava nada.'}
+                </small>
+              </div>
+              <button
+                type="button"
+                className="pv-x"
+                aria-label="Fechar"
+                onClick={() => setTela(visualizandoSemSalvar ? 'formulario' : 'equipamentos')}
+              >
+                <Icone nome="x" tam={18} />
+              </button>
+            </header>
+
+            {palco.estado !== 'pronto' && <RecusaPalco estado={palco.estado} falha={palco.falha} />}
+            {erroEmissao && <p className="pront-emissao-erro">{erroEmissao}</p>}
+            {/* Fase 12 · bancada do piloto do prontuário. Atrás de `?piloto=1`. */}
+            {new URLSearchParams(window.location.search).get('piloto') === '1' && <PainelPilotoProntuario tag={tag} />}
+
+            {previaPront === 'vetorial' ? (
+              <PreviaProntuarioVetorial
+                tag={tag}
+                versao={versao}
+                nomeArquivo={`Prontuario_${tag}.pdf`}
+                espessura={espessura}
+                assinantes={assinantes}
+              />
+            ) : (
+              <div className="pv-c pv-c-legado">
+                <div className="pv-folha prontuario-preview">
+                  {palco.estado === 'pronto' &&
+                    folhasDoProntuario.map((doc, i) => (
+                      <PaginaA4 key={`${doc}-${i}-${versao}`}>
+                        <iframe
+                          src={`/arquivos-prontuario/${doc}?tag=${encodeURIComponent(tag)}&page=${i + 1}&total=${folhasDoProntuario.length}${palco.paramsIframe}`}
+                          scrolling="no"
+                          title={doc}
+                          onLoad={(e) => {
+                            const ifrDoc = (e.target as HTMLIFrameElement).contentDocument;
+                            if (ifrDoc) ifrDoc.designMode = 'on';
+                          }}
+                        />
+                      </PaginaA4>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            <footer className="pv-f">
+              {/* ASSINANTES · entregues ao gerador; gravados em
+                  nr13_assinantes_pront_<TAG> só em Salvar/Emitir (Fase 6.1). */}
+              <div className="pv-assinantes pront-assinantes">
+                <div className="pront-assinante-campo">
+                  <label htmlFor="pront-sel-engenheiro">Engenheiro (assina)</label>
+                  <select
+                    id="pront-sel-engenheiro"
+                    value={valorAssinante(assinantes.engenheiroId, engenheiros)}
+                    onChange={(e) => trocarAssinante('engenheiroId', e.target.value)}
+                  >
+                    <option value="">— sem assinatura —</option>
+                    {engenheiros.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.nome}{f.crea ? ` — ${f.crea}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="pront-assinante-campo">
+                  <label htmlFor="pront-sel-tecnico">Técnico (assina)</label>
+                  <select
+                    id="pront-sel-tecnico"
+                    value={valorAssinante(assinantes.tecnicoId, tecnicos)}
+                    onChange={(e) => trocarAssinante('tecnicoId', e.target.value)}
+                  >
+                    <option value="">— sem assinatura —</option>
+                    {tecnicos.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.nome}{f.crea ? ` — ${f.crea}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <span className="pv-grow" />
+              {visualizandoSemSalvar ? (
+                <>
+                  <button type="button" className="pv-btn" onClick={() => setTela('formulario')}>
+                    Voltar à edição
+                  </button>
+                  <button type="button" className={`pv-btn pv-btn-pri ${salvando ? 'is-loading' : ''}`} onClick={salvar} disabled={salvando}>
                     {salvando ? 'Salvando...' : 'Salvar Definitivamente'}
                   </button>
-                ) : (
-                  <>
-                    {/* SEM emissão, editar é a ação óbvia e fica na linha.
-                        COM emissão, o que está na tela é um ARQUIVO que não se
-                        edita: a ação principal passa a ser emitir a próxima
-                        revisão, e "Editar dados" desce para o menu — ele prepara
-                        a revisão seguinte, não altera a que está aberta. */}
-                    {!emissao && (
-                      <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setTela('formulario')}>
-                        Editar
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className={`fj-btn fj-btn-primary${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
-                      onClick={emitirProntuario}
-                      disabled={emitindo}
-                      title="Gera o PDF definitivo, calcula o código de verificação e arquiva"
-                    >
-                      {documentosBloqueados() && <Icone nome="cadeado" tam={13} />}{' '}
-                      {emitindo ? 'Emitindo…' : emissao ? 'Emitir revisão' : 'Emitir'}
+                </>
+              ) : (
+                <>
+                  {/* SEM emissão, editar é a ação óbvia. COM emissão, o que está
+                      na tela é um ARQUIVO: editar prepara a próxima revisão e
+                      desce para o menu. */}
+                  {!emissao && (
+                    <button type="button" className="pv-btn" onClick={() => setTela('formulario')}>
+                      Voltar à edição
                     </button>
-                    {/* MAIS AÇÕES · o que é raro sai da linha principal.
-                        Imprimir e abrir o emitido continuam a um clique de
-                        distância; a exclusão vive SÓ aqui, porque prontuário não
-                        é descartável — ela existe para o rascunho que nasceu
-                        errado, não como ação de rotina. */}
-                    <MaisAcoesProntuario
-                      temEmissao={!!emissao}
-                      imprimindo={imprimindo}
-                      rotuloImprimir={rotuloImpressao(fonteDeImpressao(emissao))}
-                      bloqueado={documentosBloqueados()}
-                      aoImprimir={prepararEImprimir}
-                      aoAbrirEmitido={abrirEmitido}
-                      aoEditar={emissao ? () => setTela('formulario') : undefined}
-                      aoExcluir={() => setExcluindoTag(tag)}
-                    />
-                  </>
-                )}
-            </div>
+                  )}
+                  <MaisAcoesProntuario
+                    temEmissao={!!emissao}
+                    imprimindo={imprimindo}
+                    rotuloImprimir={rotuloImpressao(fonteDeImpressao(emissao))}
+                    bloqueado={documentosBloqueados()}
+                    aoImprimir={prepararEImprimir}
+                    aoAbrirEmitido={abrirEmitido}
+                    aoEditar={emissao ? () => setTela('formulario') : undefined}
+                    aoExcluir={() => setExcluindoTag(tag)}
+                  />
+                  <button
+                    type="button"
+                    className={`pv-btn pv-btn-pri${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                    onClick={emitirProntuario}
+                    disabled={emitindo}
+                    title="Gera o PDF definitivo, calcula o código de verificação e arquiva"
+                  >
+                    {documentosBloqueados() ? <Icone nome="cadeado" tam={14} /> : <Icone nome="checkcircle" tam={16} />}
+                    {emitindo ? 'Emitindo…' : emissao ? 'Emitir revisão' : 'Emitir'}
+                  </button>
+                </>
+              )}
+            </footer>
           </div>
-
-            {/* ASSINANTES · recolhidos por padrão.
-                Eram dois selects largos numa faixa própria acima do documento,
-                sempre visíveis — e são escolhidos uma vez, não a cada abertura.
-                O resumo diz quem assina; o detalhe abre a um clique. Continuam
-                entregues ao gerador e, no rollback, aos iframes pelo palco; gravados
-                em nr13_assinantes_pront_<TAG> só em Salvar/Emitir (Fase 6.1). */}
-            <details className="pront-assinantes-caixa">
-              <summary>
-                <Icone nome="pencil" tam={13} /> Assinaturas
-                <span className="pront-assinantes-resumo">
-                  {[
-                    engenheiros.find((f) => f.id === assinantes.engenheiroId)?.nome,
-                    tecnicos.find((f) => f.id === assinantes.tecnicoId)?.nome,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ') || 'nenhuma definida'}
-                </span>
-              </summary>
-              <div className="pront-assinantes">
-              <div className="pront-assinante-campo">
-                <label htmlFor="pront-sel-engenheiro">Engenheiro (assina)</label>
-                <select
-                  id="pront-sel-engenheiro"
-                  value={valorAssinante(assinantes.engenheiroId, engenheiros)}
-                  onChange={(e) => trocarAssinante('engenheiroId', e.target.value)}
-                >
-                  <option value="">— sem assinatura —</option>
-                  {engenheiros.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.nome}{f.crea ? ` — ${f.crea}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="pront-assinante-campo">
-                <label htmlFor="pront-sel-tecnico">Técnico (assina)</label>
-                <select
-                  id="pront-sel-tecnico"
-                  value={valorAssinante(assinantes.tecnicoId, tecnicos)}
-                  onChange={(e) => trocarAssinante('tecnicoId', e.target.value)}
-                >
-                  <option value="">— sem assinatura —</option>
-                  {tecnicos.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.nome}{f.crea ? ` — ${f.crea}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              </div>
-            </details>
-          </div>
-
-          {palco.estado !== 'pronto' && (
-            <RecusaPalco estado={palco.estado} falha={palco.falha} />
-          )}
-
-          {/* O parágrafo "Documento emitido em … · 3 páginas · código de
-              verificação …" SAIU: ele tinha largura inteira, ficava entre a
-              barra e a prévia e empurrava o documento para baixo em toda
-              abertura. O mesmo texto virou a segunda linha da barra. O ERRO de
-              emissão continua abaixo: é excepcional, precisa ser lido, e não
-              cabe numa linha discreta. */}
-          {erroEmissao && <p className="pront-emissao-erro">{erroEmissao}</p>}
-
-          {/* Fase 12 · bancada do piloto do prontuário. Atrás de `?piloto=1`:
-              produção continua imprimindo pelo caminho de hoje. */}
-          {new URLSearchParams(window.location.search).get('piloto') === '1' && (
-            <PainelPilotoProntuario tag={tag} />
-          )}
-
-          {previaPront === 'vetorial' ? (
-            <PreviaProntuarioVetorial
-              tag={tag}
-              versao={versao}
-              nomeArquivo={`Prontuario_${tag}.pdf`}
-              espessura={espessura}
-              assinantes={assinantes}
-            />
-          ) : (
-          <div className="prontuario-preview">
-            {palco.estado === 'pronto' &&
-              folhasDoProntuario.map((doc, i) => (
-              <PaginaA4 key={`${doc}-${i}-${versao}`}>
-                <iframe
-                  src={`/arquivos-prontuario/${doc}?tag=${encodeURIComponent(tag)}&page=${i + 1}&total=${folhasDoProntuario.length}${palco.paramsIframe}`}
-                  scrolling="no"
-                  title={doc}
-                  onLoad={(e) => {
-                    const ifrDoc = (e.target as HTMLIFrameElement).contentDocument;
-                    if (ifrDoc) ifrDoc.designMode = 'on';
-                  }}
-                />
-              </PaginaA4>
-            ))}
-          </div>
-          )}
-        </>
+        </div>
       )}
 
       {mostrarModelador && (

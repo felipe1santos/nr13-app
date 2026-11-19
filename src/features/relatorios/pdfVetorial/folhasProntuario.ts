@@ -101,13 +101,13 @@ function responsabilidadeTecnica(doc: Documento, m: ModeloProntuario): void {
 
 // ── 1. IDENTIFICAÇÃO ────────────────────────────────────────────────────────
 export function folhaProntIdentificacao(doc: Documento, m: ModeloProntuario): void {
+  doc.tituloFolha = 'Identificação';
   doc.novaFolha();
-  doc.texto('Prontuário do Equipamento', { tamanho: FONTE.secao + 4, negrito: true, alinhamento: 'center' });
+  // Cobalto: o título do documento mora no cabeçalho ("Prontuário NR-13 —
+  // Identificação"); aqui fica só a referência normativa, discreta.
   doc.texto(`${textoOu(m.identificacao['TIPO DE EQUIPAMENTO'], 'Equipamento')} — ${NR13_REFERENCIA}`, {
     tamanho: FONTE.nota,
     cor: COR.nota,
-    alinhamento: 'center',
-    espacoAntes: 0.8,
   });
 
   doc.banner('1. IDENTIFICAÇÃO DO EQUIPAMENTO');
@@ -148,6 +148,7 @@ export function folhaProntDadosTecnicos(doc: Documento, m: ModeloProntuario): vo
   // metade de cada página em branco — a identificação terminava a 10 cm do
   // topo e a medição a 12, num documento que se queria compacto. Quem quebra
   // a folha é o `Documento`, quando ela enche.
+  doc.tituloFolha = 'Dados técnicos e categorização';
   doc.banner('2. DADOS TÉCNICOS E CATEGORIZAÇÃO');
 
   doc.faixa('ASPECTOS CONSTRUTIVOS');
@@ -218,6 +219,7 @@ export function folhaProntDadosTecnicos(doc: Documento, m: ModeloProntuario): vo
 
 // ── 3. MEDIÇÃO DE ESPESSURA ─────────────────────────────────────────────────
 export function folhaProntUltrassom(doc: Documento, m: ModeloProntuario): void {
+  doc.tituloFolha = 'Medição de espessura';
   doc.banner('3. MEDIÇÃO DE ESPESSURA POR ULTRASSOM');
 
   doc.faixa('INFORMAÇÕES DO ENSAIO');
@@ -344,6 +346,7 @@ export function folhaProntCroqui(doc: Documento, m: ModeloProntuario): void {
   // Esta é a única que abre folha: a prancha de vistas precisa da altura
   // inteira, e espremê-la no que sobrou da página anterior devolveria o
   // croqui-risco que a prancha veio consertar.
+  doc.tituloFolha = 'Croqui 2D cotado';
   doc.novaFolha();
   doc.banner('4. CROQUI 2D COTADO E DIMENSÕES');
 
@@ -459,6 +462,7 @@ function medidasDerivadas(doc: Documento, fd: FolhaDadosProntuario): void {
 
 // ── 5. MEMORIAL + ASSINATURA ────────────────────────────────────────────────
 export function folhaProntMemorial(doc: Documento, m: ModeloProntuario, numero = 5): void {
+  doc.tituloFolha = 'Resumo do memorial';
   doc.banner(`${numero}. RESUMO DOS CÁLCULOS`);
 
   if (m.componentes.length > 0) {
