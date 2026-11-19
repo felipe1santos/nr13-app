@@ -13,6 +13,14 @@
 > cada família de chave, o que já foi resolvido e o que falta, em ordem de risco. Consultar
 > antes de mexer em qualquer coisa que grave arquivo.
 
+## 0-COBALTO. PEDIDOS DO DONO APÓS O REDESIGN (19/11/2026)
+
+- [ ] **Dashboard sem sub-abas.** A sub-aba "Vencimentos" deixa de existir e o conteúdo dela
+      passa para o corpo da aba principal do Dashboard. Se as outras sub-abas (Relatórios,
+      Agenda) não forem necessárias, o Dashboard fica com tudo no corpo, sem abas.
+- [ ] **Lotes de calibração: melhorar a experiência** de calibrar por lote (criar o lote,
+      escolher os acessórios, calibrar um a um, ver o progresso, concluir).
+
 ## 0-DECIES. PRONTUÁRIO ANEXADO EM PDF — EM PRODUÇÃO (20/09/2026)
 
 **No ar desde 20/09/2026**: `main` = `fd06b87`, bundle `index-C3LnP57q.js`, e os dois SQL
