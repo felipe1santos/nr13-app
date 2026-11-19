@@ -20,6 +20,9 @@
       Agenda) não forem necessárias, o Dashboard fica com tudo no corpo, sem abas.
 - [ ] **Lotes de calibração: melhorar a experiência** de calibrar por lote (criar o lote,
       escolher os acessórios, calibrar um a um, ver o progresso, concluir).
+- [ ] **Calibrações demora para abrir pelo menu.** Analisar se é erro, atraso de rota ou
+      peso da tela (catálogo do servidor + agregado de vencimentos + bundle da página) e dizer
+      ao dono o que causa e o que dá para fazer — só depois de terminar o redesign.
 
 ## 0-DECIES. PRONTUÁRIO ANEXADO EM PDF — EM PRODUÇÃO (20/09/2026)
 
