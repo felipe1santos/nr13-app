@@ -16,6 +16,7 @@ export type NomeIcone =
   | 'valvula-psv' | 'manometro' | 'link' | 'sigma' | 'cadeado' | 'info'
   // Hambúrguer do topo (redesign Cobalto).
   | 'menu'
+  | 'palette'
   // Ícones GENÉRICOS de planilha (importação). Não reproduzem logotipo registrado
   // de nenhuma suíte — são desenhos próprios no traço do sprite, diferenciados
   // por cor via a prop `style` (verde/verde/azul/neutro) + rótulo textual ao lado.
@@ -27,6 +28,7 @@ export type NomeIcone =
 const PATHS: Record<NomeIcone, ReactNode> = {
   grid: (<><rect x="3" y="3" width="7" height="7" rx="1.2" /><rect x="14" y="3" width="7" height="7" rx="1.2" /><rect x="14" y="14" width="7" height="7" rx="1.2" /><rect x="3" y="14" width="7" height="7" rx="1.2" /></>),
   sigma: (<><path d="M17 5.5V4H7l6.5 8L7 20h10v-1.5" /></>),
+  palette: (<><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.5-.8 1.5-1.5 0-1-.8-1.4-.8-2.3 0-.9.7-1.7 1.8-1.7H17a4 4 0 0 0 4-4c0-4.7-4-8.5-9-8.5z" /><circle cx="7.5" cy="11" r="1" /><circle cx="10" cy="7" r="1" /><circle cx="14.5" cy="7" r="1" /></>),
   menu: (<><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></>),
   box: (<><path d="M21 8l-9-5-9 5 9 5 9-5z" /><path d="M3 8v8l9 5 9-5V8" /><path d="M12 13v8" /></>),
   userplus: (<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="16" y1="11" x2="22" y2="11" /></>),

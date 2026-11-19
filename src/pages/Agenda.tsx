@@ -81,7 +81,8 @@ function ordenar(a: NotaAgenda, b: NotaAgenda): number {
 
 function montarDias(ano: number, mes: number, notas: NotaAgenda[]): DiaCal[] {
   const primeiro = new Date(ano, mes, 1);
-  const inicio = new Date(ano, mes, 1 - primeiro.getDay());
+  // Cobalto: a semana começa na SEGUNDA (padrão SimplesDental).
+  const inicio = new Date(ano, mes, 1 - ((primeiro.getDay() + 6) % 7));
   const dias: DiaCal[] = [];
   for (let i = 0; i < 42; i++) {
     const data = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + i);
@@ -118,6 +119,7 @@ export default function Agenda() {
   const ref = useMemo(() => new Date(cursor.getFullYear(), cursor.getMonth(), 1), [cursor]);
   const [notas, setNotas] = useState<NotaAgenda[]>(() => listarNotas());
   const [notaAberta, setNotaAberta] = useState<string | null>(null);
+  const [legendaAberta, setLegendaAberta] = useState(false);
   const [rascunho, setRascunho] = useState<NotaAgenda | null>(null);
   const [salvando, setSalvando] = useState(false);
 
@@ -136,7 +138,7 @@ export default function Agenda() {
   const colunas = useMemo(() => {
     const base = visao === 'dia'
       ? [cursor]
-      : Array.from({ length: 7 }, (_, i) => new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - cursor.getDay() + i));
+      : Array.from({ length: 7 }, (_, i) => new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - ((cursor.getDay() + 6) % 7) + i));
     return base.map((data) => {
       const iso = dataISO(data);
       const doDia = notas.filter((n) => n.data === iso).sort(ordenar);
@@ -229,32 +231,52 @@ export default function Agenda() {
             }}
           />
         </label>
-        <div className="ag2-visao" role="group" aria-label="Visualização">
-          {(['dia', 'semana', 'mes'] as Visao[]).map((v) => (
-            <button key={v} type="button" aria-pressed={visao === v} onClick={() => setVisao(v)}>
-              {v === 'dia' ? 'Dia' : v === 'semana' ? 'Semana' : 'Mês'}
-            </button>
-          ))}
+        <label className="ag2-select">
+          <span className="sr-only">Visualização</span>
+          <select value={visao} onChange={(e) => setVisao(e.target.value as Visao)} aria-label="Visualização">
+            <option value="semana">Semana</option>
+            <option value="dia">Dia</option>
+            <option value="mes">Mês</option>
+          </select>
+          <Icone nome="chevdown" tam={16} />
+        </label>
+        <div className="ag2-pos">
+          <button
+            type="button"
+            className="ag2-tool"
+            aria-expanded={legendaAberta}
+            onClick={() => setLegendaAberta((v) => !v)}
+            title="Legenda de cores"
+            aria-label="Legenda de cores"
+          >
+            <Icone nome="palette" tam={19} />
+          </button>
+          {legendaAberta && (
+            <div className="ag2-pop" role="dialog" aria-label="Legenda de cores">
+              <h4>Tipo</h4>
+              <ul className="ag2-legenda">
+                {TIPOS.map((t) => (
+                  <li key={t}><i className={`ag2-ev ${t}`} />{ROTULO_TIPO_NOTA[t]}</li>
+                ))}
+              </ul>
+              <h4>Status</h4>
+              <ul className="ag2-legenda">
+                <li><i className="ag2-ev concluido" />Concluído</li>
+                <li><i className="ag2-ev cancelado" /><s>Cancelado</s></li>
+              </ul>
+            </div>
+          )}
         </div>
-        <button type="button" className="ag2-novo" onClick={() => novo(dataISO(cursor))} aria-label="Novo serviço" title="Novo serviço">
-          <Icone nome="plus" tam={22} />
-        </button>
       </div>
 
-      {/* Legenda das cores: o tipo pinta o bloco; concluído e cancelado mandam
-          sobre o tipo, como na grade do SimplesDental. */}
-      <ul className="ag2-legenda" aria-label="Legenda de cores">
-        {TIPOS.map((t) => (
-          <li key={t}><i className={`ag2-ev ${t}`} />{ROTULO_TIPO_NOTA[t]}</li>
-        ))}
-        <li><i className="ag2-ev concluido" />Concluído</li>
-        <li><i className="ag2-ev cancelado" /><s>Cancelado</s></li>
-      </ul>
 
       {visao === 'mes' ? (
         /* ===== MÊS ===== */
         <div className="ag2-mes">
-          {DOW.map((d) => (
+          <button type="button" className="ag2-novo ag2-novo-mes" onClick={() => novo(dataISO(cursor))} aria-label="Novo serviço" title="Novo serviço">
+            <Icone nome="plus" tam={22} />
+          </button>
+          {[...DOW.slice(1), DOW[0]].map((d) => (
             <div key={d} className="ag2-mes-dow">{d}</div>
           ))}
           {dias.map((d) => {
@@ -304,7 +326,12 @@ export default function Agenda() {
         <div className="ag2-wrap">
           <div className="ag2-tg" style={{ '--cols': colunas.length } as React.CSSProperties}>
             <div className="ag2-row ag2-head">
-              <div className="ag2-canto"><small>Dia inteiro</small></div>
+              <div className="ag2-canto">
+                <button type="button" className="ag2-novo" onClick={() => novo(dataISO(cursor))} aria-label="Novo serviço" title="Novo serviço">
+                  <Icone nome="plus" tam={22} />
+                </button>
+                <small>Dia inteiro</small>
+              </div>
               {colunas.map((c) => (
                 <button
                   key={c.iso}
@@ -366,7 +393,7 @@ export default function Agenda() {
                         title={n.titulo}
                         onClick={() => setNotaAberta(n.id)}
                       >
-                        <b>{n.titulo}</b>
+                        <b>{statusDe(n) === 'concluido' ? '✓ ' : ''}{n.titulo}</b>
                         <small>
                           {n.horario}
                           {n.clienteId && porId.get(n.clienteId) ? ` · ${nomeCliente(porId.get(n.clienteId)!)}` : ''}

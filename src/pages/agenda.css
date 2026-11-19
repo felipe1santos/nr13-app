@@ -517,3 +517,27 @@
   .ag2-wrap, .ag2-mes { margin: 0 8px 12px; }
 }
 @media (prefers-reduced-motion: reduce) { .ag2-ev:hover { filter: none; } }
+
+/* ── Agenda (protótipo): visão num seletor, ferramenta de legenda, "+" no
+      canto da grade, linhas pontilhadas de meia hora ── */
+.ag2-select { position: relative; display: inline-flex; align-items: center; }
+.ag2-select select { appearance: none; -webkit-appearance: none; height: 36px; min-width: 110px; padding: 0 32px 0 14px; border: 1px solid #CFCFCF; border-radius: 4px; background: #fff; color: #696969; font: var(--t-body); cursor: pointer; }
+.ag2-select select:hover { border-color: var(--destaque); color: var(--destaque); }
+.ag2-select select:focus { outline: none; border-color: var(--destaque); box-shadow: inset 0 0 0 1px var(--destaque); }
+.ag2-select svg { position: absolute; right: 9px; pointer-events: none; color: #696969; }
+.ag2-pos { position: relative; }
+.ag2-tool { width: 36px; height: 36px; border: 0; border-radius: 4px; background: #E9E9E9; color: rgba(0, 0, 0, 0.75); display: grid; place-items: center; cursor: pointer; }
+.ag2-tool:hover, .ag2-tool[aria-expanded="true"] { background: #FFEDD5; color: #C2410C; }
+.ag2-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 200px; padding: 12px 14px; background: #fff; border-radius: 4px; box-shadow: var(--sh-menu); }
+.ag2-pop h4 { margin: 0 0 6px; font: 600 12px/16px var(--font); color: #555; }
+.ag2-pop h4 + ul + h4 { margin-top: 10px; }
+.ag2-pop .ag2-legenda { flex-direction: column; padding: 0; gap: 6px; }
+.ag2-canto { align-items: center; justify-content: center; padding: 0; }
+.ag2-canto small { display: none; }
+.ag2-gut-ad { display: flex; align-items: center; justify-content: center; }
+.ag2-gut-ad::before { content: "Dia inteiro"; font: var(--t-caption); color: rgba(0, 0, 0, 0.87); }
+.ag2-canto .ag2-novo { width: 40px; height: 40px; }
+.ag2-mes { position: relative; }
+.ag2-novo-mes { position: fixed; right: 28px; bottom: 28px; z-index: 6; }
+.ag2-slot { background-image: linear-gradient(to bottom, transparent calc(50% - 1px), #E6E6E6 calc(50% - 1px), #E6E6E6 50%, transparent 50%); background-size: 100% 100%; }
+.ag2-slot:hover { background-color: rgba(12, 79, 155, 0.05); }
