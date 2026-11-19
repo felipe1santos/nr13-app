@@ -701,3 +701,49 @@
 .dash-page:has(.reg-hero) .busca-lista { margin: 0; padding: 16px 16px 8px; }
 .reg-lista .reg-metrica { align-items: flex-start; }
 .reg-lista .reg-metrica:not(.reg-metrica-data) b { font: 400 14px/20px var(--font); color: #1A1A1A; }
+
+/* Livro de Registro (equipamento): geometria EXATA do protótipo —
+   barra 60px; coluna de 1192px; cartão do topo 93px (18/20) com o resumo à
+   direita; documentos 50/50 (68px); gaps de 16px; "Registros" num cartão com
+   cabeçalho de 56px; marco 52×36 azul + 14px; cartão do registro 12/14. */
+.fj-panel:has(.livro-topo) { position: relative; }
+.livro-topo-l1 { height: 60px; box-sizing: border-box; padding: 12px 16px !important; }
+.livro-topo-l2 { box-sizing: border-box; max-width: 1192px !important; min-height: 93px; margin: 24px auto 0 !important; padding: 18px 440px 18px 20px !important; gap: 16px !important; }
+.livro-topo-l2 .livro-topo-ic { width: 56px !important; }
+.livro-topo-l2 h2 { font: 400 22px/28px var(--font) !important; }
+.livro-fixos { max-width: 1192px !important; margin: 16px auto 0 !important; display: block !important; }
+.livro-fixos-docs { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 16px !important; }
+.livro-doc-card { width: auto !important; height: 68px; box-sizing: border-box; padding: 14px 40px 14px 16px !important; }
+.livro-resumo {
+  position: absolute;
+  top: 84px;
+  right: max(20px, calc((100% - 1192px) / 2 + 20px));
+  height: 93px;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.livro-timeline { box-sizing: border-box; max-width: 1192px !important; margin: 16px auto 0 !important; padding: 0 24px 8px !important; }
+.livro-timeline::before { height: 56px; margin: 0 -24px 20px !important; padding: 12px 16px 10px 20px; box-sizing: border-box; line-height: 34px !important; }
+.livro-timeline-item { grid-template-columns: 66px minmax(0, 1fr) auto !important; padding: 0 0 16px !important; }
+.livro-timeline-item::before { left: 25px !important; top: 36px !important; }
+.livro-timeline-num { left: 0 !important; top: 0 !important; width: 52px; min-width: 52px !important; height: 36px !important; padding: 0 !important; font: 700 13px/1 var(--font) !important; }
+.livro-timeline-corpo { padding: 12px 14px !important; }
+.livro-timeline-acoes { padding: 12px 14px 0 8px !important; }
+.livro-timeline-tipo { height: 22px; display: inline-flex; align-items: center; padding: 0 8px !important; font: 700 11.5px/1 var(--font) !important; }
+.livro-timeline-data { font: 500 13px/1 var(--font) !important; color: #3A3F47 !important; }
+@media (max-width: 1100px) {
+  .livro-resumo { position: static; height: auto; justify-content: flex-start; margin: 12px 0 0 !important; }
+  .livro-topo-l2 { padding-right: 20px !important; }
+}
+
+/* livro: título e subtítulo em duas linhas, ícone à esquerda; número cabe no marco */
+.livro-topo-l2 { position: relative; flex-wrap: wrap !important; align-content: center; row-gap: 4px !important; column-gap: 10px !important; padding-left: 92px !important; }
+.livro-topo-l2 .livro-topo-ic { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); }
+.livro-topo-l2 h2 { flex: 0 0 100%; }
+.livro-timeline-num { font-size: 11px !important; letter-spacing: 0 !important; }
