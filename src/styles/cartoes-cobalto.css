@@ -747,3 +747,37 @@
 .livro-topo-l2 .livro-topo-ic { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); }
 .livro-topo-l2 h2 { flex: 0 0 100%; }
 .livro-timeline-num { font-size: 11px !important; letter-spacing: 0 !important; }
+
+/* Relatórios: as 7 colunas EXATAS do protótipo (ícone · Relatório · TAG ·
+   Criação · Validade · Situação · Ações); o nº do relatório vai na 2ª linha
+   do nome; Tipo e Próxima não aparecem na lista do protótipo. Sem o
+   cabeçalho de painel. Tabela a 16px da borda, como as outras listas. */
+.rel-page .rel-tabela-v9 .painel-lista-head { display: none !important; }
+.rel-page .rel-tabela-v9.painel-lista { margin: 0 10px !important; padding: 0 6px 16px !important; }
+.rel-page .rel-tabela-v9 .lista-virt { padding: 0 !important; }
+@media (min-width: 1024px) {
+  .rel-page .rel-tabela-v9 .rel-linha {
+    grid-template-columns: 30px minmax(260px, 1fr) 170px 110px 190px 110px 150px !important;
+    grid-template-rows: 1fr;
+    column-gap: 14px !important;
+    padding: 0 12px !important;
+    min-height: 44px;
+  }
+  .rel-page .rel-tabela-v9 .rel-linha > :nth-child(1) { grid-column: 1; grid-row: 1 / span 2; }
+  .rel-page .rel-tabela-v9 .rel-linha > :nth-child(2) { grid-column: 2; }
+  .rel-page .rel-tabela-v9 .rel-linha > :nth-child(4) { grid-column: 3; }
+  .rel-page .rel-tabela-v9 .rel-linha > :nth-child(6) { grid-column: 4; }
+  .rel-page .rel-tabela-v9 .rel-linha > :nth-child(7) { grid-column: 5; }
+  .rel-page .rel-tabela-v9 .rel-linha > :nth-child(9) { grid-column: 6; }
+  .rel-page .rel-tabela-v9 .rel-linha > :nth-child(10) { grid-column: 7; }
+  .rel-page .rel-tabela-v9 .rel-linha > :nth-child(3),
+  .rel-page .rel-tabela-v9 .rel-linha > :nth-child(5),
+  .rel-page .rel-tabela-v9 .rel-linha > :nth-child(8) { display: none !important; }
+  .rel-page .rel-tabela-v9 .rel-linha > * { grid-row: 1; }
+  .rel-page .rel-tabela-v9 .rel-linha-cabecalho { min-height: 34px; height: 34px; }
+}
+.rel-page .rel-corpo-v9 > .rel-linha { height: 44px; }
+
+/* Inspeções: chips de tipo à ESQUERDA da busca, como no protótipo */
+.iv4 .iv4-seg { order: -1; }
+.iv4 .busca-lista-campo { flex: 1 1 auto; }
