@@ -630,3 +630,74 @@
   .livro-timeline-acoes { grid-column: 2; border: 1px solid #E3E7EF; border-top: 0; border-radius: 0 0 4px 4px; padding: 0 12px 12px; }
   .livro-timeline-corpo { border-right: 1px solid #E3E7EF; border-radius: 4px 4px 0 0; border-bottom: 0; }
 }
+
+/* ============================================================================
+   EXATIDÃO DO PROTÓTIPO — geometria medida no protótipo (18–19/11/2026):
+   barra 16px 16px 8px, controles 36px, gap 12px; cabeçalho de 34px a 16px
+   da borda; lista com margem 10px + 6px; linha de 44px, padding 0 12px.
+   ============================================================================ */
+.prontuarios-page,
+.calibracoes-page,
+.rel-page { padding: 0 !important; }
+.prontuarios-page > .busca-lista,
+.calibracoes-page .busca-lista,
+.rel-page .rel-cabecalho-busca { margin: 0; padding: 16px 16px 8px; }
+.prontuarios-page .busca-lista-linha,
+.calibracoes-page .busca-lista-linha,
+.rel-page .busca-lista-linha,
+.iv4 .busca-lista-linha,
+.equip-topo .busca-lista-linha,
+.reg-painel .busca-lista-linha { gap: 12px; }
+.busca-lista-campo { height: 36px !important; min-height: 36px; padding: 0 14px !important; }
+.rel-chips button { height: 36px; }
+.prontuarios-page .bloco-dados.painel-lista { margin: 0 10px; padding: 0 6px 16px; border: 0; box-shadow: none; }
+.prontuarios-page .bloco-dados.painel-lista .lista-virt { padding: 0; }
+.prontuarios-page .pront-lista { gap: 0; }
+
+/* Prontuários: colunas EXATAS do protótipo */
+@media (min-width: 1024px) {
+  .prontuarios-page .pront-linha,
+  .prontuarios-page .pront-linha.pront-linha-cabecalho {
+    grid-template-columns: 30px 120px minmax(170px, 1.1fr) minmax(170px, 1fr) 190px 100px 170px 110px !important;
+    column-gap: 14px;
+    padding: 0 12px;
+    margin: 0;
+  }
+}
+.prontuarios-page .pront-linha.pront-linha-cabecalho { min-height: 34px; height: 34px; border-top: 1px solid #DDDDDD; }
+.prontuarios-page .pront-lista > .pront-linha { min-height: 44px; height: 44px; }
+.prontuarios-page .pront-linha-meta > .pront-linha-col:nth-child(4) { font: 400 13px/18px var(--font) !important; color: #334155 !important; }
+.prontuarios-page .pront-vigente { font: 400 14px/20px var(--font); }
+.prontuarios-page .pront-linha-nome strong { font: 400 14px/20px var(--font); }
+
+/* Registros (lista): grade EXATA do protótipo — 30 · 120 · 1.1fr · 1fr · 110 ·
+   180 · 110 · 110 · 20, gap 14, linha 44, cabeçalho 34 a 16px da borda */
+.dash-page:has(.reg-hero) { padding: 0 !important; }
+.reg-painel .busca-lista { margin: 0; padding: 16px 16px 8px; }
+.reg-painel.painel-lista { margin: 0 !important; padding: 0 !important; }
+.reg-cab,
+.reg-lista > li > .reg-card {
+  grid-template-columns: 30px 120px minmax(170px, 1.1fr) minmax(170px, 1fr) 110px 180px 110px 110px 20px !important;
+  column-gap: 14px !important;
+  padding: 0 12px !important;
+}
+.reg-cab { margin: 0 16px !important; height: 34px; }
+.reg-lista { margin: 0 16px !important; padding: 0 0 16px !important; }
+.reg-lista > li > .reg-card { height: 44px; min-height: 44px; }
+.reg-lista .reg-card-ic, .reg-lista .reg-card-foto { grid-column: 1; }
+.reg-lista .reg-card-tag { grid-column: 2; }
+.reg-lista .reg-card-nome { grid-column: 3; font: 400 14px/20px var(--font) !important; }
+.reg-lista .reg-card-marcas { display: contents !important; }
+.reg-lista .reg-card-marcas .fj-badge.neutro { grid-column: 4; justify-self: start; }
+.reg-lista .reg-card-marcas .fj-badge.info2 { grid-column: 7; justify-self: start; }
+.reg-lista .reg-metrica:not(.reg-metrica-data) { grid-column: 5; }
+.reg-lista .reg-metrica-data { grid-column: 6; }
+.reg-lista .reg-card-acao { grid-column: 9; }
+.reg-lista .reg-card > * { grid-row: 1; }
+
+/* ajustes medidos ao vivo */
+.prontuarios-page { gap: 0 !important; row-gap: 0 !important; }
+.reg-lista .reg-card .reg-metrica, .reg-lista .reg-card .fj-badge, .reg-lista .reg-card .reg-card-tag, .reg-lista .reg-card .reg-card-nome { grid-row: 1; }
+.dash-page:has(.reg-hero) .busca-lista { margin: 0; padding: 16px 16px 8px; }
+.reg-lista .reg-metrica { align-items: flex-start; }
+.reg-lista .reg-metrica:not(.reg-metrica-data) b { font: 400 14px/20px var(--font); color: #1A1A1A; }

@@ -1316,6 +1316,7 @@ export default function LivroRegistro() {
           termo={termoBusca}
           aoMudarTermo={setTermoBusca}
           aoEscolher={(tag) => void abrirPorTag(tag)}
+          aoNovoRegistro={(tag) => void abrirPorTag(tag).then(() => abrirModalOcorrencia())}
         />
       </div>
     </div>

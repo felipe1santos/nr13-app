@@ -73,13 +73,21 @@ export interface PropsCatalogoLivro {
   aoMudarTermo: (termo: string) => void;
   /** Escolher um equipamento: o pai semeia a TAG e abre o livro. */
   aoEscolher: (tag: string) => void;
+  /** Cobalto: "Novo registro" na lista — abre o livro da TAG já no formulário. */
+  aoNovoRegistro?: (tag: string) => void;
 }
 
 export default function CatalogoLivroV9({
   termo,
   aoMudarTermo,
   aoEscolher,
+  aoNovoRegistro,
 }: PropsCatalogoLivro) {
+  // Cobalto: chips de tipo (recorte LOCAL da página carregada) e o seletor do
+  // "Novo registro".
+  const [tipoSel, setTipoSel] = useState('');
+  const [escolhendo, setEscolhendo] = useState(false);
+  const [filtroEscolha, setFiltroEscolha] = useState('');
   const [itens, setItens] = useState<ItemLivro[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [temMais, setTemMais] = useState(false);
@@ -193,7 +201,25 @@ export default function CatalogoLivroV9({
         contagem={contagem}
         offline={false}
         compacto
-      />
+        antes={
+          <div className="rel-chips" role="group" aria-label="Tipo de equipamento">
+            {([['', 'Todos'], ['vaso', 'Vasos'], ['caldeira', 'Caldeiras'], ['autoclave', 'Autoclaves']] as const).map(([v, r]) => (
+              <button key={v || 'todos'} type="button" aria-pressed={tipoSel === v} onClick={() => setTipoSel(v)}>
+                {r}
+                {/* Contagem só quando a lista está inteira: com mais páginas, o
+                    número seria parcial. */}
+                {!temMais && <i>{v ? itens.filter((i) => i.tipo === v).length : itens.length}</i>}
+              </button>
+            ))}
+          </div>
+        }
+      >
+        {aoNovoRegistro && (
+          <button type="button" className="lc-criar" onClick={() => setEscolhendo(true)}>
+            <Icone nome="plus" tam={18} /> Novo registro
+          </button>
+        )}
+      </BuscaLista>
 
       {erro && (
         <div className="rel-aviso-erro" role="status">
@@ -220,10 +246,12 @@ export default function CatalogoLivroV9({
             <span>Tipo</span>
             <span>Registros</span>
             <span>Último registro</span>
+            <span>Categoria</span>
+            <span />
             <span />
           </div>
           <ul className="reg-lista">
-            {itens.map((l) => {
+            {itens.filter((l) => !tipoSel || l.tipo === tipoSel).map((l) => {
               /* Só o nome PRÓPRIO do equipamento vai na segunda linha. O rótulo
                  do tipo já é o badge ao lado: sem esta separação, o cadastro
                  sem descrição imprimia "Vaso de Pressão" duas vezes na mesma
@@ -316,6 +344,64 @@ export default function CatalogoLivroV9({
               </button>
             </div>
           )}
+        </div>
+      )}
+      {escolhendo && aoNovoRegistro && (
+        // fecha-pelo-fundo: só ESCOLHE o equipamento — nada digitado se perde.
+        <div className="fj-modal-overlay" onClick={(e) => e.target === e.currentTarget && setEscolhendo(false)}>
+          <div
+            className="fj-modal-box iv4-escolha"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reg-escolha-tit"
+            onKeyDown={(e) => e.key === 'Escape' && setEscolhendo(false)}
+          >
+            <div className="fj-modal-head">
+              <div>
+                <h2 id="reg-escolha-tit">Novo registro</h2>
+                <div className="fj-eyebrow">Escolha o equipamento</div>
+              </div>
+              <button type="button" className="fj-modal-close" onClick={() => setEscolhendo(false)} aria-label="Fechar">
+                <Icone nome="x" tam={15} />
+              </button>
+            </div>
+            <div className="iv4-escolha-corpo">
+              <label className="lc-busca">
+                <Icone nome="search" tam={16} />
+                <input
+                  autoFocus
+                  value={filtroEscolha}
+                  onChange={(e) => setFiltroEscolha(e.target.value)}
+                  placeholder="Buscar por TAG ou equipamento"
+                  aria-label="Buscar equipamento"
+                />
+              </label>
+              <div className="iv4-escolha-lista">
+                {itens
+                  .filter((i) => `${i.tag} ${i.descricao ?? ''}`.toLowerCase().includes(filtroEscolha.trim().toLowerCase()))
+                  .map((i) => (
+                    <button
+                      key={i.tag}
+                      type="button"
+                      className="iv4-escolha-item"
+                      onClick={() => {
+                        setEscolhendo(false);
+                        aoNovoRegistro(i.tag);
+                      }}
+                    >
+                      <span className={`lc-ico ${i.tipo ?? 'outro'}`} aria-hidden="true">
+                        <Icone nome={(i.tipo && ICONE_TIPO[i.tipo]) || 'book'} tam={18} />
+                      </span>
+                      <span className="t">
+                        <b>{i.tag}</b>
+                        <small>{i.descricao || '—'}</small>
+                      </span>
+                      <Icone nome="chevright" tam={16} className="lc-seta" />
+                    </button>
+                  ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </>
