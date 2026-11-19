@@ -52,6 +52,7 @@ const COM_EDICAO: Array<[arquivo: string, oQueSePerde: string]> = [
   ['src/features/relatorios/ModalMedicoes.tsx', 'a grade de espessuras medidas'],
   ['src/features/relatorios/ModalRenomear.tsx', 'o nome digitado'],
   ['src/features/relatorios/predefinicoes/ModalPredefinicoes.tsx', 'o conjunto de recomendações em edição'],
+  ['src/features/memorial/EditorMz.tsx', 'os dados do elemento da caldeira em edição'],
   ['src/features/memorial/MemorialVaso.tsx', 'os dados do elemento (tampo/casco/bocal) em edição'],
   ['src/components/ModalTrocarSenha.tsx', 'o formulário de senha'],
   ['src/pages/Acesso.tsx', 'as permissões marcadas'],

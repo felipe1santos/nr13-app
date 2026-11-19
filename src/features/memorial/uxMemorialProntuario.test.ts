@@ -38,8 +38,12 @@ describe('memorial: o estado ANTES do cálculo', () => {
     // A condição não mudou: `showPlaceholder && log.length === 0`, e as telas
     // passam `calcCount === 0`. Gerado o cálculo, o memorial ocupa a área.
     expect(log).toContain('if (showPlaceholder && log.length === 0) {');
+    // Cobalto: caldeira e autoclave passam pelo cartão compartilhado
+    // (`CartaoMemorialMz`), que aplica a MESMA condição.
+    const editorMz = readFileSync('src/features/memorial/EditorMz.tsx', 'utf8');
+    expect(editorMz).toContain('showPlaceholder={calcCount === 0}');
     for (const tela of [vaso, caldeira, autoclave]) {
-      expect(tela).toContain('showPlaceholder={calcCount === 0}');
+      expect(tela.includes('showPlaceholder={calcCount === 0}') || tela.includes('calcCount={calcCount}')).toBe(true);
     }
   });
 

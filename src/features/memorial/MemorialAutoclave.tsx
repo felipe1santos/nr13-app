@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icone } from '../../components/Icone';
-import Campo from './Campo';
-import MemorialLog from './MemorialLog';
-import TerminalMemorial from './TerminalMemorial';
+import { AcoesMz, BarraResultadoMz, CampoMx, CartaoMemorialMz, SelectMx } from './EditorMz';
 import MemorialVaso from './MemorialVaso';
 import {
   calcularAutoclave,
@@ -89,16 +87,6 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
   }
 
   // Cabeçalho do terminal (padrão design/painel_pmta)
-  const cabecalhoTerminal =
-    resultado && geradoEm
-      ? {
-          titulo: `Memorial de Cálculo — TAG: ${tag}`,
-          sub:
-            `Gerado em ${geradoEm.toLocaleDateString('pt-BR')} ` +
-            `${geradoEm.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` +
-            `${dados.material ? ` · Material ${dados.material}` : ''} · NR-13 / ASME VIII Div.1`,
-        }
-      : undefined;
 
   async function salvar() {
     if (!resultado) { avisarGereOCalculo(); return; }
@@ -149,11 +137,11 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
 
   return (
     <div>
-      <div className="abas-caldeira">
-        <button type="button" className={`aba-caldeira-btn ${aba === 'principal' ? 'ativa' : ''}`} onClick={() => setAba('principal')}>
+      <div className="abas-caldeira cal4-abas mz-abas" role="tablist">
+        <button type="button" role="tab" aria-selected={aba === 'principal'} className={`aba-caldeira-btn ${aba === 'principal' ? 'ativa' : ''}`} onClick={() => setAba('principal')}>
           {abaLabel}
         </button>
-        <button type="button" className={`aba-caldeira-btn ${aba === 'geradorVapor' ? 'ativa' : ''}`} onClick={() => setAba('geradorVapor')}>
+        <button type="button" role="tab" aria-selected={aba === 'geradorVapor'} className={`aba-caldeira-btn ${aba === 'geradorVapor' ? 'ativa' : ''}`} onClick={() => setAba('geradorVapor')}>
           Gerador de Vapor
         </button>
       </div>
@@ -172,170 +160,116 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
           titulo="Memorial do Casco e Tampos da Autoclave (ASME VIII Div.1)"
           imagemSrc="/icon/autoclave-cilindrico.png"
         />
-      ) : subtipo === 'vertical' ? (
-        /* ── Vertical: tampo removível UG-34 + costado UG-27 + fundo + travas ── */
-        <div className="calc-calculadora">
-          <div className="calc-card-top-bar">
-            <span className="calc-card-title">Dados Técnicos — {abaLabel}</span>
-          </div>
-
-          <div className="calc-card-body">
-            <div className="calc-campos-section">
-              <p className="memorial-legenda-aviso">
-                <span className="campo-aviso-icon">⚠</span> = campo obrigatório sem valor válido. O cálculo usa
-                valores padrão nesses campos até você preencher.
-              </p>
-              <div className="memorial-campos-grid">
-                <Campo label="P — Pressão de Projeto (MPa)" value={dados.pressao ?? ''} warn={!dados.pressao || Number(dados.pressao) <= 0} onChange={(v) => set('pressao', Number(v))} />
-                <Campo label="D — Diâmetro Interno (mm)" value={dados.diametro ?? ''} warn={!dados.diametro || Number(dados.diametro) <= 0} onChange={(v) => set('diametro', Number(v))} />
-                <Campo label="S — Tensão Adm. (MPa)" value={dados.tensao ?? ''} warn={!dados.tensao || Number(dados.tensao) <= 0} onChange={(v) => set('tensao', Number(v))} />
-                <Campo label="E — Eficiência de Junta" value={dados.eficiencia ?? 1} onChange={(v) => set('eficiencia', Number(v))} />
-                <Campo label="CA — Corrosão Adm. (mm)" value={dados.ca ?? ''} onChange={(v) => set('ca', Number(v))} />
-                <Campo label="C — Fator UG-34" value={dados.c_fator ?? 0.33} onChange={(v) => set('c_fator', Number(v))} />
-                <Campo label="t_tampo — Esp. do tampo (mm)" value={dados.t_tampo ?? ''} warn={!dados.t_tampo || Number(dados.t_tampo) <= 0} onChange={(v) => set('t_tampo', Number(v))} />
-                <Campo label="t_costado — Esp. do costado (mm)" value={dados.t_costado ?? ''} warn={!dados.t_costado || Number(dados.t_costado) <= 0} onChange={(v) => set('t_costado', Number(v))} />
-                <Campo label="t_fundo — Esp. do fundo (mm)" value={dados.t_fundo ?? ''} warn={!dados.t_fundo || Number(dados.t_fundo) <= 0} onChange={(v) => set('t_fundo', Number(v))} />
-                <Campo
-                  label="Tipo de fundo"
-                  value={(dados.tipo_fundo as string) ?? 'plano'}
-                  onChange={(v) => setCampo('tipo_fundo', v)}
-                  options={[
-                    { value: 'plano', label: 'Plano (UG-34)' },
-                    { value: 'conico', label: 'Cônico (UG-32g)' },
-                  ]}
-                />
-                {dados.tipo_fundo === 'conico' && (
-                  <Campo label="α — Semiângulo do cone (°)" value={dados.alfa ?? 15} onChange={(v) => set('alfa', Number(v))} />
-                )}
-                <Campo label="N — Quantidade de travas" value={dados.n_travas ?? ''} warn={!dados.n_travas || Number(dados.n_travas) <= 0} onChange={(v) => set('n_travas', Number(v))} />
-                <Campo label="d — Diâmetro da trava (mm)" value={dados.d_trava ?? ''} onChange={(v) => set('d_trava', Number(v))} />
-                <Campo label="S_trava — Tensão adm. trava (MPa)" value={dados.tensao_trava ?? ''} onChange={(v) => set('tensao_trava', Number(v))} />
-                <Campo label="Material" type="text" value={dados.material ?? ''} onChange={setMaterial} />
-              </div>
-            </div>
-
-            <div className="calc-equip-section">
-              <Icone nome="calculator" tam={44} />
-              <span className="calc-equip-label">Autoclave Vertical</span>
-              {resultado && (
-                <span className={`resultado-final-badge ${resultado.resultado === 'APROVADO' ? 'aprovado' : 'reprovado'}`} style={{ fontSize: 11 }}>
-                  {resultado.resultado}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="calc-pmta-bar">
-            <span>PMTA CALCULADA: <span className="calc-pmta-valor">{resultado?.pmta ? `${resultado.pmta} MPa` : '0.00 MPa'}</span></span>
-            <span className="calc-pmta-sep">|</span>
-            <span>Esp. mín. do tampo: <span className="calc-pmta-valor">{resultado?.t_min ?? '--'} mm</span></span>
-            <span className="calc-pmta-sep">|</span>
-            <span>Status: <span className={resultado?.resultado === 'APROVADO' ? 'calc-pmta-status-ok' : resultado?.resultado === 'REPROVADO' ? 'calc-pmta-status-err' : ''}>{resultado?.resultado ?? '--'}</span></span>
-          </div>
-
-          <div className="calc-acoes-bar">
-            <button type="button" className="btn-gerar-calculo" onClick={handleCalcular}>
-              Σ GERAR CÁLCULO
-            </button>
-            <span className="calc-terminal-label">Memória de Cálculo — {abaLabel}</span>
-            <button
-              type="button"
-              className={`btn-primario ${salvando ? 'is-loading' : ''}`}
-              onClick={salvar}
-              disabled={!resultado || salvando}
-              style={{ opacity: resultado ? 1 : 0.4, fontSize: 12 }}
-            >
-              {salvando ? 'Salvando...' : 'Salvar'}
-            </button>
-          </div>
-
-          <TerminalMemorial
-            arquivo={`memorial_${tag.toLowerCase().replace(/\s+/g, '_')}.log`}
-            status={resultado?.resultado === 'APROVADO' ? 'aprovado' : resultado?.resultado === 'REPROVADO' ? 'reprovado' : 'aguardando'}
-            cabecalho={cabecalhoTerminal}
-          >
-            <MemorialLog
-              key={calcCount}
-              log={resultado?.log ?? []}
-              animado={calcCount > 0}
-              showPlaceholder={calcCount === 0}
-              placeholder="Preencha os dados estruturais do equipamento e clique em Gerar Cálculo para ver o memorial técnico desta geometria."
-            />
-          </TerminalMemorial>
-        </div>
       ) : (
-        /* ── Retangular ── */
-        <div className="calc-calculadora">
-          <div className="calc-card-top-bar">
-            <span className="calc-card-title">Dados Técnicos — {abaLabel}</span>
-          </div>
-
-          <div className="calc-card-body">
-            <div className="calc-campos-section">
-              <p className="memorial-legenda-aviso">
-                <span className="campo-aviso-icon">⚠</span> = campo obrigatório sem valor válido. O cálculo usa
-                valores padrão nesses campos até você preencher.
-              </p>
-              <div className="memorial-campos-grid">
-                <Campo label="P — Pressão de Projeto (MPa)" value={dados.pressao ?? ''} warn={!dados.pressao || Number(dados.pressao) <= 0} onChange={(v) => set('pressao', Number(v))} />
-                <Campo label="S — Tensão Adm. (MPa)" value={dados.tensao ?? ''} warn={!dados.tensao || Number(dados.tensao) <= 0} onChange={(v) => set('tensao', Number(v))} />
-                <Campo label="C — Coef. UG-47 (2.1 ou 2.2)" value={dados.c_stay ?? 2.1} onChange={(v) => set('c_stay', Number(v))} />
-                <Campo label="a — Passo entre tirantes (mm)" value={dados.espacamento ?? ''} warn={!dados.espacamento || Number(dados.espacamento) <= 0} onChange={(v) => set('espacamento', Number(v))} />
-                <Campo label="t_real — Espessura real (mm)" value={dados.espessura ?? ''} warn={!dados.espessura || Number(dados.espessura) <= 0} onChange={(v) => set('espessura', Number(v))} />
-                <Campo label="d — Diâmetro do tirante (mm)" value={dados.diametro_tirante ?? ''} onChange={(v) => set('diametro_tirante', Number(v))} />
-                <Campo label="Tensão de escoamento (MPa, opcional)" value={dados.sigma_escoamento ?? 0} onChange={(v) => set('sigma_escoamento', Number(v))} />
-                <Campo label="Material" type="text" value={dados.material ?? ''} onChange={setMaterial} />
-              </div>
-            </div>
-
-            <div className="calc-equip-section">
-              <img src="/icon/autoclave-retangular.png" alt="Autoclave Retangular" />
-              <span className="calc-equip-label">Autoclave Retangular</span>
-              {resultado && (
-                <span className={`resultado-final-badge ${resultado.resultado === 'APROVADO' ? 'aprovado' : 'reprovado'}`} style={{ fontSize: 11 }}>
-                  {resultado.resultado}
+        /* Cobalto · autoclave vertical e retangular no editor do protótipo:
+           um cartão com os dados agrupados, o memorial em documento e a barra
+           de resultado. Mesmos campos, mesmo cálculo, mesma gravação. */
+        <div className="mz-wrap">
+          <div className="mz">
+            <section className="mz-card">
+              <header className="mz-h">
+                <h2>Dados técnicos — {abaLabel}</h2>
+                <span className="mz-norma">ASME VIII Div. 1</span>
+                <span className="grow" />
+                <span className="mz-acoes-card">
+                  <AcoesMz
+                    status={resultado?.resultado ?? null}
+                    aoGerar={handleCalcular}
+                    aoSalvar={salvar}
+                    podeSalvar={!!resultado}
+                    salvando={salvando}
+                    salvo={!!resultado && !dirty}
+                  />
                 </span>
-              )}
-            </div>
-          </div>
+              </header>
+              <div className="mz-dados">
+                {subtipo === 'vertical' ? (
+                  <>
+                    <h4 className="mz-grupo"><Icone nome="gauge" tam={16} />Projeto e material</h4>
+                    <div className="mx-grid c3">
+                      <CampoMx rotulo="P — pressão de projeto" unidade="MPa" obrigatorio valor={dados.pressao} onChange={(v) => set('pressao', Number(v))} />
+                      <CampoMx rotulo="D — diâmetro interno" unidade="mm" obrigatorio valor={dados.diametro} onChange={(v) => set('diametro', Number(v))} />
+                      <CampoMx rotulo="S — tensão admissível" unidade="MPa" obrigatorio valor={dados.tensao} onChange={(v) => set('tensao', Number(v))} />
+                      <CampoMx rotulo="E — eficiência de junta" valor={dados.eficiencia ?? 1} onChange={(v) => set('eficiencia', Number(v))} />
+                      <CampoMx rotulo="CA — corrosão admissível" unidade="mm" valor={dados.ca} onChange={(v) => set('ca', Number(v))} />
+                      <CampoMx rotulo="Material" tipo="text" valor={dados.material} onChange={setMaterial} />
+                    </div>
+                    <h4 className="mz-grupo"><Icone nome="box" tam={16} />Espessuras</h4>
+                    <div className="mx-grid c3">
+                      <CampoMx rotulo="t_tampo — esp. do tampo" unidade="mm" obrigatorio valor={dados.t_tampo} onChange={(v) => set('t_tampo', Number(v))} />
+                      <CampoMx rotulo="t_costado — esp. do costado" unidade="mm" obrigatorio valor={dados.t_costado} onChange={(v) => set('t_costado', Number(v))} />
+                      <CampoMx rotulo="t_fundo — esp. do fundo" unidade="mm" obrigatorio valor={dados.t_fundo} onChange={(v) => set('t_fundo', Number(v))} />
+                      <CampoMx rotulo="C — fator UG-34" valor={dados.c_fator ?? 0.33} onChange={(v) => set('c_fator', Number(v))} />
+                      <SelectMx
+                        rotulo="Tipo de fundo"
+                        valor={(dados.tipo_fundo as string) ?? 'plano'}
+                        onChange={(v) => setCampo('tipo_fundo', v)}
+                        opcoes={[
+                          { value: 'plano', label: 'Plano (UG-34)' },
+                          { value: 'conico', label: 'Cônico (UG-32g)' },
+                        ]}
+                      />
+                      {dados.tipo_fundo === 'conico' && (
+                        <CampoMx rotulo="α — semiângulo do cone" unidade="°" valor={dados.alfa ?? 15} onChange={(v) => set('alfa', Number(v))} />
+                      )}
+                    </div>
+                    <h4 className="mz-grupo"><Icone nome="tool" tam={16} />Travas do tampo</h4>
+                    <div className="mx-grid c3">
+                      <CampoMx rotulo="N — quantidade de travas" obrigatorio valor={dados.n_travas} onChange={(v) => set('n_travas', Number(v))} />
+                      <CampoMx rotulo="d — diâmetro da trava" unidade="mm" valor={dados.d_trava} onChange={(v) => set('d_trava', Number(v))} />
+                      <CampoMx rotulo="S_trava — tensão adm. da trava" unidade="MPa" valor={dados.tensao_trava} onChange={(v) => set('tensao_trava', Number(v))} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h4 className="mz-grupo"><Icone nome="gauge" tam={16} />Projeto e material</h4>
+                    <div className="mx-grid c3">
+                      <CampoMx rotulo="P — pressão de projeto" unidade="MPa" obrigatorio valor={dados.pressao} onChange={(v) => set('pressao', Number(v))} />
+                      <CampoMx rotulo="S — tensão admissível" unidade="MPa" obrigatorio valor={dados.tensao} onChange={(v) => set('tensao', Number(v))} />
+                      <CampoMx rotulo="Material" tipo="text" valor={dados.material} onChange={setMaterial} />
+                      <CampoMx rotulo="Tensão de escoamento (opcional)" unidade="MPa" valor={dados.sigma_escoamento ?? 0} onChange={(v) => set('sigma_escoamento', Number(v))} />
+                    </div>
+                    <h4 className="mz-grupo"><Icone nome="tool" tam={16} />Placa estaiada (UG-47)</h4>
+                    <div className="mx-grid c3">
+                      <CampoMx rotulo="C — coef. UG-47 (2,1 ou 2,2)" valor={dados.c_stay ?? 2.1} onChange={(v) => set('c_stay', Number(v))} />
+                      <CampoMx rotulo="a — passo entre tirantes" unidade="mm" obrigatorio valor={dados.espacamento} onChange={(v) => set('espacamento', Number(v))} />
+                      <CampoMx rotulo="t_real — espessura real" unidade="mm" obrigatorio valor={dados.espessura} onChange={(v) => set('espessura', Number(v))} />
+                      <CampoMx rotulo="d — diâmetro do tirante" unidade="mm" valor={dados.diametro_tirante} onChange={(v) => set('diametro_tirante', Number(v))} />
+                    </div>
+                  </>
+                )}
+                <p className="mx-aviso">
+                  <Icone nome="alerttri" tam={15} />
+                  <span>Campo obrigatório vazio: o cálculo usa valores padrão até você preencher.</span>
+                </p>
+              </div>
+            </section>
 
-          <div className="calc-pmta-bar">
-            <span>PMTA CALCULADA: <span className="calc-pmta-valor">{resultado?.pmta ? `${resultado.pmta} MPa` : '0.00 MPa'}</span></span>
-            <span className="calc-pmta-sep">|</span>
-            <span>Esp. Mínima: <span className="calc-pmta-valor">{resultado?.t_min ?? '--'} mm</span></span>
-            <span className="calc-pmta-sep">|</span>
-            <span>Status: <span className={resultado?.resultado === 'APROVADO' ? 'calc-pmta-status-ok' : resultado?.resultado === 'REPROVADO' ? 'calc-pmta-status-err' : ''}>{resultado?.resultado ?? '--'}</span></span>
-          </div>
-
-          <div className="calc-acoes-bar">
-            <button type="button" className="btn-gerar-calculo" onClick={handleCalcular}>
-              Σ GERAR CÁLCULO
-            </button>
-            <span className="calc-terminal-label">Memória de Cálculo — {abaLabel}</span>
-            <button
-              type="button"
-              className={`btn-primario ${salvando ? 'is-loading' : ''}`}
-              onClick={salvar}
-              disabled={!resultado || salvando}
-              style={{ opacity: resultado ? 1 : 0.4, fontSize: 12 }}
-            >
-              {salvando ? 'Salvando...' : 'Salvar'}
-            </button>
-          </div>
-
-          <TerminalMemorial
-            arquivo={`memorial_${tag.toLowerCase().replace(/\s+/g, '_')}.log`}
-            status={resultado?.resultado === 'APROVADO' ? 'aprovado' : resultado?.resultado === 'REPROVADO' ? 'reprovado' : 'aguardando'}
-            cabecalho={cabecalhoTerminal}
-          >
-            <MemorialLog
-              key={calcCount}
+            <CartaoMemorialMz
               log={resultado?.log ?? []}
-              animado={calcCount > 0}
-              showPlaceholder={calcCount === 0}
+              calcCount={calcCount}
+              sub={
+                geradoEm
+                  ? `Gerado em ${geradoEm.toLocaleDateString('pt-BR')} ${geradoEm.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}${dados.material ? ` · Material ${dados.material}` : ''} · NR-13 / ASME VIII Div.1`
+                  : ''
+              }
               placeholder="Preencha os dados estruturais do equipamento e clique em Gerar Cálculo para ver o memorial técnico desta geometria."
+              aoGerar={handleCalcular}
             />
-          </TerminalMemorial>
+          </div>
+
+          <BarraResultadoMz
+            temResultado={!!resultado}
+            status={resultado?.resultado ?? null}
+            itens={[
+              { rotulo: 'PMTA', valor: resultado?.pmta ? String(resultado.pmta).replace('.', ',') : '—', un: 'MPa', classe: 'pet' },
+              {
+                rotulo: subtipo === 'vertical' ? 'Esp. mín. do tampo' : 'Esp. mínima',
+                valor: resultado?.t_min ? String(resultado.t_min).replace('.', ',') : '—',
+                un: 'mm',
+              },
+            ]}
+          />
         </div>
       )}
       </div>

@@ -105,7 +105,7 @@ describe('o boot leve continua inteiro', () => {
 describe('o CÁLCULO do memorial não foi tocado', () => {
   it('as três calculadoras continuam montadas por tipo, com a mesma TAG', () => {
     expect(memorial).toContain('<MemorialVaso tag={tag} barra={trilha} />');
-    expect(memorial).toContain('<MemorialCaldeira tag={tag} />');
+    expect(memorial).toContain('<MemorialCaldeira tag={tag} barra={trilha} />');
     expect(memorial).toContain('MemorialAutoclave');
     expect(memorial).toContain('subtipo as');
   });

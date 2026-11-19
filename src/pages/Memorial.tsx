@@ -83,13 +83,13 @@ export function MemorialView({ tag, info }: { tag: string; info: InfoEquipamento
 
   return (
     <div className="memorial-page mz-page">
-      {info.tipo !== 'vaso' && <div className="fx-bar mz-topo">{trilha}</div>}
+      {info.tipo === 'autoclave' && <div className="fx-bar mz-topo">{trilha}</div>}
 
       {info.tipo === 'vaso' && <MemorialVaso tag={tag} barra={trilha} />}
       {info.tipo === 'autoclave' && (
         <MemorialAutoclave tag={tag} subtipo={(info.subtipo as 'retangular' | 'cilindrica' | 'vertical') || 'cilindrica'} />
       )}
-      {info.tipo === 'caldeira' && <MemorialCaldeira tag={tag} />}
+      {info.tipo === 'caldeira' && <MemorialCaldeira tag={tag} barra={trilha} />}
     </div>
   );
 }

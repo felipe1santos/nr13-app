@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Icone } from '../../components/Icone';
-import Campo from './Campo';
-import MemorialLog from './MemorialLog';
-import TerminalMemorial from './TerminalMemorial';
+import { AcoesMz, BarraResultadoMz, CampoMx, CartaoMemorialMz, ModalElementoMz } from './EditorMz';
 import {
   calcularResumoCaldeira,
   carregarCaldeira,
@@ -19,16 +17,20 @@ import './memorial.css';
 
 type EtapaId = 'costado' | 'tubo' | 'espelho';
 
-const ETAPAS: { id: EtapaId; nome: string }[] = [
-  { id: 'costado', nome: 'Costado' },
-  { id: 'tubo', nome: 'Tubo' },
-  { id: 'espelho', nome: 'Espelho' },
+const ETAPAS: { id: EtapaId; nome: string; ref: string }[] = [
+  { id: 'costado', nome: 'Costado', ref: 'PG-27.2.2' },
+  { id: 'tubo', nome: 'Tubo', ref: 'PG-27.2.1' },
+  { id: 'espelho', nome: 'Espelho', ref: 'PG-46.1' },
 ];
 
-interface Props { tag: string }
+interface Props {
+  tag: string;
+  /** Voltar + trilha da página: com ela, Gerar/Salvar sobem para a barra do topo. */
+  barra?: ReactNode;
+}
 
-export default function MemorialCaldeira({ tag }: Props) {
-  return <MemorialCaldeiraInner key={tag} tag={tag} />;
+export default function MemorialCaldeira(props: Props) {
+  return <MemorialCaldeiraInner key={props.tag} {...props} />;
 }
 
 function validarCamposCaldeira(c: CaldeiraSalva): string[] {
@@ -49,9 +51,10 @@ function validarCamposCaldeira(c: CaldeiraSalva): string[] {
   return erros;
 }
 
-function MemorialCaldeiraInner({ tag }: Props) {
+function MemorialCaldeiraInner({ tag, barra }: Props) {
   const [cald, setCald] = useState<CaldeiraSalva>(() => carregarCaldeira(tag));
-  const [abaId, setAbaId] = useState<EtapaId>('costado');
+  // elemento aberto na janela: edita uma CÓPIA; só o Salvar devolve à caldeira
+  const [elemento, setElemento] = useState<{ id: EtapaId; rascunho: Record<string, unknown> } | null>(null);
   const [resumo, setResumo] = useState<ResumoMemorialCaldeira | null>(null);
   const [calcCount, setCalcCount] = useState(0);
   const [salvando, setSalvando] = useState(false);
@@ -66,11 +69,6 @@ function MemorialCaldeiraInner({ tag }: Props) {
     else montou.current = true;
   }, [cald]);
   useAvisoSairSemSalvar(dirty);
-
-  function atualizarEtapa(id: EtapaId, chave: string, valor: unknown) {
-    setCald((c) => ({ ...c, [id]: { ...c[id], [chave]: valor } }));
-    setConfirmados((m) => (m[id] ? { ...m, [id]: false } : m));
-  }
 
   function handleCalcular() {
     setResumo(calcularResumoCaldeira(cald));
@@ -111,236 +109,317 @@ function MemorialCaldeiraInner({ tag }: Props) {
     }
   }
 
-  const idxAtivo = ETAPAS.findIndex((e) => e.id === abaId);
-  const ehUltimo = idxAtivo === ETAPAS.length - 1;
-  const etapaResultado = resumo?.etapas.find((e) => e.id === abaId)?.resultado ?? null;
+  const statusFinal = resumo?.resultado ?? null;
   const qtdConfirmados = ETAPAS.filter((e) => confirmados[e.id]).length;
-  const todosConfirmados = qtdConfirmados === ETAPAS.length;
   const progresso = (qtdConfirmados / ETAPAS.length) * 100;
 
-  function confirmarEtapa() {
-    setConfirmados((m) => ({ ...m, [abaId]: true }));
-    if (!ehUltimo) setTimeout(() => setAbaId(ETAPAS[idxAtivo + 1].id), 450);
+  function situacao(id: EtapaId): [string, string] {
+    const r = resumo?.etapas.find((x) => x.id === id)?.resultado;
+    if (r && r.faltantes.length > 0) return ['pend', 'Faltam dados'];
+    if (r) return r.resultado === 'APROVADO' ? ['ok', 'Aprovado'] : ['crit', 'Reprovado'];
+    return confirmados[id] ? ['conf', 'Confirmado'] : ['novo', 'A conferir'];
   }
 
-  const cabecalhoTerminal =
-    resumo && geradoEm
-      ? {
-          titulo: `Memorial de Cálculo — TAG: ${tag}`,
-          sub:
-            `Gerado em ${geradoEm.toLocaleDateString('pt-BR')} ` +
-            `${geradoEm.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` +
-            ` · NR-13 / ASME Seção I (2004)`,
-        }
-      : undefined;
+  function abrirElemento(id: EtapaId) {
+    setElemento({ id, rascunho: JSON.parse(JSON.stringify(cald[id] ?? {})) as Record<string, unknown> });
+  }
+  function fecharElemento(salvarElemento: boolean) {
+    if (elemento && salvarElemento) {
+      setCald((c) => ({ ...c, [elemento.id]: elemento.rascunho }));
+      setConfirmados((m) => ({ ...m, [elemento.id]: true }));
+    }
+    setElemento(null);
+  }
 
-  const statusFinal = resumo?.resultado ?? null;
-  const pmtaDisplay = resumo?.pmtaKgf != null ? `${resumo.pmtaKgf.toFixed(2)} kgf/cm²` : '--';
-  const thDisplay = resumo?.thKgf != null ? `${resumo.thKgf.toFixed(2)} kgf/cm²` : '--';
-  const eMinDisplay = etapaResultado ? etapaResultado.e.toFixed(3) : '--';
-
+  const sub = geradoEm
+    ? `Gerado em ${geradoEm.toLocaleDateString('pt-BR')} ${geradoEm.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · NR-13 / ASME Seção I (2004)`
+    : '';
   const logParaMostrar =
-    filtro === 'full'
-      ? resumo?.logCompleto ?? []
-      : resumo?.etapas.find((e) => e.id === filtro)?.resultado.log ?? [];
-  const filtrosTerminal = [{ id: 'full', label: 'Completo' }, ...ETAPAS.map((e) => ({ id: e.id, label: e.nome }))];
+    filtro === 'full' ? resumo?.logCompleto ?? [] : resumo?.etapas.find((e) => e.id === filtro)?.resultado.log ?? [];
+  const eMax = resumo ? Math.max(...resumo.etapas.map((e) => e.resultado.e).filter((n) => Number.isFinite(n))) : null;
+  const acoes = (
+    <AcoesMz
+      status={statusFinal}
+      aoGerar={handleCalcular}
+      aoSalvar={salvar}
+      podeSalvar={!!resumo}
+      salvando={salvando}
+      salvo={!!resumo && !dirty}
+    />
+  );
 
   return (
-    <div className="calc-calculadora">
-      <div className="calc-card-top-bar">
-        <div className="calc-top-row">
-          <div className="calc-stepper">
-            {ETAPAS.map((e, i) => {
-              const done = !!confirmados[e.id];
-              const res = resumo?.etapas.find((r) => r.id === e.id);
-              return (
-                <span key={e.id} className="calc-step-item">
-                  <button type="button" className={`calc-step ${e.id === abaId ? 'ativa' : ''} ${done ? 'done' : ''}`} onClick={() => setAbaId(e.id)}>
-                    <span className="num">
-                      {done ? (
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-                      ) : (
-                        i + 1
-                      )}
-                    </span>
-                    <span className="calc-step-nome">{e.nome}</span>
-                    {res && <span className={`calc-tab-dot ${res.resultado.resultado === 'APROVADO' ? 'ok' : 'err'}`} />}
-                  </button>
-                  {i < ETAPAS.length - 1 && (
-                    <span className={`calc-step-arrow ${done ? 'filled' : ''}`}><Icone nome="chevright" tam={15} /></span>
-                  )}
-                </span>
-              );
-            })}
-          </div>
+    <div className="mz-wrap">
+      {barra ? (
+        <div className="fx-bar mz-topo">
+          {barra}
+          <span className="grow" />
+          {acoes}
         </div>
-        <div className="calc-progress"><i style={{ width: `${progresso}%` }} /></div>
-      </div>
+      ) : null}
 
-      <div className="calc-card-body">
-        <div className="calc-campos-section">
-          <p className="memorial-legenda-aviso">
-            <span className="campo-aviso-icon">⚠</span> = campo obrigatório sem valor válido. O cálculo usa
-            valores padrão nesses campos e o memorial sai como <b>PENDENTE</b> até você preencher.
-          </p>
-          {/* P e temp são globais: toda etapa depende delas, então mudar qualquer uma invalida
-              todas as confirmações já feitas (não só a etapa aberta no momento). */}
-          <div className="memorial-campos-grid">
-            <Campo label="Pressão de Projeto P (MPa)" value={cald.P} warn={!cald.P || Number(cald.P) <= 0}
-              onChange={(v) => { setCald((s) => ({ ...s, P: v === '' ? '' : Number(v) })); setConfirmados({}); }} />
-            <Campo label="Temp. de Projeto (°C)" value={cald.temp} warn={cald.temp === '' || cald.temp === null || cald.temp === undefined}
-              onChange={(v) => { setCald((s) => ({ ...s, temp: v === '' ? '' : Number(v) })); setConfirmados({}); }} />
-          </div>
-
-          <EtapaCampos etapa={abaId} cald={cald} onChange={(chave, valor) => atualizarEtapa(abaId, chave, valor)} />
-
-          <div className="calc-nav-row">
-            <button type="button" className="btn-nav-ghost" disabled={idxAtivo === 0} onClick={() => setAbaId(ETAPAS[idxAtivo - 1].id)}>
-              <Icone nome="chevleft" tam={15} />
-              Voltar
-            </button>
-            <div className="calc-nav-right">
-              <button type="button" className={`btn-ok ${confirmados[abaId] ? 'confirmed' : ''}`} onClick={confirmarEtapa}>
-                {confirmados[abaId] ? (<><Icone nome="check" tam={14} />Salvo</>) : 'OK'}
-              </button>
-              {ehUltimo ? (
-                <span className="calc-nav-nota">Última etapa</span>
-              ) : (
-                <button type="button" className="btn-nav-next" onClick={() => setAbaId(ETAPAS[idxAtivo + 1].id)}>
-                  Próximo
-                  <Icone nome="chevright" tam={15} />
-                </button>
-              )}
+      <div className="mz">
+        <section className="mz-card mz-geo">
+          <header className="mz-h">
+            <h2>Geometria da caldeira</h2>
+            <span className="mz-norma">ASME Seção I (2004)</span>
+            <span className="grow" />
+            {!barra && <span className="mz-acoes-card">{acoes}</span>}
+          </header>
+          <div className="mz-geo-c">
+            <div className="mz-esq">
+              <div className="mz-desenho">
+                <DesenhoCaldeira ativo={elemento?.id ?? null} situacao={(id) => situacao(id)[0]} onAbrir={abrirElemento} />
+                <small>Clique numa parte da caldeira ou num item ao lado para preencher</small>
+              </div>
+              {/* P e temp são globais: toda etapa depende delas, então mudar
+                  qualquer uma invalida todas as confirmações já feitas. */}
+              <div className="mz-gerais">
+                <CampoMx
+                  rotulo="Pressão de projeto P"
+                  unidade="MPa"
+                  obrigatorio
+                  valor={cald.P}
+                  onChange={(v) => {
+                    setCald((s) => ({ ...s, P: v === '' ? '' : Number(v) }));
+                    setConfirmados({});
+                  }}
+                />
+                <CampoMx
+                  rotulo="Temperatura de projeto"
+                  unidade="°C"
+                  obrigatorio
+                  aceitaZero
+                  valor={cald.temp}
+                  onChange={(v) => {
+                    setCald((s) => ({ ...s, temp: v === '' ? '' : Number(v) }));
+                    setConfirmados({});
+                  }}
+                />
+              </div>
+            </div>
+            <div className="mz-geo-lado">
+              <h3 className="mz-sub">Elementos da caldeira</h3>
+              <ul className="mz-comps">
+                {ETAPAS.map((e) => {
+                  const [s, t] = situacao(e.id);
+                  const r = resumo?.etapas.find((x) => x.id === e.id)?.resultado;
+                  const d = (cald[e.id] ?? {}) as Record<string, unknown>;
+                  const mat = String(d.mat ?? '').trim();
+                  const esp = d.espEncontrada !== undefined && d.espEncontrada !== '' ? `${String(d.espEncontrada).replace('.', ',')} mm` : 'esp. —';
+                  return (
+                    <li key={e.id}>
+                      <button type="button" className={`mz-comp ${COR[e.id]} ${elemento?.id === e.id ? 'on' : ''}`} onClick={() => abrirElemento(e.id)}>
+                        <span className="cor" />
+                        <span className="nm">
+                          <b>{e.nome}</b>
+                          <small>
+                            {e.ref} · {mat || '—'} · {esp}
+                          </small>
+                        </span>
+                        {r && Number.isFinite(r.e) && (
+                          <span className="pm">
+                            e {r.e.toFixed(2).replace('.', ',')} <small>mm</small>
+                          </span>
+                        )}
+                        <span className={`sit s-${s}`}>{t}</span>
+                        <Icone nome="pencil" tam={16} className="ed" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="mz-prog">
+                <span>
+                  {qtdConfirmados} de {ETAPAS.length} elementos preenchidos
+                </span>
+                <span className="trk">
+                  <i style={{ width: `${progresso}%` }} />
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="calc-equip-section">
-          <Icone nome="flame" tam={44} />
-          <span className="calc-equip-label">{ETAPAS[idxAtivo].nome} — ASME I (2004)</span>
-          {etapaResultado && (
-            <span className={`resultado-final-badge ${etapaResultado.resultado === 'APROVADO' ? 'aprovado' : 'reprovado'}`} style={{ fontSize: 11 }}>
-              {etapaResultado.resultado}
-            </span>
-          )}
-        </div>
-      </div>
+        {resumo && resumo.resultado === 'PENDENTE' && (
+          <div className="memorial-banner-pendente">
+            <b>Cálculo PENDENTE — campos obrigatórios sem valor:</b>
+            <ul>
+              {resumo.etapas
+                .filter((e) => e.resultado.faltantes.length > 0)
+                .map((e) => (
+                  <li key={e.id}>
+                    {e.nome}: {e.resultado.faltantes.join(', ')}
+                  </li>
+                ))}
+              {(!cald.P || Number(cald.P) <= 0) && <li>Dados gerais: P — Pressão de Projeto</li>}
+              {(cald.temp === '' || cald.temp === null || cald.temp === undefined) && <li>Dados gerais: Temperatura de Projeto</li>}
+            </ul>
+          </div>
+        )}
 
-      {resumo && resumo.resultado === 'PENDENTE' && (
-        <div className="memorial-banner-pendente">
-          <b>Cálculo PENDENTE — campos obrigatórios sem valor:</b>
-          <ul>
-            {resumo.etapas
-              .filter((e) => e.resultado.faltantes.length > 0)
-              .map((e) => (<li key={e.id}>{e.nome}: {e.resultado.faltantes.join(', ')}</li>))}
-            {(!cald.P || Number(cald.P) <= 0) && <li>Dados gerais: P — Pressão de Projeto</li>}
-            {(cald.temp === '' || cald.temp === null || cald.temp === undefined) && <li>Dados gerais: Temperatura de Projeto</li>}
-          </ul>
-        </div>
-      )}
-
-      <div className="calc-pmta-bar">
-        <span>PMTA: <span className="calc-pmta-valor">{pmtaDisplay}</span></span>
-        <span className="calc-pmta-sep">|</span>
-        <span>e mín. da etapa: <span className="calc-pmta-valor">{eMinDisplay} mm</span></span>
-        <span className="calc-pmta-sep">|</span>
-        <span>TH (1,5×PMTA): <span className="calc-pmta-valor">{thDisplay}</span></span>
-        <span className="calc-pmta-sep">|</span>
-        <span>Status:{' '}
-          <span className={statusFinal === 'APROVADO' ? 'calc-pmta-status-ok' : statusFinal === 'REPROVADO' ? 'calc-pmta-status-err' : ''}>
-            {statusFinal ?? '--'}
-          </span>
-        </span>
-      </div>
-
-      <div className="calc-acoes-bar">
-        <button type="button" className={`btn-gerar-calculo ${todosConfirmados ? 'ready' : ''}`} onClick={handleCalcular}>
-          Σ GERAR CÁLCULO
-        </button>
-        <span className="calc-terminal-label">Memória de Cálculo — Caldeira (ASME I)</span>
-        <button type="button" className={`btn-primario ${salvando ? 'is-loading' : ''}`} onClick={salvar}
-          disabled={!resumo || salvando} style={{ opacity: resumo ? 1 : 0.4, fontSize: 12 }}>
-          {salvando ? 'Salvando...' : 'Salvar'}
-        </button>
-      </div>
-
-      <TerminalMemorial
-        arquivo={`memorial_caldeira_${tag.toLowerCase().replace(/\s+/g, '_')}.log`}
-        status={
-          statusFinal === 'APROVADO' ? 'aprovado'
-            : statusFinal === 'REPROVADO' ? 'reprovado'
-              : statusFinal === 'PENDENTE' ? 'pendente'
-                : 'aguardando'
-        }
-        filtros={filtrosTerminal}
-        filtroAtivo={filtro}
-        onFiltro={setFiltro}
-        cabecalho={cabecalhoTerminal}
-      >
-        <MemorialLog
-          key={`${calcCount}-${filtro}`}
+        <CartaoMemorialMz
           log={logParaMostrar}
-          animado={calcCount > 0}
-          showPlaceholder={calcCount === 0}
+          calcCount={calcCount}
+          sub={sub}
           placeholder="Preencha os dados da caldeira e clique em Gerar Cálculo para ver o memorial técnico desta geometria."
+          filtros={[{ id: 'full', label: 'todos os componentes' }, ...ETAPAS.map((e) => ({ id: e.id, label: e.nome.toLowerCase() }))]}
+          filtro={filtro}
+          aoFiltro={setFiltro}
+          aoGerar={handleCalcular}
         />
-      </TerminalMemorial>
+      </div>
+
+      <BarraResultadoMz
+        temResultado={!!resumo}
+        status={statusFinal}
+        itens={[
+          { rotulo: 'PMTA', valor: resumo?.pmtaKgf != null ? resumo.pmtaKgf.toFixed(2).replace('.', ',') : '—', un: 'kgf/cm²', classe: 'pet' },
+          { rotulo: 'TH (1,5×)', valor: resumo?.thKgf != null ? resumo.thKgf.toFixed(2).replace('.', ',') : '—', un: 'kgf/cm²', classe: 'pet' },
+          { rotulo: 'Esp. mínima', valor: eMax != null && Number.isFinite(eMax) ? eMax.toFixed(2).replace('.', ',') : '—', un: 'mm' },
+        ]}
+      />
+
+      {elemento && (
+        <ModalElementoMz
+          cor={COR[elemento.id]}
+          titulo={ETAPAS.find((e) => e.id === elemento.id)!.nome}
+          subtitulo={FORMULA[elemento.id]}
+          rotuloSalvar={`Salvar ${ETAPAS.find((e) => e.id === elemento.id)!.nome.toLowerCase()}`}
+          onCancelar={() => fecharElemento(false)}
+          onSalvar={() => fecharElemento(true)}
+        >
+          <CamposEtapa
+            etapa={elemento.id}
+            d={elemento.rascunho}
+            onChange={(chave, valor) => setElemento((x) => (x ? { ...x, rascunho: { ...x.rascunho, [chave]: valor } } : x))}
+          />
+        </ModalElementoMz>
+      )}
     </div>
   );
 }
 
-function EtapaCampos({ etapa, cald, onChange }: { etapa: EtapaId; cald: CaldeiraSalva; onChange: (chave: string, valor: unknown) => void }) {
+const COR: Record<EtapaId, string> = { costado: 'c-cs', tubo: 'c-bc', espelho: 'c-t1' };
+const FORMULA: Record<EtapaId, string> = {
+  costado: 'ASME I-2004, PG-27.2.2 · e = P·D/(2·S·E + 2·y·P) + C',
+  tubo: 'ASME I-2004, PG-27.2.1 · e = P·D/(2S+P) + 0,005·D + e',
+  espelho: 'ASME I-2004, PG-46.1 · e = p·√(P/(S·C))',
+};
+
+function DesenhoCaldeira({
+  ativo,
+  situacao,
+  onAbrir,
+}: {
+  ativo: EtapaId | null;
+  situacao: (id: EtapaId) => string;
+  onAbrir: (id: EtapaId) => void;
+}) {
+  const zona = (id: EtapaId, rotulo: string, forma: ReactNode) => (
+    <g
+      key={id}
+      className={`zz ${COR[id]} ${id === ativo ? 'on' : ''} s-${situacao(id)}`}
+      tabIndex={0}
+      role="button"
+      aria-label={rotulo}
+      onClick={() => onAbrir(id)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onAbrir(id);
+        }
+      }}
+    >
+      {forma}
+    </g>
+  );
+  return (
+    <svg viewBox="0 0 420 200" className="mz-svg" aria-label="Geometria da caldeira flamotubular">
+      {zona('costado', 'Costado', <rect x="70" y="40" width="280" height="112" rx="14" />)}
+      {zona(
+        'tubo',
+        'Tubos',
+        <>
+          <rect x="96" y="62" width="228" height="10" rx="5" />
+          <rect x="96" y="80" width="228" height="10" rx="5" />
+          <rect x="96" y="98" width="228" height="10" rx="5" />
+          <rect x="96" y="116" width="228" height="10" rx="5" />
+        </>,
+      )}
+      {zona(
+        'espelho',
+        'Espelhos',
+        <>
+          <rect x="80" y="48" width="10" height="96" rx="2" />
+          <rect x="330" y="48" width="10" height="96" rx="2" />
+        </>,
+      )}
+      <path className="sela" d="M120 152l-10 26h56l-10-26M254 152l-10 26h56l-10-26" />
+    </svg>
+  );
+}
+
+function CamposEtapa({ etapa, d, onChange }: { etapa: EtapaId; d: Record<string, unknown>; onChange: (chave: string, valor: unknown) => void }) {
   const num = (v: string) => (v === '' ? '' : Number(v));
-  const falta = (v: unknown) => v === '' || v === null || v === undefined || Number(v) <= 0;
   if (etapa === 'costado') {
-    const d = cald.costado;
     return (
-      <div>
-        <p className="memorial-tipo-fixo">Costado — ASME I-2004, PG-27.2.2 · e = P·D/(2·S·E + 2·y·P) + C</p>
-        <div className="memorial-campos-grid" style={{ marginTop: 10 }}>
-          <Campo label="D — Diâmetro (mm)" value={d.D ?? ''} warn={falta(d.D)} onChange={(v) => onChange('D', num(v))} />
-          <Campo label="S — Tensão Adm. (MPa)" value={d.S ?? ''} warn={falta(d.S)} onChange={(v) => onChange('S', num(v))} />
-          <Campo label="E — Eficiência de Solda" value={d.E ?? ''} warn={falta(d.E)} onChange={(v) => onChange('E', num(v))} />
-          <Campo label="y — Coef. de Temperatura" value={d.y ?? ''} warn={false} onChange={(v) => onChange('y', num(v))} />
-          <Campo label="C — Sobrecorrosão (mm)" value={d.C ?? ''} warn={false} onChange={(v) => onChange('C', num(v))} />
-          <Campo label="Material" type="text" value={d.mat ?? ''} warn={false} onChange={(v) => onChange('mat', v)} />
-          <Campo label="Esp. de Projeto (mm)" value={d.espProjeto ?? ''} warn={false} onChange={(v) => onChange('espProjeto', num(v))} />
-          <Campo label="Esp. Encontrada (mm)" value={d.espEncontrada ?? ''} warn={falta(d.espEncontrada)} onChange={(v) => onChange('espEncontrada', num(v))} />
+      <>
+        <p className="mx-fixo">Costado — {FORMULA.costado}</p>
+        <h4 className="mz-grupo"><Icone nome="box" tam={16} />Material e tensão</h4>
+        <div className="mx-grid c3">
+          <CampoMx rotulo="Material" tipo="text" valor={d.mat} onChange={(v) => onChange('mat', v)} />
+          <CampoMx rotulo="S — tensão admissível" unidade="MPa" obrigatorio valor={d.S} onChange={(v) => onChange('S', num(v))} />
+          <CampoMx rotulo="E — eficiência de solda" obrigatorio valor={d.E} onChange={(v) => onChange('E', num(v))} />
         </div>
-        <p className="memorial-bocal-nota">y vazio = 0,40 (planilha). C vazio = 0.</p>
-      </div>
+        <h4 className="mz-grupo"><Icone nome="gauge" tam={16} />Geometria e espessuras</h4>
+        <div className="mx-grid c3">
+          <CampoMx rotulo="D — diâmetro" unidade="mm" obrigatorio valor={d.D} onChange={(v) => onChange('D', num(v))} />
+          <CampoMx rotulo="y — coef. de temperatura" valor={d.y} onChange={(v) => onChange('y', num(v))} />
+          <CampoMx rotulo="C — sobrecorrosão" unidade="mm" valor={d.C} onChange={(v) => onChange('C', num(v))} />
+          <CampoMx rotulo="Esp. de projeto" unidade="mm" valor={d.espProjeto} onChange={(v) => onChange('espProjeto', num(v))} />
+          <CampoMx rotulo="Esp. encontrada" unidade="mm" obrigatorio valor={d.espEncontrada} onChange={(v) => onChange('espEncontrada', num(v))} />
+        </div>
+        <p className="mx-aviso"><Icone nome="info" tam={15} /><span>y vazio = 0,40 (planilha). C vazio = 0.</span></p>
+      </>
     );
   }
   if (etapa === 'tubo') {
-    const d = cald.tubo;
     return (
-      <div>
-        <p className="memorial-tipo-fixo">Tubo — ASME I-2004, PG-27.2.1 · e = P·D/(2S+P) + 0,005·D + e</p>
-        <div className="memorial-campos-grid" style={{ marginTop: 10 }}>
-          <Campo label="D — Diâm. Externo do Tubo (mm)" value={d.D ?? ''} warn={falta(d.D)} onChange={(v) => onChange('D', num(v))} />
-          <Campo label="S — Tensão Adm. (MPa)" value={d.S ?? ''} warn={falta(d.S)} onChange={(v) => onChange('S', num(v))} />
-          <Campo label="e — Fator de Espessura (mm)" value={d.fatorE ?? ''} warn={false} onChange={(v) => onChange('fatorE', num(v))} />
-          <Campo label="Material" type="text" value={d.mat ?? ''} warn={false} onChange={(v) => onChange('mat', v)} />
-          <Campo label="Esp. de Projeto (mm)" value={d.espProjeto ?? ''} warn={false} onChange={(v) => onChange('espProjeto', num(v))} />
-          <Campo label="Esp. Encontrada (mm)" value={d.espEncontrada ?? ''} warn={falta(d.espEncontrada)} onChange={(v) => onChange('espEncontrada', num(v))} />
+      <>
+        <p className="mx-fixo">Tubo — {FORMULA.tubo}</p>
+        <h4 className="mz-grupo"><Icone nome="box" tam={16} />Material e tensão</h4>
+        <div className="mx-grid c3">
+          <CampoMx rotulo="Material" tipo="text" valor={d.mat} onChange={(v) => onChange('mat', v)} />
+          <CampoMx rotulo="S — tensão admissível" unidade="MPa" obrigatorio valor={d.S} onChange={(v) => onChange('S', num(v))} />
+          <CampoMx rotulo="e — fator de espessura" unidade="mm" valor={d.fatorE} onChange={(v) => onChange('fatorE', num(v))} />
         </div>
-        <p className="memorial-bocal-nota">e vazio = 0 (sem fator de espessura).</p>
-      </div>
+        <h4 className="mz-grupo"><Icone nome="gauge" tam={16} />Geometria e espessuras</h4>
+        <div className="mx-grid c3">
+          <CampoMx rotulo="D — diâm. externo do tubo" unidade="mm" obrigatorio valor={d.D} onChange={(v) => onChange('D', num(v))} />
+          <CampoMx rotulo="Esp. de projeto" unidade="mm" valor={d.espProjeto} onChange={(v) => onChange('espProjeto', num(v))} />
+          <CampoMx rotulo="Esp. encontrada" unidade="mm" obrigatorio valor={d.espEncontrada} onChange={(v) => onChange('espEncontrada', num(v))} />
+        </div>
+        <p className="mx-aviso"><Icone nome="info" tam={15} /><span>e vazio = 0 (sem fator de espessura).</span></p>
+      </>
     );
   }
-  const d = cald.espelho;
   return (
-    <div>
-      <p className="memorial-tipo-fixo">Espelho Dianteiro/Traseiro — ASME I-2004, PG-46.1 · e = p·√(P/(S·C))</p>
-      <div className="memorial-campos-grid" style={{ marginTop: 10 }}>
-        <Campo label="S — Tensão Adm. (MPa)" value={d.S ?? ''} warn={falta(d.S)} onChange={(v) => onChange('S', num(v))} />
-        <Campo label="p — Passo dos Estais (mm)" value={d.passo ?? ''} warn={falta(d.passo)} onChange={(v) => onChange('passo', num(v))} />
-        <Campo label="C — Constante dos Estais" value={d.cEstais ?? ''} warn={false} onChange={(v) => onChange('cEstais', num(v))} />
-        <Campo label="Material" type="text" value={d.mat ?? ''} warn={false} onChange={(v) => onChange('mat', v)} />
-        <Campo label="Esp. de Projeto (mm)" value={d.espProjeto ?? ''} warn={false} onChange={(v) => onChange('espProjeto', num(v))} />
-        <Campo label="Esp. Encontrada (mm)" value={d.espEncontrada ?? ''} warn={falta(d.espEncontrada)} onChange={(v) => onChange('espEncontrada', num(v))} />
+    <>
+      <p className="mx-fixo">Espelho dianteiro/traseiro — {FORMULA.espelho}</p>
+      <h4 className="mz-grupo"><Icone nome="box" tam={16} />Material e tensão</h4>
+      <div className="mx-grid c3">
+        <CampoMx rotulo="Material" tipo="text" valor={d.mat} onChange={(v) => onChange('mat', v)} />
+        <CampoMx rotulo="S — tensão admissível" unidade="MPa" obrigatorio valor={d.S} onChange={(v) => onChange('S', num(v))} />
+        <CampoMx rotulo="C — constante dos estais" valor={d.cEstais} onChange={(v) => onChange('cEstais', num(v))} />
       </div>
-      <p className="memorial-bocal-nota">C vazio = 2,2 (estais soldados — planilha).</p>
-    </div>
+      <h4 className="mz-grupo"><Icone nome="gauge" tam={16} />Estais e espessuras</h4>
+      <div className="mx-grid c3">
+        <CampoMx rotulo="p — passo dos estais" unidade="mm" obrigatorio valor={d.passo} onChange={(v) => onChange('passo', num(v))} />
+        <CampoMx rotulo="Esp. de projeto" unidade="mm" valor={d.espProjeto} onChange={(v) => onChange('espProjeto', num(v))} />
+        <CampoMx rotulo="Esp. encontrada" unidade="mm" obrigatorio valor={d.espEncontrada} onChange={(v) => onChange('espEncontrada', num(v))} />
+      </div>
+      <p className="mx-aviso"><Icone nome="info" tam={15} /><span>C vazio = 2,2 (estais soldados — planilha).</span></p>
+    </>
   );
 }
