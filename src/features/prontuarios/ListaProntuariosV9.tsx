@@ -53,6 +53,7 @@ import ModalFiltrosDocumentos, {
 } from './ModalFiltrosDocumentos';
 import { listarClientes } from '../cadastros/cadastroService';
 import '../../pages/prontuarios.css';
+import { Ilustracao } from '../../components/Ilustracao';
 
 /** Altura estimada da linha; corrigida por medição no primeiro quadro. */
 const ALT_LINHA = 46;
@@ -329,9 +330,10 @@ function LinhaGrupo({
 function VazioProntuarios({ temFiltro }: { temFiltro: boolean }) {
   if (temFiltro) {
     return (
-      <p className="dashboard-vazio">
+      <div className="dashboard-vazio vz-centro">
+        <Ilustracao nome="busca" />
         Nenhum documento encontrado com esses critérios.
-      </p>
+      </div>
     );
   }
   return (

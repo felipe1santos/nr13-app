@@ -1,0 +1,122 @@
+/* =====================================================================
+   NR-13 · PALETA "COBALTO" — tokens para aplicar no restante do sistema
+   ---------------------------------------------------------------------
+   FONTE ÚNICA: Figtree (a da grade da Agenda). Nenhuma outra família.
+   Números sempre com algarismos tabulares (font-variant-numeric).
+
+   HIERARQUIA (tamanho / peso)              uso
+   --t-display   27px / 300   números de dia, valores de indicador
+   --t-title     20px / 500   título de modal e painel lateral
+   --t-section   20px / 300   separador de seção (mês do grupo, mês na grade)
+   --t-heading   16px / 600   título de painel / card
+   --t-body      14px / 400   texto, células de tabela, campos
+   --t-strong    14px / 600   nome principal de uma linha
+   --t-control   14px / 500   botões, menus, segmentos, seletores
+   --t-label     12px / 300   rótulo de coluna, dia da semana, "Dia inteiro"
+   --t-caption   12px / 400   linha secundária (cinza)
+   --t-tag       11px / 700   tags, selos, badges
+   ===================================================================== */
+:root{
+  --font:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-ui:var(--font);
+
+  --t-display:300 27px/32px var(--font);
+  --t-title:500 20px/28px var(--font);
+  --t-section:300 20px/28px var(--font);
+  --t-heading:600 16px/24px var(--font);
+  --t-body:400 14px/20px var(--font);
+  --t-strong:600 14px/20px var(--font);
+  --t-control:500 14px/20px var(--font);
+  --t-label:300 12px/16px var(--font);
+  --t-caption:400 12px/16px var(--font);
+  --t-tag:700 11px/1.4 var(--font);
+
+  /* ---- superfícies ---- */
+  --bg:#F3F5FA; --surface:#FFFFFF; --surface-2:#F8FAFD; --hover:#F1F4FA;
+  --line:#E3E7EF; --line-2:#EDF0F5;
+  --grid:#DDDDDD;      /* fio da grade da agenda */
+
+  /* ---- texto ---- */
+  --ink:#0E1630; --ink-2:#334155; --ink-3:#5F6B82; --ink-4:#8C97AB;
+  --ink-muted:#7F7F7F;
+
+  /* ---- marca ---- */
+  --brand:#2F5BEA; --brand-700:#1F44C4; --brand-50:#EEF3FF; --brand-100:#DCE5FF;
+  --top-a:#0A1230; --top-b:#22307F;
+  --today:#F3FAFE; --now:#2F5BEA;
+  --fab:#43A047; --fab-700:#2E7D32;
+  --tool:#E9E9E9; --tool-hover:#DEDEDE; --field:#EEEEEE;
+
+  /* ---- categorias ---- */
+  --t-insp:#2F5BEA;  --t-insp-bg:#E3EAFF;  --t-insp-ink:#1A3591;
+  --t-man:#C2410C;   --t-man-bg:#FFEDD5;   --t-man-ink:#7C2D12;
+  --t-vis:#0F766E;   --t-vis-bg:#CCFBF1;   --t-vis-ink:#134E4A;
+  --t-lem:#CA8A04;   --t-lem-bg:#FACC15;   --t-lem-ink:#422006;
+  --t-lem-soft:#FEF9C3;
+
+  /* ---- ensaios (cor própria de cada ensaio; texto/borda · fundo) ---- */
+  --e-checklist:#2F5BEA;  --e-checklist-bg:#E3EAFF;   /* Checklist NR-13      */
+  --e-ultrassom:#6D28D9;  --e-ultrassom-bg:#EDE9FE;   /* Medição de espessura */
+  --e-vext:#0F766E;       --e-vext-bg:#CCFBF1;        /* Visual externa       */
+  --e-vint:#0369A1;       --e-vint-bg:#E0F2FE;        /* Visual interna       */
+  --e-th:#B45309;         --e-th-bg:#FEF3C7;          /* Teste hidrostático   */
+  --e-imagens:#BE185D;    --e-imagens-bg:#FCE7F3;     /* Relatório de imagens */
+  --e-acum:#C2410C;       --e-acum-bg:#FFEDD5;        /* Ensaio de acumulação */
+
+  /* ---- menu lateral (escuro) ---- */
+  --side-bg:#0F1631; --side-line:rgba(255,255,255,.08);
+  --side-ink:#C5CCDB; --side-ink-2:#8A94AD; --side-hover:rgba(255,255,255,.06);
+  --side-on:rgba(91,131,255,.18); --side-on-ink:#FFFFFF; --side-on-bar:#5B83FF;
+
+  /* ---- categoria NR-13 (I = maior risco) ---- */
+  --cat-1:#B42318; --cat-1-bg:#FEE4E2;   /* I  / A */
+  --cat-2:#C2410C; --cat-2-bg:#FFEDD5;   /* II      */
+  --cat-3:#A16207; --cat-3-bg:#FEF3C7;   /* III / B */
+  --cat-4:#0F766E; --cat-4-bg:#CCFBF1;   /* IV      */
+  --cat-5:#15803D; --cat-5-bg:#DCFCE7;   /* V       */
+
+  /* ---- linha de lista (padrão único: Inspeções, Relatórios…) ---- */
+  --row-h:44px;                 /* altura de toda linha de lista            */
+  --row-zebra:#F8F9FA;          /* linha sim, linha não                     */
+  --row-hover:#FFF5F4;          /* destaque ao passar o mouse (rosado limpo) */
+  --row-hover-line:#FAD7D2;     /* filetes em cima/embaixo no destaque      */
+  --row-mark:#E5484D;           /* faixa à esquerda e setinha no destaque   */
+
+  /* ---- azul de destaque (texto/valor em evidência) ---- */
+  --destaque:#0C4F9B; --destaque-bg:#E7EFF8;
+
+  /* ---- CARD · PADRÃO OURO (referência: Dashboard) ----
+     página cinza, card branco, canto reto (4px), sombra de elevação 1, sem borda */
+  --page-cards:#EBEBEB;
+  --card-r:4px;
+  --card-sh:0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12);
+  --card-sh-hover:0 3px 3px -2px rgba(0,0,0,.2),0 3px 4px 0 rgba(0,0,0,.14),0 1px 8px 0 rgba(0,0,0,.12);
+
+  /* ---- aprovado / apto ---- */
+  --aprovado:#009A3D; --aprovado-bg:#DEFFE8;
+  /* neutro sem tom azul (fundos de apoio em documentos) */
+  --neutro-50:#F6F6F6; --neutro-100:#EDEDED;
+
+  /* ---- dado técnico ---- */
+  --petroleo:#0B5F73;                     /* PMTA e pressões */
+
+  /* ---- estados ---- */
+  --ok:#14532D;    --ok-bg:#BBF7D0;  --ok-line:#16A34A;
+  --off:#64748B;   --off-bg:#E2E8F0; --off-solid:#CBD5E1;
+  --draft:#78350F; --draft-bg:#FDE68A;
+  --past:#0369A1;  --past-bg:#BAE6FD;
+  --crit:#DC2626;  --crit-bg:#FEE2E2;
+  --warn:#C2410C;  --warn-bg:#FFEDD5;
+  --more:#64748B;
+
+  /* ---- forma ---- */
+  --r-xs:4px; --r-sm:6px; --r:8px; --r-lg:12px;
+  --sh-1:0 1px 2px rgba(14,22,48,.06);
+  --sh-2:0 8px 28px rgba(14,22,48,.14);
+  --sh-menu:0 5px 5px -3px rgba(0,0,0,.2),0 8px 10px 1px rgba(0,0,0,.14),0 3px 14px 2px rgba(0,0,0,.12);
+  --sh-fab:0 3px 5px -1px rgba(0,0,0,.2),0 6px 10px rgba(0,0,0,.14),0 1px 18px rgba(0,0,0,.12);
+
+  /* ---- medidas ---- */
+  --top-h:52px; --side-w:232px; --ctl-h:36px;
+  --slot-h:37px; --gutter-w:61px; --day-head-h:62px;
+}

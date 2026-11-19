@@ -1257,22 +1257,32 @@ para `scripts/massa-escala/`; usar sempre o caminho do arquivo.
 Não se aplica só a exclusão: vale para qualquer ação irreversível disparada por
 automação (arquivar, trancar registro do Livro, resetar senha).
 
-## 15. Identidade visual (definida pelo dono em 25/10/2026)
+## 15. Identidade visual — redesign "Cobalto" (definida pelo dono em 18/11/2026)
 
-> **A identidade do sistema é a PRIMEIRA prévia — `docs/design/preview.html` — com a
-> paleta B "Aço Frio" (`docs/design/direcao.md`).** Substitui o `design/` "Forja" como
-> fonte da verdade visual. As rodadas v2–v4 foram descartadas e apagadas (25/10/2026); só existem no histórico do git.
+> **A identidade do sistema é o protótipo `docs/design/prototipo-cobalto/`** (index.html +
+> tokens.css), inspirado no SimplesDental. Substitui a paleta "Aço Frio" (25/10/2026), que
+> fica só no histórico do git.
 
-- **Cor:** fundo `#F3F4F6`, superfícies brancas, fios `#E3E5E8`, sidebar `#111418`,
-  acento `#BC560A` com texto **branco** (o texto escuro reprova nele), link `#A34A08`.
-  Semânticas (`--st-ok/warn/crit/info`) só em selo, ponto e variação, sempre com ícone + texto.
-- **Tipo:** IBM Plex Sans (texto), Space Grotesk (títulos e números de destaque),
-  IBM Plex Mono (TAG, datas, números de tabela). Escala 11/12/13/14/16/20/32.
-- **Forma e densidade:** cabeçalho de 48px, toolbar de 44px, controles de 32px (44 no
-  toque), linha de tabela de 40px, raio 4/6/8. Aba segmentada: trilho cinza, ativo
-  **branco com sombra**. Cabeçalho de tabela 12px, caixa normal.
-- **Onde mora:** os VALORES em `src/styles/tokens.css` (nomes Forja mantidos — `--amber`,
-  `--line`, `--text-main` — para o app inteiro trocar num lugar só) e a camada semântica
-  em português (`--superficie`, `--texto-*`, `--acao`, `--fio`, `--st-*`, `--s-*`, `--h-*`).
+- **Fonte ÚNICA:** Figtree (self-hosted, `@fontsource-variable/figtree` — PWA offline).
+  Hierarquia só por tamanho e peso (`--t-display` … `--t-tag`). Números tabulares.
+- **Cor:** destaque `#0C4F9B` (ação, foco, link, ativo, valor em evidência), menu e topo
+  escuros `#0F1631`, aprovado/apto `#009A3D` sobre `#DEFFE8`, PMTA e pressões em azul
+  petróleo `#0B5F73`, botão de CRIAR verde `#43A047` (pílula). Categoria NR-13 colorida
+  (I vermelha … V verde).
+- **Cartão "padrão ouro"** (referência: Dashboard): página `#EBEBEB`, cartão branco, canto
+  4px, sombra de elevação (`--card-sh`), SEM borda. Telas de detalhe numa coluna vertical
+  (ficha até 1240px).
+- **Listas** (referência: Inspeções): página branca, barra de UMA linha, linha de 44px,
+  zebra `#F8F9FA` pelo ÍNDICE (`data-z`/`.z`, nunca `:nth-child` em lista virtualizada),
+  destaque rosado `#FFF5F4` com faixa e seta vermelhas `#E5484D`, cursor de clique.
+- **Shell:** topo escuro de largura total (hambúrguer, marca, título); painel da conta no
+  canto superior direito (dados da sessão, acesso rápido, Trocar senha, Notificações,
+  Instalar app, Sair); ripple no menu; círculo de carregamento ao trocar de tela (só visual).
+- **Ilustrações** (`public/ilustracoes/ilus-A*.webp`, componente `Ilustracao`): SÓ em estado
+  vazio, busca sem resultado e confirmação. Licença Freepik/Magnific Premium (o dono confirmou).
+- **Onde mora:** valores em `src/styles/tokens.css` (nomes Forja mantidos: `--amber` hoje é o
+  azul de destaque), `styles/listas-cobalto.css` (listas), `styles/cartoes-cobalto.css`
+  (cartões, importado DEPOIS do App). Blocos "COBALTO" no fim do CSS de cada tela: as regras
+  de cima seguem valendo — acrescentar, não reescrever regra travada por teste.
   **Não definir `--surface`/`--border`**: há dezenas de `var(--surface, #fff)` com fallback.
 - Travado por `src/__tests__/redesignPiloto.test.ts`.

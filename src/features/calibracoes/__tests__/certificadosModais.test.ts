@@ -125,7 +125,7 @@ describe('o card mostra o estado e dá acesso ao PDF', () => {
 
 describe('o estado vazio ganhou ilustração', () => {
   it('a imagem existe em public/ e é leve', () => {
-    const caminho = 'public/ilustracoes/certificado-vazio.jpg';
+    const caminho = 'public/ilustracoes/ilus-A2-certificado-selo.webp';
     expect(existsSync(caminho)).toBe(true);
     // Ilustração de card não justifica peso: acima de ~80 KB vira custo de
     // carregamento numa tela que o usuário abre para conferir três cartões.
@@ -133,10 +133,10 @@ describe('o estado vazio ganhou ilustração', () => {
   });
 
   it('a tela aponta para ela e a marca como decorativa', () => {
-    expect(TELA).toContain('/ilustracoes/certificado-vazio.jpg');
+    expect(TELA).toContain('/ilustracoes/ilus-A2-certificado-selo.webp');
     // `alt` vazio: o texto ao lado já diz tudo, e um alt descritivo faria o
     // leitor de tela anunciar duas vezes a mesma informação.
-    expect(TELA).toMatch(/certificado-vazio\.jpg"\s+alt=""/);
+    expect(TELA).toMatch(/ilus-A2-certificado-selo\.webp"\s+alt=""/);
   });
 
   it('a ilustração não estoura o card', () => {

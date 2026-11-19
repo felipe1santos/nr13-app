@@ -51,6 +51,7 @@ import './visualizador.css';
 import '../../pages/relatorios.css';
 import '../../pages/inspecoes.css';
 import './inspecoesLista.css';
+import { Ilustracao } from '../../components/Ilustracao';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -365,7 +366,8 @@ export default function InspecoesV9() {
         )}
 
         {!carregando && itens.length === 0 && !erro ? (
-          <p className="iv4-vazio">
+          <p className="iv4-vazio vz-centro">
+            {termo ? <Ilustracao nome="busca" /> : null}
             {termo
               ? `Nenhum equipamento encontrado para ${termo}.`
               : tipo

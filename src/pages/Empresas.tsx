@@ -21,6 +21,7 @@ import { normalizarNome } from '../features/cadastros/clienteResumo';
 import type { Cliente } from '../features/cadastros/tipos';
 import '../features/cadastros/modalCliente.css';
 import './clientes.css';
+import { Ilustracao } from '../components/Ilustracao';
 
 const VAZIO: Omit<Cliente, 'id'> = {
   razaoSocial: '', nomeFantasia: '', cnpj: '', atividade: '',
@@ -126,7 +127,8 @@ export default function Empresas() {
             <p className="sub">Cadastre as empresas clientes para escolhê-las rapidamente nos equipamentos.</p>
           </div>
         ) : visiveis.length === 0 ? (
-          <div className="cli-vazio">
+          <div className="cli-vazio vz-centro">
+            <Ilustracao nome="busca" />
             <p>Nenhum cliente encontrado.</p>
           </div>
         ) : (

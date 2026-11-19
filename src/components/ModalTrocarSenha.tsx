@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { enviarCodigoTrocaSenha, trocarSenhaComCodigo, trocarSenhaComSenhaAtual } from '../services/auth';
 import { Icone } from './Icone';
 import './modal-trocar-senha.css';
+import { Ilustracao } from './Ilustracao';
 
 type Metodo = 'codigo' | 'atual';
 
@@ -91,7 +92,7 @@ export default function ModalTrocarSenha({ email, onClose }: { email: string; on
 
         {ok ? (
           <div className="mts-sucesso">
-            <Icone nome="checkcircle" tam={30} />
+            <Ilustracao nome="aprovado" largura={200} />
             <p>Senha alterada com sucesso!</p>
           </div>
         ) : (

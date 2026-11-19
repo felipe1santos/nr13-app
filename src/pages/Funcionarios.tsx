@@ -9,6 +9,7 @@ import { FOLHAS_RELATORIO_ASSINAVEIS } from '../features/relatorios/tipos';
 import { comprimirImagem, processarAssinaturaComBlob } from '../services/imagem';
 import { paraGravar, ESCOPO_ASSINATURA } from '../services/identidadeVisual';
 import './cadastros.css';
+import { Ilustracao } from '../components/Ilustracao';
 
 type Tela = 'lista' | 'formulario';
 
@@ -372,7 +373,8 @@ export default function Funcionarios() {
       </div>
 
       {funcionarios.length === 0 ? (
-        <div className="cad-vazio">
+        <div className="cad-vazio vz-centro">
+          <Ilustracao nome="assinatura" largura={200} />
           <div>Nenhum profissional cadastrado ainda.</div>
           <div className="cad-vazio-sub">Cadastre engenheiros e inspetores para selecionar a assinatura nos relatórios (ULTRASSOM, Teste Hidrostático).</div>
         </div>

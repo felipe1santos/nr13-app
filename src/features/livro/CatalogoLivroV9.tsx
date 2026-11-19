@@ -53,6 +53,7 @@ import * as buscaLivro from './buscaLivro';
 import type { ItemLivro } from './buscaLivro';
 import { metricaRegistros, rotuloRegistros } from './catalogoLivro';
 import './listaRegistros.css';
+import { Ilustracao } from '../../components/Ilustracao';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -325,6 +326,7 @@ function VazioRegistros({ termo }: { termo: string }) {
       </span>
       {termo ? (
         <>
+          <Ilustracao nome="busca" />
           <strong>Nenhum equipamento encontrado para "{termo}"</strong>
           <p>Tente outra TAG, o nome do equipamento, o fabricante ou o cliente.</p>
         </>

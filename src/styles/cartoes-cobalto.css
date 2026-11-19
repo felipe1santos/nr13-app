@@ -92,3 +92,7 @@
 .memorial-painel-campos { border: 0; border-radius: var(--card-r); box-shadow: var(--card-sh); }
 .msg-aprovado { background: var(--aprovado-bg); color: var(--aprovado); border-radius: var(--card-r); }
 .msg-reprovado { border-radius: var(--card-r); }
+
+/* ── Registros de Segurança: ícone do livro ao lado do título ── */
+.livro-topo-l2 { align-items: center; }
+.livro-topo-ic { width: 40px; height: auto; flex-shrink: 0; display: block; }

@@ -81,6 +81,7 @@ import { carregarEquipamento } from '../equipamento/equipamentoService';
 import ModalRemocao from './ModalRemocao';
 import type { TipoInspecao } from './tipos';
 import '../../pages/relatorios.css';
+import { Ilustracao } from '../../components/Ilustracao';
 
 /**
  * Data em branco, como o usuário deve vê-la.
@@ -903,9 +904,10 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
       )}
 
       {!erro && !carregando && visiveis.length === 0 && (
-        <div className="rel-vazio" role="status">
+        <div className="rel-vazio vz-centro" role="status">
           {temFiltro ? (
             <>
+              {termo ? <Ilustracao nome="busca" /> : null}
               <p>
                 Nenhum relatório encontrado
                 {termo ? (
@@ -923,7 +925,10 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
           ) : escopo === 'historicos' ? (
             <p>Nenhum relatório de equipamento excluído.</p>
           ) : (
-            <p>Nenhum relatório salvo ainda.</p>
+            <>
+              <Ilustracao nome="relatorio" />
+              <p>Nenhum relatório salvo ainda.</p>
+            </>
           )}
         </div>
       )}

@@ -311,7 +311,7 @@ export default function Certificados() {
                    é decorativa — `alt` vazio para o leitor de tela não anunciar
                    um desenho que não acrescenta informação ao texto ao lado. */
                 <div className="cert-card-vazio">
-                  <img src="/ilustracoes/certificado-vazio.jpg" alt="" loading="lazy" />
+                  <img src="/ilustracoes/ilus-A2-certificado-selo.webp" alt="" width={440} height={406} loading="lazy" />
                   <p>Nenhum certificado cadastrado para este padrão.</p>
                 </div>
               )}
