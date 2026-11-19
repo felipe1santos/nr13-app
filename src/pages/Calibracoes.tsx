@@ -176,6 +176,7 @@ export default function Calibracoes() {
   /** Criação (`lote: null`) ou edição de um lote; `null` = modal fechado. */
   const [loteEditando, setLoteEditando] = useState<{ novo: boolean; lote: LoteCal | null } | null>(null);
   const [filtroLotes, setFiltroLotes] = useState<FiltroLotes>(FILTRO_LOTES_VAZIO);
+  const [abaCal, setAbaCal] = useState<'calibrar' | 'realizadas'>('calibrar');
 
 
 
@@ -534,7 +535,7 @@ export default function Calibracoes() {
           devolve o lugar exato onde se estava. */}
       {tela === 'historico' && (
         <>
-          <div className="bloco-dados">
+          <div className={`bloco-dados cal-aba-${abaCal}`}>
             <div className="cal-faixa">
               <button
                 type="button"
@@ -569,6 +570,18 @@ export default function Calibracoes() {
               >
                 <Icone nome="plus" tam={14} /> Nova calibração
               </button>
+
+              {/* Cobalto: abas "Calibrar" (os acessórios, onde se começa uma
+                  calibração) e "Calibrações realizadas" (os lotes). Só
+                  separam o que já existia; nada some, nada muda de regra. */}
+              <div className="cal-abas" role="tablist" aria-label="Calibrações do equipamento">
+                <button type="button" role="tab" aria-selected={abaCal === 'calibrar'} onClick={() => setAbaCal('calibrar')}>
+                  Calibrar <span>{componentes.length}</span>
+                </button>
+                <button type="button" role="tab" aria-selected={abaCal === 'realizadas'} onClick={() => setAbaCal('realizadas')}>
+                  Calibrações realizadas <span>{lotes.length}</span>
+                </button>
+              </div>
 
               {/* Os acessórios em LINHA, não numa coluna à direita. São três a
                   seis por equipamento, e a faixa rola na horizontal em vez de
