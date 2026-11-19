@@ -212,6 +212,16 @@ export default function CatalogoLivroV9({
            `painel-lista` fica pelo piso de altura, que é o que impede a caixa
            branca de virar uma tira com dois equipamentos. */
         <div className="bloco-dados painel-lista reg-painel">
+          {/* Cobalto: cabeçalho de colunas da tabela (protótipo). */}
+          <div className="reg-cab" aria-hidden="true">
+            <span />
+            <span>TAG</span>
+            <span>Equipamento</span>
+            <span>Tipo</span>
+            <span>Registros</span>
+            <span>Último registro</span>
+            <span />
+          </div>
           <ul className="reg-lista">
             {itens.map((l) => {
               /* Só o nome PRÓPRIO do equipamento vai na segunda linha. O rótulo

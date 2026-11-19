@@ -78,7 +78,22 @@ export default function EquipamentosV9() {
   const [contagem, setContagem] = useState<Contagem | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
-  const [visao, setVisao] = useState<'grade' | 'lista'>('grade');
+  // Cobalto: a TABELA é a visão de abertura (protótipo); a grade de cartões
+  // continua a um clique. A escolha fica neste aparelho.
+  const [visao, setVisao] = useState<'grade' | 'lista'>(() => {
+    try {
+      return localStorage.getItem('cobalto.equip.visao') === 'grade' ? 'grade' : 'lista';
+    } catch {
+      return 'lista';
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('cobalto.equip.visao', visao);
+    } catch {
+      /* sem armazenamento: só não lembra a escolha */
+    }
+  }, [visao]);
   const [modalAberto, setModalAberto] = useState(false);
   const [importAberto, setImportAberto] = useState(false);
   const [arquivoSolto, setArquivoSolto] = useState<File | null>(null);

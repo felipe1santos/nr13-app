@@ -760,6 +760,17 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
           offline={offline}
           compacto
           antes={
+            <>
+            {/* Cobalto: a SITUAÇÃO em chips, como no protótipo (o mesmo
+                parâmetro `situacao` do painel de filtros). */}
+            <div className="rel-chips" role="group" aria-label="Situação">
+              {([['', 'Todos'], ['rascunho', 'Rascunhos'], ['finalizado', 'Finalizados']] as const).map(([v, r]) => (
+                <button key={v || 'todos'} type="button" aria-pressed={fSituacao === v} onClick={() => trocarParam('situacao', v)}>
+                  {r}
+                  {v === 'rascunho' && <i>{rascunhosVisiveis.length}</i>}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               className={`fj-btn fj-btn-ghost rel-btn-filtro${temFiltro ? ' filtro-ativo' : ''}`}
@@ -768,6 +779,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
             >
               <Icone nome="filter" tam={14} /> <span className="rel-btn-rotulo">Período e tipo</span>
             </button>
+            </>
           }
         >
           {aoEscolherEquipamento && (

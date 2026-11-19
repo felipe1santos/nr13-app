@@ -370,3 +370,70 @@
 .cal-aba-calibrar .cal-vazio,
 .cal-aba-calibrar .cal-lotes-nada { display: none; }
 .cal-aba-realizadas .cal-acessorios { display: none; }
+
+/* ── Relatórios (protótipo): chips de situação, selos coloridos e botões de
+      ação cinza que ganham cor no hover ── */
+.rel-chips { display: inline-flex; gap: 6px; flex-shrink: 0; }
+.rel-chips button { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 0; border-radius: 999px; background: #E9E9E9; color: #1A1A1A; font: var(--t-control); cursor: pointer; transition: background-color 0.15s, color 0.15s; }
+.rel-chips button i { font-style: normal; min-width: 20px; height: 20px; padding: 0 6px; display: inline-grid; place-items: center; border-radius: 999px; background: #fff; font: 600 11.5px/1 var(--font); color: #555; }
+.rel-chips button:hover { background: #DEDEDE; }
+.rel-chips button[aria-pressed="true"] { background: var(--destaque-bg); color: var(--destaque); box-shadow: inset 0 0 0 1px #C7D8EC; font-weight: 600; }
+.rel-chips button:focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }
+
+.rel-page .rel-corpo-v9 .rel-selo { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 4px; font: 700 11.5px/1 var(--font); }
+.rel-page .rel-corpo-v9 .rel-selo::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.rel-page .rel-corpo-v9 .rel-selo.rel-selo-rascunho { background: #FEF3C7; color: #92400E; }
+.rel-page .rel-corpo-v9 .rel-selo.rel-selo-finalizado { background: var(--aprovado-bg); color: var(--aprovado); }
+.rel-page .rel-corpo-v9 .rel-selo.rel-selo-arquivado { background: #E2E8F0; color: #64748B; }
+.rel-page .rel-corpo-v9 .rel-selo.rel-selo-sem-arquivo { background: #FEE2E2; color: #B42318; }
+
+.rel-page .rel-corpo-v9 .rel-cel-acoes { gap: 4px; }
+.rel-page .rel-corpo-v9 .rel-cel-acoes .btn-icone { width: 30px; height: 30px; border: 0; border-radius: 4px; background: #E9E9E9; color: rgba(0, 0, 0, 0.7); transition: background-color 0.15s, color 0.15s; }
+.rel-page .rel-corpo-v9 .rel-cel-acoes .btn-icone:hover { background: var(--destaque); color: #fff; }
+.rel-page .rel-corpo-v9 .rel-cel-acoes .btn-icone.cor-doc:hover,
+.rel-page .rel-corpo-v9 .rel-cel-acoes .btn-icone.cor-doc-forte:hover { background: #D92D20; color: #fff; }
+.rel-page .rel-corpo-v9 .rel-cel-acoes .btn-icone[title*="xcluir"]:hover { background: #DC2626; color: #fff; }
+.rel-page .rel-marca-rascunho { background: #FEF3C7; color: #B45309; border-radius: 6px; }
+
+/* ── Registros de Segurança · lista em TABELA (protótipo): página branca,
+      sem o bloco de abertura, colunas TAG · Equipamento · Tipo · Registros ·
+      Último registro · seta. As classes pinadas por teste continuam. ── */
+.dash-page:has(.reg-hero) { padding: 0; background: #fff; }
+.fj-panel:has(.reg-hero) { margin: 0; border: 0; border-radius: 0; box-shadow: none; background: #fff; }
+.fj-panel-head.reg-hero { display: none; }
+.reg-painel .busca-lista { padding: 16px 16px 8px; }
+.reg-cab,
+.reg-lista > li > .reg-card {
+  display: grid;
+  grid-template-columns: 30px 150px minmax(200px, 1.4fr) minmax(150px, 0.8fr) 90px 160px 20px;
+  column-gap: 14px;
+  align-items: center;
+}
+.reg-cab { margin: 0 16px; padding: 0 12px; min-height: 34px; border-top: 1px solid #DDDDDD; border-bottom: 1px solid #DDDDDD; font: 300 12px/16px var(--font); color: rgba(0, 0, 0, 0.87); }
+.reg-lista { margin: 0 16px; padding: 0 0 16px; }
+.reg-lista > li > .reg-card { min-height: var(--row-h); padding: 0 12px; text-align: left; }
+.reg-lista .reg-card-ic,
+.reg-lista .reg-card-foto { width: 30px; height: 30px; border-radius: 8px; overflow: hidden; }
+.reg-lista .reg-card-foto img { width: 100%; height: 100%; object-fit: cover; }
+.reg-lista .reg-card-id,
+.reg-lista .reg-card-metricas { display: contents; }
+.reg-lista .reg-card-tag { font: var(--t-strong); color: #1A1A1A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reg-lista .reg-card-nome { font: 500 14px/20px var(--font); color: #1A1A1A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reg-lista .reg-card-tag:only-child { grid-column: span 2; }
+.reg-lista .reg-card-marcas { display: flex; gap: 6px; flex-wrap: nowrap; overflow: hidden; }
+.reg-lista .reg-card-marcas .fj-badge { border: 0; border-radius: 4px; font: 700 11.5px/1 var(--font); }
+.reg-lista .reg-metrica { display: flex; flex-direction: column; gap: 1px; padding: 0; border: 0; background: none; text-align: left; }
+.reg-lista .reg-metrica b { font: 600 14px/20px var(--font); color: var(--destaque); }
+.reg-lista .reg-metrica small { font: var(--t-caption); color: #8C97AB; }
+.reg-lista .reg-metrica:not(.reg-metrica-data) small { display: none; }
+.reg-lista .reg-metrica-data b { color: #1A1A1A; font-weight: 500; }
+.reg-lista .reg-card-acao { font-size: 0; padding: 0; border: 0; background: none; color: #BDBDBD; justify-self: end; }
+.reg-lista .reg-card-acao svg { width: 16px; height: 16px; }
+.reg-lista > li > .reg-card:hover .reg-card-acao { color: var(--row-mark); background: none; }
+@media (max-width: 860px) {
+  .reg-cab { display: none; }
+  .reg-lista { margin: 0; }
+  .reg-lista > li > .reg-card { grid-template-columns: 30px minmax(0, 1fr) auto 18px; row-gap: 2px; padding: 8px 12px; }
+  .reg-lista .reg-card-nome { grid-column: 2 / 3; grid-row: 2; }
+  .reg-lista .reg-card-marcas, .reg-lista .reg-metrica-data { display: none; }
+}
