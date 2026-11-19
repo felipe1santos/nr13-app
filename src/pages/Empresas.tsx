@@ -44,7 +44,24 @@ interface Aberto {
 }
 
 function cidadeUf(c: Cliente): string {
-  return c.cidade ? `${c.cidade}${c.estado ? `/${c.estado}` : ''}` : '';
+  return c.cidade ? `${c.cidade}${c.estado ? ` · ${c.estado}` : ''}` : '';
+}
+
+/** Nome em destaque: o fantasia quando existe (cliente importado da busca às
+ *  vezes só tem ele); a razão social vira a 2ª linha. */
+function nomeDe(c: Cliente): string {
+  return c.nomeFantasia?.trim() || c.razaoSocial?.trim() || c.cnpj || '—';
+}
+function segundaLinha(c: Cliente): string {
+  const r = c.razaoSocial?.trim() ?? '';
+  return r && r !== nomeDe(c) ? r : '';
+}
+
+/** Link do WhatsApp para o telefone do cliente (só dígitos, DDI 55). */
+function linkZap(tel: string | undefined): string | null {
+  const d = (tel ?? '').replace(/\D/g, '');
+  if (d.length < 10) return null;
+  return `https://wa.me/${d.startsWith('55') ? d : `55${d}`}`;
 }
 
 export default function Empresas() {
@@ -98,6 +115,7 @@ export default function Empresas() {
       {/* O título já está no cabeçalho de 48px: a página não o repete. */}
       <section className="cli-painel" aria-label="Clientes">
         <div className="cli-barra">
+          <h2 className="cli-titulo">Clientes</h2>
           <label className="cli-busca">
             <Icone nome="search" tam={15} />
             <input
@@ -136,7 +154,7 @@ export default function Empresas() {
             <table className="cli-tabela cli-desk">
               <thead>
                 <tr>
-                  <th>Cliente</th>
+                  <th>Empresa</th>
                   <th>CNPJ</th>
                   <th>Cidade</th>
                   <th>Contato</th>
@@ -158,7 +176,8 @@ export default function Empresas() {
                           setAberto({ cliente: c, novo: false });
                         }}
                       >
-                        {c.razaoSocial}
+                        <b>{nomeDe(c)}</b>
+                        {segundaLinha(c) && <small>{segundaLinha(c)}</small>}
                       </button>
                     </td>
                     <td className="mono sub">{c.cnpj || '—'}</td>
@@ -173,7 +192,21 @@ export default function Empresas() {
                       )}
                     </td>
                     <td className="acoes" onClick={(e) => e.stopPropagation()}>
-                      {menuDaLinha(c)}
+                      {/* Ações do protótipo: WhatsApp, editar, abrir. Excluir
+                          fica dentro da ficha do cliente (menu dela). */}
+                      <span className="cli-acoes">
+                        {linkZap(c.telefone) && (
+                          <a className="cli-ra zap" href={linkZap(c.telefone)!} target="_blank" rel="noopener noreferrer" title="Conversar no WhatsApp" aria-label={`WhatsApp de ${nomeDe(c)}`}>
+                            <Icone nome="phone" tam={15} />
+                          </a>
+                        )}
+                        <button type="button" className="cli-ra edit" title="Editar" aria-label={`Editar ${nomeDe(c)}`} onClick={() => setAberto({ cliente: c, novo: false, acao: 'editar' })}>
+                          <Icone nome="pencil" tam={15} />
+                        </button>
+                        <button type="button" className="cli-ra vis" title="Abrir" aria-label={`Abrir ${nomeDe(c)}`} onClick={() => setAberto({ cliente: c, novo: false })}>
+                          <Icone nome="arrowright" tam={15} />
+                        </button>
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -187,7 +220,7 @@ export default function Empresas() {
                   <button type="button" className="cli-item" onClick={() => setAberto({ cliente: c, novo: false })}>
                     <LogoCliente cliente={c} tam={32} classe="cli-logo" />
                     <span className="cli-item-txt">
-                      <span className="cli-item-nome">{c.razaoSocial}</span>
+                      <span className="cli-item-nome">{nomeDe(c)}</span>
                       <span className="cli-item-meta">
                         {[cidadeUf(c), c.contato].filter(Boolean).join(' · ') || (c.cnpj ? c.cnpj : '—')}
                         {c.portalEmail && <span className="badge b-ok"><Icone nome="checkcircle" tam={12} /> Portal</span>}

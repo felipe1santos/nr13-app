@@ -102,6 +102,10 @@ export default function Acesso() {
           (nomesClientes.get(u.cliente_id ?? '') ?? '').toLowerCase().includes(termo),
       )
     : clientesLogins;
+  // Cobalto: a busca da barra vale também para a equipe (e-mail ou papel).
+  const equipeFiltrada = termo
+    ? equipe.filter((u) => (u.email ?? '').toLowerCase().includes(termo) || (u.papel ?? '').toLowerCase().includes(termo))
+    : equipe;
 
   const [formAberto, setFormAberto] = useState(false);
   const [email, setEmail] = useState('');
@@ -194,11 +198,6 @@ export default function Acesso() {
 
   return (
     <div className="cad-page acesso-page-larga">
-      <p style={{ color: 'var(--text-muted)', marginBottom: 18 }}>
-        Crie logins para sua equipe e marque o que cada um pode acessar. Acessos de <b>cliente</b>{' '}
-        (portal somente-leitura) são criados na tela <b>Clientes</b>, dentro da empresa do cliente.
-        Todos os papéis têm sessão única: a mesma conta não abre em dois aparelhos ao mesmo tempo.
-      </p>
 
       {erro && <p style={{ color: 'var(--crit)', fontWeight: 600 }}>{erro}</p>}
       {aviso && <p style={{ color: 'var(--ok)', fontWeight: 600 }}>{aviso}</p>}
@@ -267,32 +266,32 @@ export default function Acesso() {
       )}
 
       {/* ── Lista (tela inicial) ── */}
-      <div className="bloco-dados">
-        {/* Abas: acessos da equipe (gerente/inspetor) × acessos de clientes (portal). */}
-        <div className="acesso-abas">
-          <button
-            type="button"
-            className={`acesso-aba${aba === 'equipe' ? ' ativa' : ''}`}
-            onClick={() => setAba('equipe')}
-          >
-            Equipe ({equipe.length})
-          </button>
-          <button
-            type="button"
-            className={`acesso-aba${aba === 'clientes' ? ' ativa' : ''}`}
-            onClick={() => setAba('clientes')}
-          >
-            Clientes ({clientesLogins.length})
-          </button>
-        </div>
-
-        <div className="meta-card-header" style={{ marginBottom: 12 }}>
-          <h3 style={{ margin: 0, border: 'none', padding: 0 }}>
-            {aba === 'equipe' ? `Acessos da equipe (${equipe.length})` : `Acessos de clientes (${clientesLogins.length})`}
-          </h3>
+      <div className="bloco-dados acesso2">
+        {/* Cobalto · barra do protótipo: título, busca, recorte e criar. */}
+        <div className="acesso2-cab">
+          <h2>Acessos</h2>
+          <label className="cad2-busca">
+            <Icone nome="search" tam={15} />
+            <input
+              type="search"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder={aba === 'equipe' ? 'Digite o e-mail de login...' : 'Buscar por e-mail ou empresa...'}
+              aria-label="Buscar acesso"
+            />
+          </label>
+          <div className="rel-chips" role="group" aria-label="Tipo de acesso">
+            <button type="button" aria-pressed={aba === 'equipe'} onClick={() => setAba('equipe')}>
+              Equipe <i>{equipe.length}</i>
+            </button>
+            <button type="button" aria-pressed={aba === 'clientes'} onClick={() => setAba('clientes')}>
+              Clientes <i>{clientesLogins.length}</i>
+            </button>
+          </div>
+          <span className="cad2-esp" />
           {aba === 'equipe' && !formAberto && (
-            <button type="button" className="btn-primario" onClick={() => { setFormAberto(true); setAviso(null); }}>
-              + Cadastrar novo acesso
+            <button type="button" className="btn-primario acesso2-novo" onClick={() => { setFormAberto(true); setAviso(null); }}>
+              Novo acesso
             </button>
           )}
           {aba === 'clientes' && (
@@ -301,18 +300,6 @@ export default function Acesso() {
             </button>
           )}
         </div>
-
-        {aba === 'clientes' && clientesLogins.length > 0 && (
-          <div className="cad-campo" style={{ maxWidth: 340, marginBottom: 12 }}>
-            <input
-              type="search"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar por e-mail ou empresa..."
-              aria-label="Buscar acesso de cliente"
-            />
-          </div>
-        )}
 
         {carregando ? (
           <p>Carregando...</p>
@@ -349,7 +336,7 @@ export default function Acesso() {
                 </tr>
               </thead>
               <tbody>
-                {(aba === 'equipe' ? equipe : clientesFiltrados).map((u) => (
+                {(aba === 'equipe' ? equipeFiltrada : clientesFiltrados).map((u) => (
                   <tr key={u.id}>
                     <td className="cel-titulo" style={{ fontWeight: 600 }}>{u.email}</td>
                     <td data-rot={aba === 'equipe' ? 'Papel' : 'Empresa'}>
@@ -440,6 +427,11 @@ export default function Acesso() {
           <Icone nome="refresh" tam={12} style={{ display: 'inline-block', verticalAlign: -2 }} /> Atualizar lista
         </button>
       </div>
+      <p className="acesso2-nota">
+        Crie logins para sua equipe e marque o que cada um pode acessar. Acessos de <b>cliente</b>{' '}
+        (portal somente-leitura) são criados na tela <b>Clientes</b>, dentro da empresa do cliente.
+        Todos os papéis têm sessão única: a mesma conta não abre em dois aparelhos ao mesmo tempo.
+      </p>
 
       {/* ── Modal de permissões ── */}
       {editandoPermissoes && (

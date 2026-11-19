@@ -59,6 +59,8 @@ const VAZIO: Omit<Funcionario, 'id'> = {
 export default function Funcionarios() {
   const [tela, setTela] = useState<Tela>('lista');
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>(() => listarFuncionarios());
+  // Cobalto: busca da barra (protótipo) — nome, função ou registro.
+  const [busca, setBusca] = useState('');
   const [form, setForm] = useState<Funcionario>({ id: '', ...VAZIO });
   const [confirmarExcluir, setConfirmarExcluir] = useState<string | null>(null);
   /** O profissional aberto em LEITURA (botão do olho). `null` = nenhum. */
@@ -370,6 +372,11 @@ export default function Funcionarios() {
             {funcionarios.length} profissional{funcionarios.length !== 1 ? 'is' : ''} cadastrado{funcionarios.length !== 1 ? 's' : ''} — assinam a documentação gerada
           </p>
         </div>
+        <label className="cad2-busca">
+          <Icone nome="search" tam={15} />
+          <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Digite o nome, função ou registro..." aria-label="Buscar na equipe" />
+        </label>
+        <span className="cad2-esp" />
         <button type="button" className="btn-primario" onClick={novoFuncionario}>
           Novo profissional
         </button>
@@ -387,10 +394,15 @@ export default function Funcionarios() {
             <span>Nome</span>
             <span>Função</span>
             <span>Registro</span>
-            <span>Assinatura</span>
+            <span>Assina</span>
             <span />
           </div>
-          {funcionarios.map((f) => (
+          {funcionarios
+            .filter((f) => {
+              const t = busca.trim().toLowerCase();
+              return !t || [f.nome, f.tipo, f.funcao, f.crea].some((v) => (v ?? '').toLowerCase().includes(t));
+            })
+            .map((f) => (
             <div key={f.id} className="cad-item-card cad2-linha">
               {/* AVATAR antes do nome. Sem foto no cadastro: iniciais, com cor
                   derivada do próprio nome — é o que faz achar alguém numa
@@ -399,21 +411,32 @@ export default function Funcionarios() {
               <AvatarPessoa nome={f.nome} />
               <div className="cad-item-info">
                 <div className="cad-item-nome">{f.nome}</div>
+                {f.funcao && <div className="cad2-funcao">{f.funcao}</div>}
               </div>
               </div>
               <span className={`cad2-fun f-${(f.tipo || '').toLowerCase().normalize('NFD').replace(/[^a-z]/g, '')}`}>{f.tipo || '—'}</span>
               <span className="cad2-reg">{f.crea || '—'}</span>
-              <span className={`lc-selo ${f.assinatura ? 'ok' : 'off'}`}>{f.assinatura ? 'Cadastrada' : 'Sem assinatura'}</span>
+              {/* Assina: rubrica cadastrada (caneta) e quantas folhas de cada
+                  documento a pessoa carimba — derivado do cadastro. */}
+              <span className="cad2-assina">
+                <span className={`cad2-rub ${f.assinatura || f.assinaturaRef ? 'ok' : 'off'}`} title={f.assinatura || f.assinaturaRef ? 'Rubrica cadastrada' : 'Sem rubrica'}>
+                  <Icone nome="pencil" tam={13} />
+                </span>
+                <span className="cad2-folhas">
+                  <span>Relatório <b>{rotuloFolhas(f.folhasRelatorio ?? defaultFolhasRelatorio(f.tipo), FOLHAS_RELATORIO_ASSINAVEIS.length)}</b></span>
+                  <span>Prontuário <b>{rotuloFolhas(f.folhasProntuario ?? defaultFolhasProntuario(f.tipo), PAGINAS_PRONTUARIO.length)}</b></span>
+                </span>
+              </span>
               <div className="cad-item-acoes">
                 {/* VER antes de EDITAR, e à esquerda do lápis: conferir é o gesto
                     mais frequente, e fazê-lo pelo formulário significa abrir uma
                     tela de escrita para uma pergunta de leitura — um clique numa
                     caixa de folha ali muda quem carimba o próximo documento. */}
-                <button type="button" className="btn-editar-pencil" onClick={() => setVendo(f)} title="Ver dados cadastrados">
-                  <Icone nome="eye" tam={14} />
+                <button type="button" className="btn-editar-pencil cad2-ra vis" onClick={() => setVendo(f)} title="Ver dados cadastrados" aria-label={`Ver ${f.nome}`}>
+                  <Icone nome="eye" tam={15} />
                 </button>
-                <button type="button" className="btn-editar-pencil" onClick={() => editarFuncionario(f)} title="Editar">
-                  <Icone nome="pencil" tam={14} />
+                <button type="button" className="btn-editar-pencil cad2-ra edit" onClick={() => editarFuncionario(f)} title="Editar" aria-label={`Editar ${f.nome}`}>
+                  <Icone nome="pencil" tam={15} />
                 </button>
                 {confirmarExcluir === f.id ? (
                   <>
@@ -425,8 +448,8 @@ export default function Funcionarios() {
                     </button>
                   </>
                 ) : (
-                  <button type="button" className="btn-danger-sm" onClick={() => setConfirmarExcluir(f.id)}>
-                    Excluir
+                  <button type="button" className="btn-danger-sm cad2-ra del" onClick={() => setConfirmarExcluir(f.id)} title="Excluir" aria-label={`Excluir ${f.nome}`}>
+                    <Icone nome="trash" tam={15} />
                   </button>
                 )}
               </div>
@@ -455,4 +478,12 @@ export default function Funcionarios() {
       )}
     </div>
   );
+}
+
+/** "todas" / "nenhuma" / "N folhas" — quantas folhas o assinante carimba. */
+function rotuloFolhas(folhas: string[] | undefined, total: number): string {
+  const n = folhas?.length ?? 0;
+  if (n === 0) return 'nenhuma';
+  if (n >= total) return 'todas';
+  return `${n} folha${n === 1 ? '' : 's'}`;
 }

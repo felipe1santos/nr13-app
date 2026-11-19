@@ -209,19 +209,19 @@ export default function MinhaEmpresa() {
           <div className="md2-cols">
             <section className="md2-card">
               <h2>Dados da empresa</h2>
-              <dl className="md2-dl">
-                <div className="s2"><dt>Razão social</dt><dd>{dados.razao || '—'}</dd></div>
+              <dl className="md2-dl md2-dl-3">
+                <div><dt>Razão social</dt><dd>{dados.razao || '—'}</dd></div>
                 <div><dt>Nome fantasia</dt><dd>{dados.fantasia || '—'}</dd></div>
                 <div><dt>CNPJ</dt><dd>{dados.cnpj || '—'}</dd></div>
               </dl>
             </section>
             <section className="md2-card">
               <h2>Endereço e contato</h2>
-              <dl className="md2-dl">
+              <dl className="md2-dl md2-dl-3">
                 <div className="s2"><dt>Endereço</dt><dd>{dados.endereco || '—'}</dd></div>
                 <div><dt>Bairro</dt><dd>{dados.bairro || '—'}</dd></div>
-                <div><dt>CEP</dt><dd>{dados.cep || '—'}</dd></div>
                 <div><dt>Cidade</dt><dd>{cidadeUf || '—'}</dd></div>
+                <div><dt>CEP</dt><dd>{dados.cep || '—'}</dd></div>
                 <div><dt>Telefone</dt><dd>{dados.telefone || '—'}</dd></div>
                 <div className="s2"><dt>E-mail</dt><dd>{dados.email || '—'}</dd></div>
               </dl>
