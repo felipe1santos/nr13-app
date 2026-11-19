@@ -41,7 +41,11 @@ const rotasDev = import.meta.env.DEV
       {
         path: '/__previa',
         element: <Layout />,
-        children: [{ index: true, element: <div style={{ padding: 24 }}>Prévia do shell (somente desenvolvimento)</div> }],
+        children: [
+          { index: true, element: <div style={{ padding: 24 }}>Prévia do shell (somente desenvolvimento)</div> },
+          { path: 'agenda', element: <Agenda /> },
+          { path: 'dashboard', element: <Dashboard /> },
+        ],
       },
     ]
   : [];

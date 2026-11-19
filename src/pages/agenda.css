@@ -420,3 +420,100 @@
   letter-spacing: 0;
   font-size: var(--fs-12);
 }
+
+/* ============================================================================
+   AGENDA · COBALTO (18/11/2026) — grade semanal no padrão SimplesDental
+   (docs/design/prototipo-cobalto). Semana/Dia: grade de horários com o
+   serviço posicionado pelo horário; sem horário vai para "Dia inteiro".
+   Mês: grade mensal; clicar no dia abre a visão Dia.
+   ============================================================================ */
+.agenda-page.ag2 { display: flex; flex-direction: column; min-height: 100%; padding: 0; background: #fff; }
+.ag2-barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 16px 16px 8px; }
+.ag2-barra .grow { flex: 1; }
+.ag2-chip { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px 0 4px; border-radius: 4px; background: #EEEEEE; font-size: 13.5px; color: #334155; }
+.ag2-chip .av { width: 28px; height: 28px; border-radius: 50%; background: #7CB342; color: #fff; display: grid; place-items: center; font: 700 11px/1 var(--font); }
+.ag2-chip .k { display: flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.ag2-chip .k + .k { padding-left: 10px; border-left: 1px solid #D4D4D4; }
+.ag2-chip .k span { font-size: 12px; color: #6B6B6B; }
+.ag2-chip .k b { font: var(--t-strong); color: #1A1A1A; }
+.ag2-chip .k.prev b { color: var(--destaque); }
+.ag2-chip .k.real b { color: #2E7D32; }
+.ag2-semvalor { font: var(--t-caption); font-style: normal; color: #A15C00; }
+.ag2-hoje { height: 36px; padding: 0 16px; border: 0; border-radius: 4px; background: none; color: #7F7F7F; font: 500 14px/1 var(--font); letter-spacing: 0.02em; cursor: pointer; }
+.ag2-seta { width: 36px; height: 36px; border: 0; border-radius: 50%; background: none; color: #7F7F7F; display: grid; place-items: center; cursor: pointer; }
+.ag2-hoje:hover, .ag2-seta:hover { background: var(--destaque-bg); color: var(--destaque); }
+.ag2-data { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 212px; height: 36px; padding: 0 10px 0 16px; border-radius: 4px; background: #EEEEEE; color: #555; font: var(--t-body); cursor: pointer; }
+.ag2-data:hover { background: var(--destaque-bg); color: var(--destaque); }
+.ag2-data input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.ag2-visao { display: inline-flex; border: 1px solid #CFCFCF; border-radius: 4px; overflow: hidden; }
+.ag2-visao button { height: 34px; padding: 0 14px; border: 0; background: #fff; color: #696969; font: var(--t-control); cursor: pointer; }
+.ag2-visao button + button { border-left: 1px solid #CFCFCF; }
+.ag2-visao button[aria-pressed="true"] { background: var(--destaque-bg); color: var(--destaque); font-weight: 600; }
+.ag2-novo { width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--criar); color: #fff; display: grid; place-items: center; box-shadow: 0 3px 5px -1px rgba(0, 0, 0, 0.2), 0 6px 10px rgba(0, 0, 0, 0.14), 0 1px 18px rgba(0, 0, 0, 0.12); cursor: pointer; }
+.ag2-novo:hover { background: var(--criar-hover); }
+.ag2-hoje:focus-visible, .ag2-seta:focus-visible, .ag2-visao button:focus-visible, .ag2-novo:focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }
+
+.ag2-legenda { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0 16px 10px; list-style: none; font: var(--t-caption); color: #555; }
+.ag2-legenda li { display: inline-flex; align-items: center; gap: 6px; }
+.ag2-legenda i.ag2-ev { display: inline-block; width: 14px; height: 12px; padding: 0; border-left-width: 4px; }
+
+/* Bloco de serviço: fundo claro + borda esquerda de 5px na cor do tipo */
+.ag2-ev { display: block; width: 100%; padding: 3px 6px; border: 0; border-left: 5px solid; border-radius: 4px; font: 400 12px/1.3 var(--font); text-align: left; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
+.ag2-ev:hover { filter: brightness(0.97); }
+.ag2-ev b { font-weight: 600; }
+.ag2-ev.inspecao { background: #E3EAFF; border-color: #2F5BEA; color: #1A3591; }
+.ag2-ev.manutencao { background: #FFEDD5; border-color: #C2410C; color: #7C2D12; }
+.ag2-ev.visita { background: #CCFBF1; border-color: #0F766E; color: #134E4A; }
+.ag2-ev.lembrete { background: #FEF9C3; border-color: #CA8A04; color: #422006; }
+.ag2-ev.concluido { background: #BBF7D0; border-color: #16A34A; color: #14532D; }
+.ag2-ev.cancelado { background: #E2E8F0; border-color: #94A3B8; color: #64748B; text-decoration: line-through; }
+
+/* Grade de horários */
+.ag2-wrap { position: relative; flex: 1; min-height: 0; overflow: auto; margin: 0 16px 16px; }
+.ag2-tg { --cols: 7; min-width: calc(61px + var(--cols) * 104px); }
+.ag2-row { display: grid; grid-template-columns: 61px repeat(var(--cols), minmax(0, 1fr)); }
+.ag2-head { position: sticky; top: 0; z-index: 5; background: #fff; }
+.ag2-canto { display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; border-top: 1px solid #DDD; border-left: 1px solid #DDD; }
+.ag2-canto small { font: var(--t-caption); color: rgba(0, 0, 0, 0.87); }
+.ag2-dh { display: flex; flex-direction: column; align-items: flex-start; height: 62px; padding: 8px 8px 0; border: 0; border-top: 1px solid #DDD; border-left: 1px solid #DDD; background: #fff; text-align: left; cursor: pointer; }
+.ag2-dh:last-child { border-right: 1px solid #DDD; }
+.ag2-dh:hover { background: #FAFAFA; }
+.ag2-dh .w { font: var(--t-label); line-height: 20px; color: rgba(0, 0, 0, 0.87); }
+.ag2-dh .n { font: var(--t-display); color: rgba(0, 0, 0, 0.87); }
+.ag2-dh .n small { font-size: 13px; color: #9E9E9E; font-weight: 300; margin-left: 2px; }
+.ag2-dh.hoje .n { font-weight: 500; color: var(--destaque); }
+.ag2-gut-ad { border-top: 1px solid #DDD; border-left: 1px solid #DDD; border-bottom: 1px solid #DDD; }
+.ag2-ad { min-height: 34px; padding: 3px 2px; display: flex; flex-direction: column; gap: 2px; border-top: 1px solid #DDD; border-left: 1px solid #DDD; border-bottom: 1px solid #DDD; }
+.ag2-ad:last-child { border-right: 1px solid #DDD; }
+.ag2-ad.hoje, .ag2-col.hoje { background: #F3FAFE; }
+.ag2-lbl { height: 64px; padding-top: 6px; border-top: 1px solid #DDD; border-left: 1px solid #DDD; font: 400 12px/1 var(--font); color: rgba(0, 0, 0, 0.87); text-align: center; }
+.ag2-col { position: relative; border-left: 1px solid #DDD; }
+.ag2-col:last-child { border-right: 1px solid #DDD; }
+.ag2-slot { display: block; width: 100%; height: 64px; border: 0; border-top: 1px solid #DDD; background: transparent; cursor: pointer; }
+.ag2-slot:hover { background: rgba(12, 79, 155, 0.05); }
+.ag2-slot:focus-visible { outline: 2px solid var(--destaque); outline-offset: -2px; }
+.ag2-ev-bloco { position: absolute; left: 2px; right: 3px; width: auto; z-index: 2; white-space: normal; }
+.ag2-ev-bloco b, .ag2-ev-bloco small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ag2-ev-bloco small { font-size: 11.5px; opacity: 0.9; }
+.ag2-agora { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--destaque); z-index: 3; pointer-events: none; }
+.ag2-agora::before { content: ""; position: absolute; left: -5px; top: -6px; width: 10px; height: 10px; border-radius: 50%; background: var(--destaque); }
+
+/* Mês */
+.ag2-mes { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin: 0 16px 16px; border-top: 1px solid #DDD; border-left: 1px solid #DDD; }
+.ag2-mes-dow { padding: 6px 8px; border-right: 1px solid #DDD; border-bottom: 1px solid #DDD; font: var(--t-label); color: rgba(0, 0, 0, 0.87); }
+.ag2-mes-dia { min-height: 108px; padding: 4px; display: flex; flex-direction: column; gap: 3px; border-right: 1px solid #DDD; border-bottom: 1px solid #DDD; background: #fff; cursor: pointer; }
+.ag2-mes-dia:hover { background: #FAFAFA; }
+.ag2-mes-dia.fora { background: #FAFAFA; }
+.ag2-mes-dia.fora .ag2-mes-num { color: #BDBDBD; }
+.ag2-mes-dia.hoje { background: #F3FAFE; }
+.ag2-mes-dia.hoje .ag2-mes-num { background: var(--destaque); color: #fff; }
+.ag2-mes-num { align-self: flex-start; min-width: 26px; height: 26px; padding: 0 6px; display: grid; place-items: center; border-radius: 13px; font: 400 14px/1 var(--font); color: rgba(0, 0, 0, 0.87); }
+.ag2-mes-servs { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ag2-mais { font: var(--t-caption); color: #64748B; padding-left: 4px; }
+
+@media (max-width: 900px) {
+  .ag2-chip { order: 9; width: 100%; overflow-x: auto; }
+  .ag2-data { width: auto; flex: 1; }
+  .ag2-wrap, .ag2-mes { margin: 0 8px 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .ag2-ev:hover { filter: none; } }

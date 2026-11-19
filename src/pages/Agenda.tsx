@@ -39,6 +39,25 @@ const MESES = [
 const TIPOS: TipoNota[] = ['inspecao', 'manutencao', 'visita', 'lembrete'];
 const STATUS: StatusNota[] = ['agendado', 'concluido', 'cancelado'];
 
+/** Visão da agenda (padrão SimplesDental: Semana é a de abertura). */
+type Visao = 'dia' | 'semana' | 'mes';
+/** Faixa de horas da grade. Serviço fora dela encosta na borda, não some. */
+const HORAS = Array.from({ length: 15 }, (_, i) => 6 + i); // 06h…20h
+const HORA_PX = 64;
+
+/** Topo e altura do bloco: o serviço não tem duração gravada — ocupa 1 hora. */
+function posicaoEvento(hhmm: string): { top: number; altura: number } {
+  const [h, m] = hhmm.split(':').map(Number);
+  const horas = Math.min(Math.max((h || 0) + (m || 0) / 60 - HORAS[0], 0), HORAS.length - 1);
+  return { top: horas * HORA_PX + 1, altura: HORA_PX - 4 };
+}
+
+/** Status concluído/cancelado manda sobre a cor do tipo. */
+function classeEvento(n: NotaAgenda): string {
+  const st = statusDe(n);
+  return st === 'agendado' ? n.tipo : st;
+}
+
 /** Quantos serviços aparecem dentro da célula antes do "+ N serviços". */
 const CHIPS_POR_DIA = 2;
 
@@ -94,9 +113,11 @@ function enderecoCliente(c: Cliente): string {
 
 export default function Agenda() {
   const hoje = new Date();
-  const [ref, setRef] = useState(() => new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  const [cursor, setCursor] = useState(() => new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()));
+  const [visao, setVisao] = useState<Visao>('semana');
+  const ref = useMemo(() => new Date(cursor.getFullYear(), cursor.getMonth(), 1), [cursor]);
   const [notas, setNotas] = useState<NotaAgenda[]>(() => listarNotas());
-  const [diaAberto, setDiaAberto] = useState<string | null>(null);
+  const [notaAberta, setNotaAberta] = useState<string | null>(null);
   const [rascunho, setRascunho] = useState<NotaAgenda | null>(null);
   const [salvando, setSalvando] = useState(false);
 
@@ -109,10 +130,30 @@ export default function Agenda() {
     [notas, ref],
   );
   const rotuloMes = `${MESES[ref.getMonth()]} ${ref.getFullYear()}`;
-  const doDia = diaAberto ? notas.filter((n) => n.data === diaAberto).sort(ordenar) : [];
+  const notaVista = notaAberta ? notas.find((n) => n.id === notaAberta) ?? null : null;
 
-  function mudarMes(delta: number) {
-    setRef((r) => new Date(r.getFullYear(), r.getMonth() + delta, 1));
+  // Colunas da grade: os 7 dias da semana do cursor (domingo a sábado) ou só o dia.
+  const colunas = useMemo(() => {
+    const base = visao === 'dia'
+      ? [cursor]
+      : Array.from({ length: 7 }, (_, i) => new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - cursor.getDay() + i));
+    return base.map((data) => {
+      const iso = dataISO(data);
+      const doDia = notas.filter((n) => n.data === iso).sort(ordenar);
+      return { data, iso, semHora: doDia.filter((n) => !n.horario), comHora: doDia.filter((n) => n.horario) };
+    });
+  }, [cursor, visao, notas]);
+
+  // Linha do "agora" (só no dia de hoje, dentro da faixa de horas).
+  const agoraH = hoje.getHours() + hoje.getMinutes() / 60;
+  const agoraTop = agoraH >= HORAS[0] && agoraH <= HORAS[HORAS.length - 1] + 1 ? (agoraH - HORAS[0]) * HORA_PX : null;
+
+  function andar(delta: number) {
+    setCursor((c) =>
+      visao === 'mes'
+        ? new Date(c.getFullYear(), c.getMonth() + delta, 1)
+        : new Date(c.getFullYear(), c.getMonth(), c.getDate() + delta * (visao === 'dia' ? 1 : 7)),
+    );
   }
 
   async function gravar() {
@@ -132,72 +173,89 @@ export default function Agenda() {
     setNotas(listarNotas());
   }
 
-  function novo(iso: string) {
-    setRascunho({ ...novaNota(iso), tipo: 'inspecao', status: 'agendado' });
+  function novo(iso: string, horario?: string) {
+    setRascunho({ ...novaNota(iso), tipo: 'inspecao', status: 'agendado', ...(horario ? { horario } : {}) });
   }
 
   return (
-    <div className="agenda-page nr-anim-in">
-      {/* ===== FATURAMENTO DO MÊS ===== */}
-      <div className="ag-kpis">
-        <div className="ag-kpi previsto">
-          <div className="ag-kpi-label">Faturamento previsto · {rotuloMes}</div>
-          <div className="ag-kpi-valor">{formatarBRL(resumo.previsto)}</div>
-          <div className="ag-kpi-sub">
-            {resumo.agendados} serviço{resumo.agendados === 1 ? '' : 's'} agendado
-            {resumo.agendados === 1 ? '' : 's'}
-          </div>
-        </div>
-        <div className="ag-kpi realizado">
-          <div className="ag-kpi-label">Faturamento realizado · {rotuloMes}</div>
-          <div className="ag-kpi-valor">{formatarBRL(resumo.realizado)}</div>
-          <div className="ag-kpi-sub">
-            {resumo.concluidos} serviço{resumo.concluidos === 1 ? '' : 's'} concluído
-            {resumo.concluidos === 1 ? '' : 's'}
-          </div>
-        </div>
-        <div className="ag-kpi">
-          <div className="ag-kpi-label">Serviços no mês</div>
-          <div className="ag-kpi-valor">{resumo.quantidade}</div>
-          {/* Valor não informado NÃO é zero: sem esta linha, um mês de serviços
-              sem preço digitado passaria por mês sem faturamento. */}
-          <div className="ag-kpi-sub">
-            {resumo.semValor > 0
+    <div className="agenda-page ag2 nr-anim-in">
+      {/* ===== BARRA (padrão SimplesDental, uma linha) =====
+          Faturamento do mês à esquerda; navegação, mês e visão à direita. */}
+      <div className="ag2-barra">
+        <div className="ag2-chip" aria-label={`Faturamento de ${rotuloMes}`} title={`Faturamento de ${rotuloMes}`}>
+          <span className="av">R$</span>
+          <span className="k prev">
+            <span>Previsto</span>
+            <b>{formatarBRL(resumo.previsto)}</b>
+          </span>
+          <span className="k real">
+            <span>Realizado</span>
+            <b>{formatarBRL(resumo.realizado)}</b>
+          </span>
+          <span className="k" title={
+            resumo.semValor > 0
               ? `${resumo.semValor} sem valor informado`
               : resumo.cancelados > 0
                 ? `${resumo.cancelados} cancelado${resumo.cancelados === 1 ? '' : 's'} (fora das contas)`
-                : 'todos com valor informado'}
-          </div>
+                : 'todos com valor informado'
+          }>
+            <span>Serviços</span>
+            <b>{resumo.quantidade}</b>
+            {/* Valor não informado NÃO é zero: sem este aviso, um mês de
+                serviços sem preço digitado passaria por mês sem faturamento. */}
+            {resumo.semValor > 0 && <em className="ag2-semvalor">{resumo.semValor} sem valor</em>}
+          </span>
         </div>
+        <span className="grow" />
+        <button type="button" className="ag2-hoje" onClick={() => setCursor(new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()))}>
+          HOJE
+        </button>
+        <button type="button" className="ag2-seta" onClick={() => andar(-1)} aria-label={visao === 'mes' ? 'Mês anterior' : visao === 'dia' ? 'Dia anterior' : 'Semana anterior'}>
+          <Icone nome="chevleft" tam={20} />
+        </button>
+        <button type="button" className="ag2-seta" onClick={() => andar(1)} aria-label={visao === 'mes' ? 'Próximo mês' : visao === 'dia' ? 'Próximo dia' : 'Próxima semana'}>
+          <Icone nome="chevright" tam={20} />
+        </button>
+        <label className="ag2-data" title="Escolher mês">
+          <span>{rotuloMes}</span>
+          <Icone nome="calendar" tam={17} />
+          <input
+            type="month"
+            aria-label="Escolher mês"
+            value={`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`}
+            onChange={(e) => {
+              const [a, m] = e.target.value.split('-').map(Number);
+              if (a && m) setCursor(new Date(a, m - 1, 1));
+            }}
+          />
+        </label>
+        <div className="ag2-visao" role="group" aria-label="Visualização">
+          {(['dia', 'semana', 'mes'] as Visao[]).map((v) => (
+            <button key={v} type="button" aria-pressed={visao === v} onClick={() => setVisao(v)}>
+              {v === 'dia' ? 'Dia' : v === 'semana' ? 'Semana' : 'Mês'}
+            </button>
+          ))}
+        </div>
+        <button type="button" className="ag2-novo" onClick={() => novo(dataISO(cursor))} aria-label="Novo serviço" title="Novo serviço">
+          <Icone nome="plus" tam={22} />
+        </button>
       </div>
 
-      {/* ===== CALENDÁRIO ===== */}
-      <div className="fj-panel">
-        <div className="fj-panel-head">
-          <div className="ag-nav">
-            <button type="button" className="ag-arrow" onClick={() => mudarMes(-1)} aria-label="Mês anterior">
-              <Icone nome="chevleft" tam={13} />
-            </button>
-            <h2 className="ag-mes">{rotuloMes}</h2>
-            <button type="button" className="ag-arrow" onClick={() => mudarMes(1)} aria-label="Próximo mês">
-              <Icone nome="chevright" tam={13} />
-            </button>
-            <button
-              type="button"
-              className="fj-link"
-              onClick={() => setRef(new Date(hoje.getFullYear(), hoje.getMonth(), 1))}
-            >
-              Hoje
-            </button>
-          </div>
-          <button type="button" className="fj-btn fj-btn-primary" onClick={() => novo(dataISO(new Date()))}>
-            <Icone nome="plus" tam={14} /> Novo serviço
-          </button>
-        </div>
+      {/* Legenda das cores: o tipo pinta o bloco; concluído e cancelado mandam
+          sobre o tipo, como na grade do SimplesDental. */}
+      <ul className="ag2-legenda" aria-label="Legenda de cores">
+        {TIPOS.map((t) => (
+          <li key={t}><i className={`ag2-ev ${t}`} />{ROTULO_TIPO_NOTA[t]}</li>
+        ))}
+        <li><i className="ag2-ev concluido" />Concluído</li>
+        <li><i className="ag2-ev cancelado" /><s>Cancelado</s></li>
+      </ul>
 
-        <div className="ag-grid">
+      {visao === 'mes' ? (
+        /* ===== MÊS ===== */
+        <div className="ag2-mes">
           {DOW.map((d) => (
-            <div key={d} className="ag-dow">{d}</div>
+            <div key={d} className="ag2-mes-dow">{d}</div>
           ))}
           {dias.map((d) => {
             const extras = d.servicos.length - CHIPS_POR_DIA;
@@ -206,92 +264,152 @@ export default function Agenda() {
                 key={d.iso}
                 role="button"
                 tabIndex={0}
-                className={
-                  'ag-day'
-                  + (d.foraDoMes ? ' fora' : '')
-                  + (mesmoDia(d.data, hoje) ? ' hoje' : '')
-                  + (diaAberto === d.iso ? ' escolhido' : '')
-                }
-                onClick={() => setDiaAberto(d.iso)}
-                onKeyDown={(e) => e.key === 'Enter' && setDiaAberto(d.iso)}
+                className={'ag2-mes-dia' + (d.foraDoMes ? ' fora' : '') + (mesmoDia(d.data, hoje) ? ' hoje' : '')}
+                onClick={() => {
+                  setCursor(d.data);
+                  setVisao('dia');
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setCursor(d.data);
+                    setVisao('dia');
+                  }
+                }}
+                aria-label={`${dataBR(d.iso)} · ${d.servicos.length} serviço${d.servicos.length === 1 ? '' : 's'}`}
               >
-                {/* Número do dia no canto superior ESQUERDO. O dia escolhido
-                    ganha um círculo azul-escuro em volta do número — nunca
-                    fundo preto na célula, que apagava os serviços dentro. */}
-                <div className="ag-day-top">
-                  <span className="ag-day-num">{d.data.getDate()}</span>
-                  <button
-                    type="button"
-                    className="ag-day-add"
-                    aria-label={`Novo serviço em ${dataBR(d.iso)}`}
-                    title="Novo serviço neste dia"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      novo(d.iso);
-                    }}
-                  >
-                    <Icone nome="plus" tam={11} />
-                  </button>
-                </div>
-                <div className="ag-day-servs">
+                <span className="ag2-mes-num">{d.data.getDate()}</span>
+                <div className="ag2-mes-servs">
                   {d.servicos.slice(0, CHIPS_POR_DIA).map((n) => (
-                    <span key={n.id} className={`ag-chip ${statusDe(n)}`} title={n.titulo}>
-                      {n.horario ? <b>{n.horario}</b> : null}
-                      {n.titulo}
-                    </span>
+                    <button
+                      key={n.id}
+                      type="button"
+                      className={`ag2-ev ${classeEvento(n)}`}
+                      title={n.titulo}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setNotaAberta(n.id);
+                      }}
+                    >
+                      {n.horario ? <b>{n.horario}</b> : null} {n.titulo}
+                    </button>
                   ))}
-                  {extras > 0 && (
-                    <span className="ag-chip mais">+ {extras} serviço{extras === 1 ? '' : 's'}</span>
-                  )}
+                  {extras > 0 && <span className="ag2-mais">+ {extras} serviço{extras === 1 ? '' : 's'}</span>}
                 </div>
               </div>
             );
           })}
         </div>
-      </div>
+      ) : (
+        /* ===== SEMANA / DIA: grade de horários ===== */
+        <div className="ag2-wrap">
+          <div className="ag2-tg" style={{ '--cols': colunas.length } as React.CSSProperties}>
+            <div className="ag2-row ag2-head">
+              <div className="ag2-canto"><small>Dia inteiro</small></div>
+              {colunas.map((c) => (
+                <button
+                  key={c.iso}
+                  type="button"
+                  className={`ag2-dh${mesmoDia(c.data, hoje) ? ' hoje' : ''}`}
+                  onClick={() => {
+                    setCursor(c.data);
+                    setVisao('dia');
+                  }}
+                  title="Ver o dia"
+                >
+                  <span className="w">{DOW[c.data.getDay()]}.</span>
+                  <span className="n">
+                    {c.data.getDate()}
+                    <small>/{String(c.data.getMonth() + 1).padStart(2, '0')}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+            {/* Serviço sem horário mora na faixa "Dia inteiro", como no
+                SimplesDental — não se inventa hora para ele. */}
+            <div className="ag2-row">
+              <div className="ag2-gut-ad" />
+              {colunas.map((c) => (
+                <div key={c.iso} className={`ag2-ad${mesmoDia(c.data, hoje) ? ' hoje' : ''}`}>
+                  {c.semHora.map((n) => (
+                    <button key={n.id} type="button" className={`ag2-ev ${classeEvento(n)}`} title={n.titulo} onClick={() => setNotaAberta(n.id)}>
+                      {n.titulo}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className="ag2-row ag2-corpo">
+              <div className="ag2-gut">
+                {HORAS.map((h) => (
+                  <div key={h} className="ag2-lbl">{String(h).padStart(2, '0')}h00</div>
+                ))}
+              </div>
+              {colunas.map((c) => (
+                <div key={c.iso} className={`ag2-col${mesmoDia(c.data, hoje) ? ' hoje' : ''}`}>
+                  {HORAS.map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      className="ag2-slot"
+                      aria-label={`Novo serviço em ${dataBR(c.iso)} às ${String(h).padStart(2, '0')}h`}
+                      onClick={() => novo(c.iso, `${String(h).padStart(2, '0')}:00`)}
+                    />
+                  ))}
+                  {c.comHora.map((n) => {
+                    const pos = posicaoEvento(n.horario!);
+                    return (
+                      <button
+                        key={n.id}
+                        type="button"
+                        className={`ag2-ev ag2-ev-bloco ${classeEvento(n)}`}
+                        style={{ top: pos.top, height: pos.altura }}
+                        title={n.titulo}
+                        onClick={() => setNotaAberta(n.id)}
+                      >
+                        <b>{n.titulo}</b>
+                        <small>
+                          {n.horario}
+                          {n.clienteId && porId.get(n.clienteId) ? ` · ${nomeCliente(porId.get(n.clienteId)!)}` : ''}
+                        </small>
+                      </button>
+                    );
+                  })}
+                  {mesmoDia(c.data, hoje) && agoraTop !== null && <div className="ag2-agora" style={{ top: agoraTop }} />}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* ===== MODAL DO DIA ===== */}
-      {diaAberto && (
-        // fecha-pelo-fundo: LISTA do dia, sem campo nenhum. Nada se perde, e
-        // fechar pelo fundo é o gesto que se espera de um painel de leitura.
-        <div
-          className="fj-modal-overlay"
-          onClick={(e) => e.target === e.currentTarget && setDiaAberto(null)}
-        >
+      {/* ===== SERVIÇO ABERTO (leitura) =====
+          Clicar num serviço MOSTRA o que foi salvo; editar só em "Editar". */}
+      {notaVista && (
+        // fecha-pelo-fundo: é LEITURA — nada digitado se perde; editar abre o formulário, que não fecha pelo fundo.
+        <div className="fj-modal-overlay" onClick={(e) => e.target === e.currentTarget && setNotaAberta(null)}>
           <div className="fj-modal-box ag-modal">
             <div className="fj-modal-head">
               <div>
-                <div className="fj-eyebrow">Agenda</div>
-                <h2>{dataBR(diaAberto)}</h2>
+                <div className="fj-eyebrow">Serviço agendado</div>
+                <h2>{dataBR(notaVista.data)}</h2>
               </div>
-              <div className="ag-modal-acoes">
-                <button type="button" className="fj-btn fj-btn-primary" onClick={() => novo(diaAberto)}>
-                  <Icone nome="plus" tam={14} /> Novo serviço
-                </button>
-                <button type="button" className="fj-modal-close" onClick={() => setDiaAberto(null)} aria-label="Fechar">
-                  <Icone nome="x" tam={15} />
-                </button>
-              </div>
+              <button type="button" className="fj-modal-close" onClick={() => setNotaAberta(null)} aria-label="Fechar">
+                <Icone nome="x" tam={15} />
+              </button>
             </div>
-
             <div className="ag-modal-corpo">
-              {doDia.length === 0 ? (
-                <div className="fj-empty">
-                  <div className="fj-empty-ic"><Icone nome="calendar" tam={22} /></div>
-                  <div className="fj-empty-title">Nenhum serviço neste dia</div>
-                  Use "Novo serviço" para agendar uma inspeção, manutenção ou visita.
-                </div>
-              ) : (
-                doDia.map((n) => (
-                  <CartaoServico
-                    key={n.id}
-                    nota={n}
-                    cliente={n.clienteId ? porId.get(n.clienteId) : undefined}
-                    onEditar={() => setRascunho(n)}
-                    onExcluir={() => void apagar(n.id)}
-                  />
-                ))
-              )}
+              <CartaoServico
+                nota={notaVista}
+                cliente={notaVista.clienteId ? porId.get(notaVista.clienteId) : undefined}
+                onEditar={() => {
+                  setNotaAberta(null);
+                  setRascunho(notaVista);
+                }}
+                onExcluir={() => {
+                  setNotaAberta(null);
+                  void apagar(notaVista.id);
+                }}
+              />
             </div>
           </div>
         </div>
