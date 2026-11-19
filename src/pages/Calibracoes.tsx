@@ -65,13 +65,13 @@ import {
 } from '../features/calibracoes/acoesPreviaCertificado';
 // 9F.3 · a lista pela projeção e o contrato de semeadura da TAG.
 import CatalogoCalibracoesV9 from '../features/calibracoes/CatalogoCalibracoesV9';
+import { GradeAcessorios, TabelaRealizadas, TopoEquipamentoCal } from '../features/calibracoes/PainelEquipamentoCal';
 import {
   abrirEquipamentoParaCalibracoes,
 } from '../features/calibracoes/catalogoCalibracoes';
 import {
   criarLote,
   excluirLote,
-  fotoDoComponente,
   listarComponentes,
   listarLotes,
   salvarComponente,
@@ -85,7 +85,6 @@ import { documentosBloqueados } from '../services/trial';
 import '../pages/relatorios.css';
 import './calibracoes.css';
 import PaginaA4 from '../components/PaginaA4';
-import FotoImg from '../components/FotoImg';
 import RecusaPalco from '../components/RecusaPalco';
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 
@@ -536,32 +535,22 @@ export default function Calibracoes() {
           devolve o lugar exato onde se estava. */}
       {tela === 'historico' && (
         <>
-          <div className={`bloco-dados cal-aba-${abaCal}`}>
-            <div className="cal-faixa">
-              <button
-                type="button"
-                className="btn-secundario cal-btn-voltar"
-                onClick={() => setTela('equipamentos')}
-              >
-                ← Voltar
+          <div className={`cal4 cal-aba-${abaCal}`}>
+            {/* Cobalto · barra do protótipo: Voltar · Calibrações › TAG · ações. */}
+            <div className="fx-bar cal4-bar">
+              <button type="button" className="fx-voltar cal-btn-voltar" onClick={() => setTela('equipamentos')}>
+                <Icone nome="arrowleft" tam={16} />
+                Voltar
               </button>
-              <div className="cal-faixa-foto">
-                {eqAtual?.fotoCapa ? (
-                  <FotoImg foto={eqAtual.fotoCapa} alt={`Foto de ${tag}`} variante="thumb" />
-                ) : (
-                  <Icone nome="cylinder" tam={26} />
-                )}
-              </div>
-              <div className="cal-faixa-id">
-                <h3>Calibrações — {tag}</h3>
-                <span>
-                  {rotuloTipoEquipamento(eqAtual?.info.tipo) ?? 'Equipamento'}
-                  <button type="button" className="cal-ajuda-link" onClick={() => setAjudaAberta(true)}>
-                    <Icone nome="alerttri" tam={11} /> Como funciona
-                  </button>
-                </span>
-              </div>
-
+              <nav className="fx-trilha" aria-label="Caminho">
+                <button type="button" onClick={() => setTela('equipamentos')}>Calibrações</button>
+                <span className="sep">›</span>
+                <b>{tag}</b>
+              </nav>
+              <span className="grow" />
+              <button type="button" className="cal4-btn cal4-btn-sec cal-ajuda-link" onClick={() => setAjudaAberta(true)}>
+                <Icone nome="info" tam={16} /> Como funciona
+              </button>
               <button
                 type="button"
                 className="fj-btn fj-btn-primary cal-btn-nova"
@@ -571,59 +560,38 @@ export default function Calibracoes() {
               >
                 <Icone nome="plus" tam={14} /> Nova calibração
               </button>
+            </div>
 
-              {/* Cobalto: abas "Calibrar" (os acessórios, onde se começa uma
-                  calibração) e "Calibrações realizadas" (os lotes). Só
-                  separam o que já existia; nada some, nada muda de regra. */}
-              <div className="cal-abas" role="tablist" aria-label="Calibrações do equipamento">
-                <button type="button" role="tab" aria-selected={abaCal === 'calibrar'} onClick={() => setAbaCal('calibrar')}>
-                  Calibrar <span>{componentes.length}</span>
-                </button>
-                <button type="button" role="tab" aria-selected={abaCal === 'realizadas'} onClick={() => setAbaCal('realizadas')}>
-                  Calibrações realizadas <span>{lotes.length}</span>
-                </button>
-              </div>
+            {/* Abas: "Calibrar acessórios" (onde se começa uma calibração) e
+                "Calibrações realizadas" (o histórico e os lotes). Só separam o
+                que já existia; nada some, nada muda de regra. */}
+            <div className="cal4-abas cal-abas" role="tablist" aria-label="Calibrações do equipamento">
+              <button type="button" role="tab" aria-selected={abaCal === 'calibrar'} onClick={() => setAbaCal('calibrar')}>
+                <Icone nome="gauge" tam={16} />
+                Calibrar acessórios <span className="n">{componentes.length}</span>
+              </button>
+              <button type="button" role="tab" aria-selected={abaCal === 'realizadas'} onClick={() => setAbaCal('realizadas')}>
+                <Icone nome="clipboard" tam={16} />
+                Calibrações realizadas <span className="n">{cals.length}</span>
+              </button>
+            </div>
 
-              {/* Os acessórios em LINHA, não numa coluna à direita. São três a
-                  seis por equipamento, e a faixa rola na horizontal em vez de
-                  empurrar os lotes para baixo. */}
-              <div className="cal-acessorios" role="list" aria-label="Acessórios do equipamento">
-                {componentes.map((c) => (
-                  <div key={c.id} className="cal-acess" role="listitem">
-                    <span className="cal-acess-foto" aria-hidden>
-                      {fotoDoComponente(c) ? (
-                        <FotoImg foto={fotoDoComponente(c)} alt="" placeholder="" variante="thumb" />
-                      ) : (
-                        <Icone nome={definicaoDe(c.tipo).icone} tam={16} />
-                      )}
-                    </span>
-                    <button
-                      type="button"
-                      className="cal-acess-txt cal-acess-abrir"
-                      title="Ver o histórico de calibrações"
-                      onClick={() => setHistoricoComp(c)}
-                    >
-                      <strong>{c.nome}</strong>
-                      <em>
-                        {definicaoDe(c.tipo).curto}
-                        {c.serie ? ` · S/N ${c.serie}` : ''}
-                      </em>
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-icone cor-cinza cal-acess-editar"
-                      title="Editar acessório"
-                      aria-label={`Editar ${c.nome}`}
-                      onClick={() => setCompForm({ ...c })}
-                    >
-                      <Icone nome="pencil" tam={12} />
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  className="cal-acess-add"
-                  onClick={() =>
+            <div className="mz cal4-corpo">
+              <TopoEquipamentoCal
+                tag={tag}
+                tipo={eqAtual?.info.tipo}
+                descricao={[eqAtual?.info.descricao?.trim(), rotuloTipoEquipamento(eqAtual?.info.tipo) ?? 'Equipamento']
+                  .filter(Boolean)
+                  .join(' · ')}
+                componentes={componentes}
+                cals={cals}
+              />
+
+              {abaCal === 'calibrar' ? (
+                <GradeAcessorios
+                  componentes={componentes}
+                  cals={cals}
+                  aoAdicionar={() =>
                     setCompForm({
                       id: `comp-${Date.now()}`,
                       tipo: 'manometro',
@@ -631,10 +599,153 @@ export default function Calibracoes() {
                       criadoEm: new Date().toLocaleDateString('pt-BR'),
                     })
                   }
-                >
-                  <Icone nome="plus" tam={14} /> Adicionar
-                </button>
-              </div>
+                  aoEditar={(c) => setCompForm({ ...c })}
+                  aoHistorico={(c) => setHistoricoComp(c)}
+                  aoCalibrar={(c) => iniciarCalibracao(tag, c, { lotes, calibracoes: cals })}
+                  aoContinuar={(cal) => continuarRascunho(cal, { componentes, lotes })}
+                />
+              ) : (
+                <>
+                  <TabelaRealizadas
+                    componentes={componentes}
+                    cals={cals}
+                    aoContinuar={(cal) => continuarRascunho(cal, { componentes, lotes })}
+                    aoVer={abrirVisualizador}
+                    aoBaixar={(cal) => void baixarPdfCalibracao(cal)}
+                  />
+                  {/* Lotes: opcionais e discretos (§4-quater), num cartão próprio. */}
+                  <section className="mz-card cal4-lotes">
+                    <header className="mz-h">
+                      <h2>Lotes de calibração</h2>
+                      <span className="mz-norma">{lotes.length}</span>
+                    </header>
+                    <div className="cal4-lotes-c">
+                  {/* ── BARRA DA LISTA ────────────────────────────────────────── */}
+                  <div className="cal-lotes-barra">
+                    <div className="cal-lotes-busca">
+                      <Icone nome="search" tam={14} />
+                      <input
+                        type="search"
+                        value={filtroLotes.termo}
+                        onChange={(e) => setFiltroLotes((f) => ({ ...f, termo: e.target.value }))}
+                        placeholder="Buscar lote, data ou acessório…"
+                        aria-label="Buscar lote"
+                      />
+                    </div>
+                    <select
+                      className="cal-lotes-situacao"
+                      value={filtroLotes.situacao}
+                      onChange={(e) =>
+                        setFiltroLotes((f) => ({ ...f, situacao: e.target.value as SituacaoLote }))
+                      }
+                      aria-label="Situação do lote"
+                    >
+                      <option value="todos">Todas as situações</option>
+                      <option value="andamento">Em andamento</option>
+                      <option value="completo">Completo</option>
+                    </select>
+                    <button
+                      type="button"
+                      className="btn-primario cal-lotes-novo"
+                      disabled={componentes.length === 0}
+                      title={componentes.length === 0 ? 'Cadastre os acessórios primeiro' : undefined}
+                      onClick={() => setLoteEditando({ novo: true, lote: null })}
+                    >
+                      <Icone nome="plus" tam={14} /> Novo lote
+                    </button>
+                  </div>
+
+                  {lotes.length === 0 ? (
+                    <div className="cal-vazio">
+                      <img
+                        className="pront-ilustra"
+                        src="/ilustracoes/fluxo-calibracao.webp"
+                        alt="Fluxo da calibração: os acessórios do equipamento, o lote e o técnico calibrando"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      <h3>Nenhuma calibração registrada</h3>
+                      <p>
+                        Cada inspeção gera um <b>lote</b> com a calibração dos acessórios deste
+                        equipamento. Use “Novo lote” acima para começar
+                        {componentes.length === 0 ? ' — antes, cadastre os acessórios.' : '.'}
+                      </p>
+                    </div>
+                  ) : lotesVisiveis.length === 0 ? (
+                    <p className="cal-lotes-nada">
+                      Nenhum lote para esse filtro.{' '}
+                      <button type="button" onClick={() => setFiltroLotes(FILTRO_LOTES_VAZIO)}>
+                        Limpar
+                      </button>
+                    </p>
+                  ) : (
+                    <ul className="cal-lotes" role="list">
+                      {lotesVisiveis.map((lote) => {
+                        const p = progressoLote(lote, componentes, cals);
+                        return (
+                          <li key={lote.id} className="cal-lote-linha">
+                            <button
+                              type="button"
+                              className="cal-lote-abrir"
+                              onClick={() => setLoteAberto(lote.id)}
+                              aria-label={`Ver o lote ${lote.descricao}`}
+                            >
+                              <span className="cal-lote-nome">{lote.descricao}</span>
+                              <span className="cal-lote-data">{dataDoLote(lote)}</span>
+                              <span className="cal-lote-itens">
+                                {p.feitos}/{p.total}
+                              </span>
+                              <span className={`mlote-selo${p.completo ? ' completo' : ' pendente'}`}>
+                                {p.completo ? 'Completo' : 'Em andamento'}
+                              </span>
+                            </button>
+                            <div className="cal-lote-acoes">
+                              <button
+                                type="button"
+                                className="btn-icone cor-azul"
+                                title="Ver lote"
+                                aria-label={`Ver o lote ${lote.descricao}`}
+                                onClick={() => setLoteAberto(lote.id)}
+                              >
+                                <Icone nome="eye" tam={15} />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-icone cor-cinza"
+                                title="Editar lote"
+                                aria-label={`Editar o lote ${lote.descricao}`}
+                                onClick={() => setLoteEditando({ novo: false, lote })}
+                              >
+                                <Icone nome="pencil" tam={14} />
+                              </button>
+                              {/* A exclusão só existe enquanto o lote não tem
+                                  certificado — a MESMA regra de antes, agora sem o
+                                  botão que só sabia recusar. */}
+                              {podeExcluirLote(lote.id, cals) && (
+                                <button
+                                  type="button"
+                                  className="btn-icone cor-vermelho"
+                                  title="Excluir lote"
+                                  aria-label={`Excluir o lote ${lote.descricao}`}
+                                  onClick={async () => {
+                                    if (!window.confirm(`Excluir o lote "${lote.descricao}"?`)) return;
+                                    await excluirLote(tag, lote.id);
+                                    setLotes(listarLotes(tag));
+                                  }}
+                                >
+                                  <Icone nome="trash" tam={14} />
+                                </button>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                    </div>
+                  </section>
+                </>
+              )}
             </div>
 
             {compForm && (
@@ -649,128 +760,6 @@ export default function Calibracoes() {
               />
             )}
 
-            {/* ── BARRA DA LISTA ────────────────────────────────────────── */}
-            <div className="cal-lotes-barra">
-              <div className="cal-lotes-busca">
-                <Icone nome="search" tam={14} />
-                <input
-                  type="search"
-                  value={filtroLotes.termo}
-                  onChange={(e) => setFiltroLotes((f) => ({ ...f, termo: e.target.value }))}
-                  placeholder="Buscar lote, data ou acessório…"
-                  aria-label="Buscar lote"
-                />
-              </div>
-              <select
-                className="cal-lotes-situacao"
-                value={filtroLotes.situacao}
-                onChange={(e) =>
-                  setFiltroLotes((f) => ({ ...f, situacao: e.target.value as SituacaoLote }))
-                }
-                aria-label="Situação do lote"
-              >
-                <option value="todos">Todas as situações</option>
-                <option value="andamento">Em andamento</option>
-                <option value="completo">Completo</option>
-              </select>
-              <button
-                type="button"
-                className="btn-primario cal-lotes-novo"
-                disabled={componentes.length === 0}
-                title={componentes.length === 0 ? 'Cadastre os acessórios primeiro' : undefined}
-                onClick={() => setLoteEditando({ novo: true, lote: null })}
-              >
-                <Icone nome="plus" tam={14} /> Novo lote
-              </button>
-            </div>
-
-            {lotes.length === 0 ? (
-              <div className="cal-vazio">
-                <img
-                  className="pront-ilustra"
-                  src="/ilustracoes/fluxo-calibracao.webp"
-                  alt="Fluxo da calibração: os acessórios do equipamento, o lote e o técnico calibrando"
-                  loading="lazy"
-                  decoding="async"
-                />
-                <h3>Nenhuma calibração registrada</h3>
-                <p>
-                  Cada inspeção gera um <b>lote</b> com a calibração dos acessórios deste
-                  equipamento. Use “Novo lote” acima para começar
-                  {componentes.length === 0 ? ' — antes, cadastre os acessórios.' : '.'}
-                </p>
-              </div>
-            ) : lotesVisiveis.length === 0 ? (
-              <p className="cal-lotes-nada">
-                Nenhum lote para esse filtro.{' '}
-                <button type="button" onClick={() => setFiltroLotes(FILTRO_LOTES_VAZIO)}>
-                  Limpar
-                </button>
-              </p>
-            ) : (
-              <ul className="cal-lotes" role="list">
-                {lotesVisiveis.map((lote) => {
-                  const p = progressoLote(lote, componentes, cals);
-                  return (
-                    <li key={lote.id} className="cal-lote-linha">
-                      <button
-                        type="button"
-                        className="cal-lote-abrir"
-                        onClick={() => setLoteAberto(lote.id)}
-                        aria-label={`Ver o lote ${lote.descricao}`}
-                      >
-                        <span className="cal-lote-nome">{lote.descricao}</span>
-                        <span className="cal-lote-data">{dataDoLote(lote)}</span>
-                        <span className="cal-lote-itens">
-                          {p.feitos}/{p.total}
-                        </span>
-                        <span className={`mlote-selo${p.completo ? ' completo' : ' pendente'}`}>
-                          {p.completo ? 'Completo' : 'Em andamento'}
-                        </span>
-                      </button>
-                      <div className="cal-lote-acoes">
-                        <button
-                          type="button"
-                          className="btn-icone cor-azul"
-                          title="Ver lote"
-                          aria-label={`Ver o lote ${lote.descricao}`}
-                          onClick={() => setLoteAberto(lote.id)}
-                        >
-                          <Icone nome="eye" tam={15} />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-icone cor-cinza"
-                          title="Editar lote"
-                          aria-label={`Editar o lote ${lote.descricao}`}
-                          onClick={() => setLoteEditando({ novo: false, lote })}
-                        >
-                          <Icone nome="pencil" tam={14} />
-                        </button>
-                        {/* A exclusão só existe enquanto o lote não tem
-                            certificado — a MESMA regra de antes, agora sem o
-                            botão que só sabia recusar. */}
-                        {podeExcluirLote(lote.id, cals) && (
-                          <button
-                            type="button"
-                            className="btn-icone cor-vermelho"
-                            title="Excluir lote"
-                            aria-label={`Excluir o lote ${lote.descricao}`}
-                            onClick={async () => {
-                              if (!window.confirm(`Excluir o lote "${lote.descricao}"?`)) return;
-                              await excluirLote(tag, lote.id);
-                              setLotes(listarLotes(tag));
-                            }}
-                          >
-                            <Icone nome="trash" tam={14} />
-                          </button>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
           </div>
 
           {loteEditando && (

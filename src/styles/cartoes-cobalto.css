@@ -980,3 +980,103 @@
   .cal3-linha { grid-template-columns: 30px 1fr auto; height: auto; min-height: 56px; padding: 8px; row-gap: 2px; }
   .cal3-linha > .cal3-eq, .cal3-linha > .cal3-acs, .cal3-linha > .cal3-venc, .cal3-linha > .cal3-seta { display: none; }
 }
+
+/* ============================================================================
+   CALIBRAÇÕES · EQUIPAMENTO EXATO do protótipo (cal4-*): barra Voltar ·
+   trilha · ações; abas fixas; página cinza com coluna de 1240px; cartão do
+   topo com contadores; grade de acessórios (borda superior na cor do
+   instrumento); tabela de calibrações realizadas; lotes em cartão próprio.
+   ============================================================================ */
+.calibracoes-page:has(.cal4) { padding: 0 !important; background: var(--page-cards, #EBEBEB); min-height: 100%; }
+.cal4 { margin: 0; padding: 0; border: 0; background: none; }
+.cal4-bar { position: sticky; top: 0; z-index: 6; display: flex; align-items: center; gap: 12px; padding: 16px 16px 8px; background: #fff; border-bottom: 0; margin: 0; }
+.cal4-bar .grow, .cal4 .mz-h .grow, .cal4-ac footer .grow { flex: 1; }
+.cal4-bar .fx-voltar { text-decoration: none; }
+.cal4-bar .cal-btn-nova { height: 36px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; background: var(--criar, #43A047); color: #fff; font: 600 14px/1 var(--font); box-shadow: 0 2px 6px rgba(67, 160, 71, .35); }
+.cal4-btn { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border: 1px solid #DDE2EA; border-radius: 4px; background: #fff; color: #1A1A1A; font: 600 13.5px/1 var(--font); cursor: pointer; white-space: nowrap; }
+.cal4-btn:hover { background: #F4F6F9; }
+.cal4-btn-sec .icone { color: #6D28D9; }
+.cal4-abas { position: sticky; top: 60px; z-index: 5; display: flex; align-items: center; height: 48px; padding: 0 16px 0 24px; background: #fff; box-shadow: 0 1px 0 rgba(0, 0, 0, .08); margin: 0 !important; border: 0 !important; }
+.cal4-abas button { display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 24px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; font: 600 13.5px/1 var(--font); letter-spacing: .02em; text-transform: uppercase; color: #6B6B6B; cursor: pointer; }
+.cal4-abas button:hover { color: var(--destaque); background: var(--destaque-bg); }
+.cal4-abas button[aria-selected="true"] { color: var(--destaque); border-bottom-color: var(--destaque); }
+.cal4-abas .n { min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; display: inline-grid; place-items: center; background: #EDEDED; color: #555; font: 600 11.5px/1 var(--font); }
+.cal4-abas button[aria-selected="true"] .n { background: var(--destaque); color: #fff; }
+
+.cal4 .mz { max-width: 1240px; margin: 0 auto; padding: 24px 24px 72px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box; }
+.cal4 .mz-card { background: #fff; border-radius: var(--card-r, 4px); box-shadow: var(--card-sh); min-width: 0; }
+.cal4 .mz-h { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 12px 16px 10px 20px; border-bottom: 1px solid #EDEDED; box-sizing: border-box; }
+.cal4 .mz-h h2 { margin: 0; font: 400 20px/28px var(--font); color: #1A1A1A; }
+.cal4 .mz-norma { font: 600 11px/1 var(--font); letter-spacing: .04em; color: #555; background: #F6F6F6; box-shadow: inset 0 0 0 1px #EDEDED; padding: 5px 7px; border-radius: 4px; }
+
+.cal4-topo { display: flex; align-items: center; gap: 16px; padding: 18px 20px; flex-wrap: wrap; }
+.cal4-topo-ic { width: 56px !important; height: 56px !important; border-radius: var(--card-r, 4px) !important; }
+.cal4-topo .t { flex: 1; min-width: 260px; }
+.cal4-topo h1 { margin: 0; font: 400 22px/28px var(--font); color: var(--destaque); }
+.cal4-topo p { margin: 2px 0 0; font: var(--t-body); color: #6B6B6B; }
+.cal4-res { display: flex; gap: 28px; margin: 0; }
+.cal4-res dt { font: var(--t-caption); color: #6B6B6B; }
+.cal4-res dd { margin: 4px 0 0; font: 600 18px/24px var(--font); color: #1A1A1A; }
+.cal4-res dd.v-crit { color: #B42318; }
+.cal4-res dd.v-warn { color: #A15C00; }
+
+.cal4-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; padding: 16px 20px 20px; }
+.cal4-ac { display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid #EDEDED; border-top: 3px solid var(--ic); border-radius: var(--card-r, 4px); background: #fff; cursor: pointer; transition: box-shadow .12s linear; }
+.cal4-ac:hover, .cal4-ac:focus-visible { box-shadow: var(--card-sh-hover); outline: none; }
+.cal4-ac > header { display: flex; align-items: center; gap: 10px; }
+.cal4-ac > header .t { flex: 1; min-width: 0; }
+.cal4-ac > header b { display: block; font: 600 14px/20px var(--font); color: #1A1A1A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal4-ac > header small { font: var(--t-caption); color: var(--ic); }
+.cal4-ci { width: 34px; height: 34px; border-radius: var(--card-r, 4px); display: grid; place-items: center; flex: none; background: var(--ic-bg); color: var(--ic); }
+.cal4-ac .nm { margin: 0; font: var(--t-body); color: #3A3F47; min-height: 20px; }
+.cal4-ac dl { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 0; padding: 10px; border-radius: var(--card-r, 4px); background: #F6F6F6; }
+.cal4-ac dt { font: var(--t-caption); color: #6B6B6B; }
+.cal4-ac dd { margin: 1px 0 0; font: 500 13.5px var(--font); color: #1A1A1A; }
+.cal4-ac dd small { color: #8A8A8A; }
+.cal4-ac > footer { display: flex; align-items: center; gap: 6px; }
+.cal4-calibrar { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 0; border-radius: var(--card-r, 4px); background: var(--ic); color: #fff; font: 600 12.5px/1 var(--font); cursor: pointer; }
+.cal4-calibrar:hover { filter: brightness(.92); }
+.cal4-ra { width: 30px; height: 30px; border: 0; border-radius: 4px; background: #E9E9E9; color: rgba(0, 0, 0, .7); display: grid; place-items: center; cursor: pointer; transition: background-color .15s, color .15s; }
+.cal4-ra:hover { background: var(--destaque); color: #fff; }
+.cal4-ac .cal4-ra:hover { background: #C2410C; }
+.cal4-st { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 4px; font: 600 11.5px/1 var(--font); white-space: nowrap; }
+.cal4-st.rasc { background: var(--draft-bg, #FDE68A); color: var(--draft, #78350F); font-weight: 700; }
+.cal4-st.ter { background: #F1EDFF; color: #5B21B6; }
+.cal4-st.int { background: #F6F6F6; color: #3A3F47; box-shadow: inset 0 0 0 1px #EDEDED; }
+.cal4-st.emi { padding: 0; color: var(--aprovado); }
+.cal4-st.nada { background: #fff; color: #8A8A8A; box-shadow: inset 0 0 0 1px #EDEDED; }
+.cal4 .eres { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 4px; font: 700 11.5px/1 var(--font); }
+.cal4 .eres::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.cal4 .eres.ok { background: var(--aprovado-bg); color: var(--aprovado); }
+.cal4 .eres.crit { background: var(--crit-bg); color: #B42318; }
+.cal4-vazio { margin: 0; padding: 24px 20px; font: var(--t-body); color: #6B6B6B; }
+
+.cal4-tab { padding: 0 12px 12px; }
+.cal4-tcab, .cal4-tlin { display: grid; grid-template-columns: 34px 170px minmax(200px, 1fr) 110px 170px 110px 110px 90px; align-items: center; column-gap: 14px; padding: 0 12px; }
+.cal4-tcab { height: 34px; border-bottom: 1px solid #DDDDDD; font: 300 12px/1 var(--font); color: rgba(0, 0, 0, .87); }
+.cal4-tcab .ta-r { text-align: right; }
+.cal4-tlin { height: 44px; border-bottom: 1px solid #F0F0F0; }
+.cal4-tlin[data-z] { background: var(--row-zebra, #F8F9FA); }
+.cal4-tlin > * { min-width: 0; }
+.cal4-tlin .cal4-ci { width: 28px; height: 28px; }
+.cal4-data { font: var(--t-body); color: #3A3F47; font-variant-numeric: tabular-nums; }
+.cal4-nada { color: #A0A0A0; }
+.cal4-acoes { display: flex; gap: 4px; justify-content: flex-end; }
+.cal4-lotes-c { padding: 8px 16px 16px; }
+.cal4-lotes-c .cal-lotes-barra { margin-top: 0; }
+
+@media (max-width: 1100px) {
+  .cal4-tcab { display: none; }
+  .cal4-tlin { grid-template-columns: 34px 1fr auto; height: auto; padding: 8px; row-gap: 4px; }
+  .cal4-tlin > :nth-child(4), .cal4-tlin > :nth-child(5), .cal4-tlin > :nth-child(6) { display: none; }
+}
+@media (max-width: 760px) {
+  .cal4-bar { flex-wrap: wrap; }
+  .cal4 .mz { padding: 12px 10px 72px; }
+  .cal4-res { gap: 16px; flex-wrap: wrap; }
+  .cal4-abas { padding: 0; overflow-x: auto; }
+  .cal4-abas button { padding: 0 14px; }
+}
+
+/* lista: a tabela não é um cartão (sem sombra nem canto) */
+.cal3.bloco-dados { box-shadow: none !important; border-radius: 0 !important; border-left: 0 !important; border-right: 0 !important; border-bottom: 0 !important; }

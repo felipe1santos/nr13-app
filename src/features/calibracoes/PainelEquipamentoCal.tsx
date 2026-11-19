@@ -1,0 +1,340 @@
+/**
+ * Visão de UM equipamento em /calibracoes — exata do protótipo Cobalto.
+ *
+ * Só APRESENTA o que a página já carregou (`abrirEquipamentoParaCalibracoes`):
+ * componentes do cadastro e calibrações da TAG. Nenhuma leitura nova, nenhuma
+ * regra nova. O prazo de cada acessório é o da calibração OFICIAL mais recente
+ * dele (`ehOficial`, a mesma regra do painel de vencimentos) — rascunho não
+ * gera prazo.
+ */
+import type { ReactNode } from 'react';
+import { Icone } from '../../components/Icone';
+import { iconeDoTipo } from '../../components/listaCobalto';
+import type { ComponenteCal } from './componentesService';
+import { definicaoDe } from './instrumentos';
+import { ehOficial, ehTerceiro, type DadosCalibracao } from './tipos';
+import { parseDataPrazo, statusPrazo } from '../../services/vencimentos';
+
+/** Cor de identidade do instrumento (mesma família da lista). */
+export function classeDoInstrumento(tipo: string): string {
+  switch (tipo) {
+    case 'psv':
+      return 'i-psv';
+    case 'termometro':
+      return 'i-ter';
+    case 'vacuometro':
+      return 'i-vac';
+    case 'pressostato':
+      return 'i-prs';
+    case 'transmissor':
+      return 'i-tra';
+    default:
+      return 'i-man';
+  }
+}
+
+function dataNum(c: DadosCalibracao): number {
+  return parseDataPrazo(c.dataCalibracao || c.criadoEm)?.getTime() ?? 0;
+}
+
+export interface SituacaoAcessorio {
+  ultima: DadosCalibracao | null;
+  rascunho: DadosCalibracao | null;
+  dias: number | null;
+}
+
+export function situacaoDoAcessorio(c: ComponenteCal, cals: DadosCalibracao[], hoje = new Date()): SituacaoAcessorio {
+  const doComp = cals.filter((x) => x.componenteId === c.id);
+  const oficiais = doComp.filter(ehOficial).sort((a, b) => dataNum(b) - dataNum(a));
+  const rascunho = doComp.find((x) => !ehOficial(x)) ?? null;
+  const ultima = oficiais[0] ?? null;
+  const venc = parseDataPrazo(ultima?.dataProxCalibracao ?? null);
+  const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  return { ultima, rascunho, dias: venc ? statusPrazo(venc, hojeZero).dias : null };
+}
+
+function prazoCurto(dias: number): string {
+  if (dias < 0) return `Vencido há ${Math.abs(dias)} dia${Math.abs(dias) === 1 ? '' : 's'}`;
+  if (dias === 0) return 'Vence hoje';
+  return `Em ${dias} dia${dias === 1 ? '' : 's'}`;
+}
+
+export function SeloPrazo({ dias }: { dias: number | null }) {
+  if (dias === null) return <span className="cal3-prazo folgado">Sem prazo</span>;
+  const c = dias < 0 ? 'crit' : dias <= 30 ? 'warn' : dias > 60 ? 'folgado' : 'ok';
+  return (
+    <span className={`cal3-prazo ${c}`}>
+      <Icone nome={dias < 0 ? 'alerttri' : dias <= 30 ? 'clock' : 'check'} tam={13} />
+      {prazoCurto(dias)}
+    </span>
+  );
+}
+
+/** Cartão do topo: equipamento + contadores. */
+export function TopoEquipamentoCal({
+  tag,
+  tipo,
+  descricao,
+  componentes,
+  cals,
+}: {
+  tag: string;
+  tipo: string | undefined;
+  descricao: string;
+  componentes: ComponenteCal[];
+  cals: DadosCalibracao[];
+}) {
+  const sits = componentes.map((c) => situacaoDoAcessorio(c, cals));
+  const vencidas = sits.filter((s) => s.dias !== null && s.dias < 0).length;
+  const aVencer = sits.filter((s) => s.dias !== null && s.dias >= 0 && s.dias <= 30).length;
+  const rascunhos = cals.filter((c) => !ehOficial(c)).length;
+  return (
+    <section className="mz-card cal4-topo">
+      <span className={`lc-ico ${tipo ?? 'outro'} cal4-topo-ic`} aria-hidden>
+        <Icone nome={iconeDoTipo(tipo)} tam={32} />
+      </span>
+      <div className="t">
+        <h1>Calibrações · {tag}</h1>
+        <p>{descricao}</p>
+      </div>
+      <dl className="cal4-res">
+        <div>
+          <dt>Acessórios</dt>
+          <dd>{componentes.length}</dd>
+        </div>
+        <div>
+          <dt>Vencidas</dt>
+          <dd className={vencidas ? 'v-crit' : ''}>{vencidas}</dd>
+        </div>
+        <div>
+          <dt>A vencer (30 dias)</dt>
+          <dd className={aVencer ? 'v-warn' : ''}>{aVencer}</dd>
+        </div>
+        <div>
+          <dt>Rascunhos</dt>
+          <dd>{rascunhos}</dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
+/** Aba "Calibrar acessórios": um cartão por acessório. */
+export function GradeAcessorios({
+  componentes,
+  cals,
+  aoAdicionar,
+  aoEditar,
+  aoHistorico,
+  aoCalibrar,
+  aoContinuar,
+}: {
+  componentes: ComponenteCal[];
+  cals: DadosCalibracao[];
+  aoAdicionar: () => void;
+  aoEditar: (c: ComponenteCal) => void;
+  aoHistorico: (c: ComponenteCal) => void;
+  aoCalibrar: (c: ComponenteCal) => void;
+  aoContinuar: (cal: DadosCalibracao) => void;
+}) {
+  return (
+    <section className="mz-card cal-acessorios-card">
+      <header className="mz-h">
+        <h2>Acessórios do equipamento</h2>
+        <span className="grow" />
+        <button type="button" className="cal4-btn cal4-btn-sec" onClick={aoAdicionar}>
+          <Icone nome="plus" tam={16} />
+          Adicionar acessório
+        </button>
+      </header>
+      {componentes.length === 0 ? (
+        <p className="cal4-vazio">Nenhum acessório cadastrado. Adicione os manômetros, válvulas e demais instrumentos deste equipamento.</p>
+      ) : (
+        <div className="cal4-grade">
+          {componentes.map((c) => {
+            const def = definicaoDe(c.tipo);
+            const s = situacaoDoAcessorio(c, cals);
+            const faixa = c.tipo === 'psv' && c.pressaoAjuste ? `ajuste ${c.pressaoAjuste}` : c.referencia;
+            const desc = [c.fabricante, c.modelo].filter((x) => x && x.trim()).join(' · ');
+            let rodape: ReactNode;
+            if (s.rascunho) rodape = <span className="cal4-st rasc">Rascunho em aberto</span>;
+            else if (s.ultima && ehTerceiro(s.ultima)) rodape = <span className="cal4-st ter">Laboratório externo</span>;
+            else if (s.ultima) rodape = <span className="eres ok">Certificado emitido</span>;
+            else rodape = <span className="cal4-st nada">Sem calibração</span>;
+            return (
+              <article
+                key={c.id}
+                className={`cal4-ac ${classeDoInstrumento(c.tipo)}`}
+                tabIndex={0}
+                title="Ver o histórico de calibrações"
+                onClick={() => aoHistorico(c)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') aoHistorico(c);
+                }}
+              >
+                <header>
+                  <span className="cal4-ci" aria-hidden>
+                    <Icone nome={def.icone} tam={18} />
+                  </span>
+                  <div className="t">
+                    <b>{c.nome}</b>
+                    <small>{def.rotulo}</small>
+                  </div>
+                  <SeloPrazo dias={s.dias} />
+                </header>
+                <p className="nm">{desc || ' '}</p>
+                <dl>
+                  <div>
+                    <dt>Nº de série</dt>
+                    <dd>{c.serie?.trim() || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt>Faixa</dt>
+                    <dd>
+                      {faixa?.trim() || '—'} {faixa && c.unidade ? <small>{c.unidade}</small> : null}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Última</dt>
+                    <dd>{s.ultima?.dataCalibracao || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt>Próxima</dt>
+                    <dd>{s.ultima?.dataProxCalibracao || '—'}</dd>
+                  </div>
+                </dl>
+                <footer>
+                  {rodape}
+                  <span className="grow" />
+                  <button
+                    type="button"
+                    className="cal4-ra"
+                    title="Editar acessório"
+                    aria-label={`Editar ${c.nome}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      aoEditar(c);
+                    }}
+                  >
+                    <Icone nome="pencil" tam={15} />
+                  </button>
+                  <button
+                    type="button"
+                    className="cal4-calibrar"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (s.rascunho) aoContinuar(s.rascunho);
+                      else aoCalibrar(c);
+                    }}
+                  >
+                    <Icone nome="gauge" tam={15} />
+                    {s.rascunho ? 'Continuar' : 'Calibrar'}
+                  </button>
+                </footer>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Aba "Calibrações realizadas": uma linha por calibração. */
+export function TabelaRealizadas({
+  componentes,
+  cals,
+  aoContinuar,
+  aoVer,
+  aoBaixar,
+}: {
+  componentes: ComponenteCal[];
+  cals: DadosCalibracao[];
+  aoContinuar: (cal: DadosCalibracao) => void;
+  aoVer: (cal: DadosCalibracao) => void;
+  aoBaixar: (cal: DadosCalibracao) => void;
+}) {
+  return (
+    <section className="mz-card">
+      <header className="mz-h">
+        <h2>Calibrações realizadas</h2>
+        <span className="mz-norma">{cals.length}</span>
+      </header>
+      {cals.length === 0 ? (
+        <p className="cal4-vazio">Nenhuma calibração registrada neste equipamento.</p>
+      ) : (
+        <div className="cal4-tab">
+          <div className="cal4-tcab" aria-hidden="true">
+            <span />
+            <span>Certificado</span>
+            <span>Acessório</span>
+            <span>Data</span>
+            <span>Origem</span>
+            <span>Resultado</span>
+            <span>Situação</span>
+            <span className="ta-r">Ações</span>
+          </div>
+          {cals.map((c, i) => {
+            const comp = componentes.find((x) => x.id === c.componenteId);
+            const def = definicaoDe(c.tipo);
+            const oficial = ehOficial(c);
+            return (
+              <div key={c.id} className="cal4-tlin" data-z={i % 2 === 1 || undefined}>
+                <span className={`cal4-ci ${classeDoInstrumento(c.tipo)}`} aria-hidden>
+                  <Icone nome={def.icone} tam={16} />
+                </span>
+                <span className="cal3-tag">{c.numeroCertificado || '—'}</span>
+                <span className="cal3-cli">
+                  <b>{comp?.nome ?? c.nome ?? '—'}</b> · {def.rotulo}
+                </span>
+                <span className="cal4-data">{c.dataCalibracao || '—'}</span>
+                <span>
+                  {ehTerceiro(c) ? (
+                    <span className="cal4-st ter">{c.laboratorio || 'Laboratório externo'}</span>
+                  ) : (
+                    <span className="cal4-st int">Interna</span>
+                  )}
+                </span>
+                <span>
+                  {c.statusConclusao === 'aprovado' ? (
+                    <span className="eres ok">Aprovado</span>
+                  ) : c.statusConclusao === 'reprovado' ? (
+                    <span className="eres crit">Reprovado</span>
+                  ) : (
+                    <span className="cal4-nada">—</span>
+                  )}
+                </span>
+                <span>
+                  {oficial ? (
+                    <span className="cal4-st emi">
+                      <Icone nome="checkcircle" tam={13} />
+                      Emitido
+                    </span>
+                  ) : (
+                    <span className="cal4-st rasc">Rascunho</span>
+                  )}
+                </span>
+                <span className="cal4-acoes">
+                  {oficial ? (
+                    <>
+                      <button type="button" className="cal4-ra" title="Ver certificado" aria-label="Ver certificado" onClick={() => aoVer(c)}>
+                        <Icone nome="eye" tam={15} />
+                      </button>
+                      <button type="button" className="cal4-ra doc" title="Baixar PDF" aria-label="Baixar PDF" onClick={() => aoBaixar(c)}>
+                        <Icone nome="download" tam={15} />
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" className="cal4-ra" title="Continuar" aria-label="Continuar rascunho" onClick={() => aoContinuar(c)}>
+                      <Icone nome="pencil" tam={15} />
+                    </button>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
