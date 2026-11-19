@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import { isMestre, isTrial, logout, papelAtual, usuarioLogado } from '../services/auth';
@@ -28,7 +28,7 @@ import {
   tituloDaRota,
 } from './menu';
 import type { ItemMenu } from './menu';
-import MenuUsuario from './MenuUsuario';
+import MenuUsuario, { type AtalhoConta } from './MenuUsuario';
 import SyncStatus from './SyncStatus';
 import ModalTrocarSenha from '../components/ModalTrocarSenha';
 import ModalTermos from '../components/ModalTermos';
@@ -263,6 +263,36 @@ export default function Layout() {
     setMenuAberto(false);
   }
 
+  // Redesign Cobalto · círculo de carregamento ao trocar de tela (padrão
+  // SimplesDental). Só VISUAL: não segura a renderização nem atrasa dado —
+  // a tela nova monta por baixo e o círculo some sozinho.
+  const [carregando, setCarregando] = useState(false);
+  const primeiraRota = useRef(true);
+  useEffect(() => {
+    if (primeiraRota.current) {
+      primeiraRota.current = false;
+      return;
+    }
+    setCarregando(true);
+    const t = window.setTimeout(() => setCarregando(false), 360);
+    return () => window.clearTimeout(t);
+  }, [location.pathname]);
+
+  // Ripple ao selecionar item do menu (Material, como no SimplesDental).
+  useEffect(() => instalarRipple(), []);
+
+  // Hambúrguer: no celular abre a gaveta; no desktop recolhe o menu.
+  function aoHamburguer() {
+    if (window.matchMedia('(max-width: 900px)').matches) setMenuAberto((a) => !a);
+    else alternarRecolhida();
+  }
+
+  const atalhosConta: AtalhoConta[] = [
+    ...(isMestre() ? [{ to: '/minha-empresa', rotulo: 'Meus dados', icone: 'building' as const, cor: '#0C4F9B', fundo: '#E6EEF8' }] : []),
+    ...(isMestre() ? [{ to: '/acesso', rotulo: 'Acessos', icone: 'key' as const, cor: '#6D28D9', fundo: '#F1EDFF' }] : []),
+    ...(permitido('funcionarios') ? [{ to: '/funcionarios', rotulo: 'Equipe', icone: 'users' as const, cor: '#0B5F73', fundo: '#E3F3F6' }] : []),
+  ];
+
   function alternarRecolhida() {
     setRecolhida((r) => {
       gravarPreferencia(CHAVE_MENU_RECOLHIDO, r ? '0' : '1');
@@ -308,29 +338,49 @@ export default function Layout() {
       <div className={`shell${recolhida ? ' menu-recolhido' : ''}`}>
         {menuAberto && <div className="sidebar-backdrop" onClick={fecharDrawer} />}
 
+        {/* ===== TOPO (Cobalto): faixa escura de largura total — hambúrguer,
+            marca e o título da tela; à direita sincronização e a conta. ===== */}
+        <header className="topbar">
+          <div className="topbar-left">
+            <button
+              type="button"
+              className="btn-hamburguer"
+              onClick={aoHamburguer}
+              aria-label={recolhida ? 'Expandir menu' : 'Abrir ou recolher menu'}
+              aria-expanded={menuAberto}
+            >
+              <Icone nome="menu" tam={20} />
+            </button>
+            <span className="top-marca">
+              <img className="brand-logo" src="/logo-marca.png" alt="" aria-hidden="true" />
+              <span className="top-marca-txt">NR-13</span>
+            </span>
+            <span className="top-sep" aria-hidden="true">›</span>
+            <h1 title={sub || undefined}>{titulo}</h1>
+          </div>
+
+          <div className="top-status">
+            <SyncStatus />
+            <SeloSync />
+            <MenuUsuario
+              iniciais={iniciais(email)}
+              email={email}
+              papel={papel}
+              temAlerta={temAlerta}
+              ultimoLogin={ultimoLoginTexto()}
+              atalhos={atalhosConta}
+              onNotificacoes={() => navigate('/dashboard')}
+              onTrocarSenha={() => setModalSenha(true)}
+              onSair={handleLogout}
+            />
+          </div>
+        </header>
+
         {/* ===== SIDEBAR (escura, Forja Compacto) =====
             Agrupada (Operação, Documentos, Instrumentos, Cadastros) e
             recolhível num trilho de ícones. Os ids e as permissões são os de
             sempre; o agrupamento é só apresentação — ver GRUPOS_MENU. */}
         <aside className={`sidebar${menuAberto ? ' aberta' : ''}`} aria-label="Navegação principal">
-          <div className="brand">
-            <img className="brand-logo" src="/logo-marca.png" alt="" aria-hidden="true" />
-            <div className="brand-txt">
-              <div className="brand-name">NR13</div>
-              <div className="brand-sub">Engenharia &amp; Ativos</div>
-            </div>
-            <button
-              type="button"
-              className="btn-recolher"
-              onClick={alternarRecolhida}
-              aria-label={recolhida ? 'Expandir menu' : 'Recolher menu'}
-              aria-pressed={recolhida}
-              title={recolhida ? 'Expandir menu' : 'Recolher menu'}
-            >
-              <Icone nome={recolhida ? 'chevright' : 'chevleft'} tam={16} />
-            </button>
-          </div>
-
           <nav className="nav-list">
             {GRUPOS_MENU.map((g) => {
               const itens = itensDoGrupo(g, itensPermitidos);
@@ -372,6 +422,8 @@ export default function Layout() {
                   {/* "Meus dados" (a empresa executante) é cadastro da
                       organização: mora aqui, e não acima do Dashboard. */}
                   {isMestre() && <NavItem item={ITEM_MEUS_DADOS} sub />}
+                  {/* Ordem do primeiro uso (o guia "Comece por aqui"): empresa,
+                      equipe, cliente. */}
                   {itensCadastrar.map((item) => (
                     <NavItem key={item.id} item={item} sub />
                   ))}
@@ -394,33 +446,8 @@ export default function Layout() {
             {itensAjuda.map((item) => (
               <NavItem key={item.id} item={item} />
             ))}
-            <button
-              type="button"
-              className="nav-item"
-              onClick={() => {
-                setModalSenha(true);
-                fecharDrawer();
-              }}
-              title={recolhida ? 'Trocar senha' : undefined}
-              aria-label={recolhida ? 'Trocar senha' : undefined}
-            >
-              <span className="left">
-                <Icone nome="key" />
-                <span className="menu-text">Trocar Senha</span>
-              </span>
-            </button>
-            <button
-              type="button"
-              className="nav-item danger"
-              onClick={handleLogout}
-              title={recolhida ? 'Sair' : undefined}
-              aria-label={recolhida ? 'Sair' : undefined}
-            >
-              <span className="left">
-                <Icone nome="logout" />
-                <span className="menu-text">Sair</span>
-              </span>
-            </button>
+            {/* Trocar senha e Sair moram no painel da conta (canto superior
+                direito), como no SimplesDental. */}
           </div>
         </aside>
 
@@ -429,39 +456,12 @@ export default function Layout() {
           <BarraTrial />
           <BarraAssinatura />
           <ModalAviso />
-          {/* Cabeçalho de UMA linha, 48px (Forja Compacto). O subtítulo da rota
-              saiu da tela — quebrava em até três linhas — e virou a dica do
-              título; "Último login" foi para o menu da conta. */}
-          <header className="topbar">
-            <div className="topbar-left">
-              <button
-                type="button"
-                className="btn-hamburguer"
-                onClick={() => setMenuAberto((a) => !a)}
-                aria-label="Abrir menu"
-                aria-expanded={menuAberto}
-              >
-                <span /><span /><span />
-              </button>
-              <h1 title={sub || undefined}>{titulo}</h1>
-            </div>
-
-            <div className="top-status">
-              <SyncStatus />
-              <SeloSync />
-              <span className="divider-v" />
-              <MenuUsuario
-                iniciais={iniciais(email)}
-                email={email}
-                papel={papel}
-                temAlerta={temAlerta}
-                ultimoLogin={ultimoLoginTexto()}
-                onNotificacoes={() => navigate('/dashboard')}
-              />
-            </div>
-          </header>
 
           <main className="main-content">
+            <div className={`carga${carregando ? ' on' : ''}`} role="status" aria-live="polite" aria-hidden={!carregando}>
+              <svg className="carga-spin" viewBox="25 25 50 50" aria-hidden="true"><circle cx="50" cy="50" r="20" /></svg>
+              <span className="sr-only">Carregando…</span>
+            </div>
             {(() => {
               // Conta trial: a BarraTrial acima substitui este aviso.
               if (isTrial()) return null;
@@ -497,4 +497,40 @@ export default function Layout() {
       {isTrial() && <ModalTermos />}
     </div>
   );
+}
+
+/**
+ * Ripple (onda) nos itens do menu e do painel da conta — o efeito de seleção
+ * do SimplesDental (Material). Um ouvinte só, no documento; a onda nasce no
+ * ponto do clique e some ao soltar. Com "reduzir movimento" vira só um
+ * esmaecimento (CSS).
+ */
+function instalarRipple(): () => void {
+  const aoPressionar = (e: PointerEvent) => {
+    const el = (e.target as HTMLElement | null)?.closest<HTMLElement>('.sidebar .nav-item, .um-it, .um-sair');
+    if (!el || e.button > 0) return;
+    let onda = el.querySelector<HTMLElement>(':scope > .rp');
+    if (!onda) {
+      onda = document.createElement('span');
+      onda.className = 'rp';
+      el.appendChild(onda);
+    }
+    const r = el.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    const d = 2 * Math.hypot(Math.max(x, r.width - x), Math.max(y, r.height - y));
+    const c = document.createElement('i');
+    c.style.cssText = `width:${d}px;height:${d}px;left:${x - d / 2}px;top:${y - d / 2}px`;
+    onda.appendChild(c);
+    const soltar = () => {
+      c.classList.add('sai');
+      window.setTimeout(() => c.remove(), 650);
+      window.removeEventListener('pointerup', soltar);
+      window.removeEventListener('pointercancel', soltar);
+    };
+    window.addEventListener('pointerup', soltar);
+    window.addEventListener('pointercancel', soltar);
+  };
+  document.addEventListener('pointerdown', aoPressionar);
+  return () => document.removeEventListener('pointerdown', aoPressionar);
 }

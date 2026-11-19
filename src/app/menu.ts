@@ -38,7 +38,9 @@ export const ITENS_TOPO: ItemMenu[] = [
 ];
 
 export const ITENS_CADASTRAR: ItemMenu[] = [
-  { id: 'funcionarios', to: '/funcionarios', label: 'Funcionários', icone: 'users' },
+  // Redesign Cobalto (18/11/2026): o rótulo virou "Equipe" — engenheiros,
+  // inspetores e técnicos que assinam. A ROTA e o id de permissão não mudam.
+  { id: 'funcionarios', to: '/funcionarios', label: 'Equipe', icone: 'users' },
   { id: 'clientes', to: '/empresas', label: 'Clientes', icone: 'briefcase' },
 ];
 
@@ -121,7 +123,7 @@ export const TITULOS_ROTA: { prefixo: string; titulo: string; sub: string }[] = 
     titulo: 'Registros de Segurança',
     sub: 'O histórico de cada equipamento, exigido pela NR-13',
   },
-  { prefixo: '/funcionarios', titulo: 'Funcionários', sub: 'Profissionais legalmente habilitados (PLH) e equipe' },
+  { prefixo: '/funcionarios', titulo: 'Equipe', sub: 'Profissionais legalmente habilitados (PLH) e equipe' },
   { prefixo: '/empresas', titulo: 'Clientes', sub: 'Empresas clientes cadastradas' },
   { prefixo: '/minha-empresa', titulo: 'Meus dados', sub: 'Dados da empresa executante' },
   { prefixo: '/info', titulo: 'Info', sub: 'Central de ajuda: guias, fluxo do sistema e dúvidas frequentes' },

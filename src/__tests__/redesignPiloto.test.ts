@@ -32,27 +32,33 @@ describe('tokens Forja Compacto', () => {
     expect(TOKENS).toContain('--acao: var(--amber);');
   });
 
-  it('o texto secundário passa de 4,5:1 no branco e no fundo', () => {
-    expect(TOKENS).toContain('--texto-2: #4A525B;');
-    expect(TOKENS).toContain('--texto-3: #636C76;');
+  it('o texto secundário passa de 4,5:1 no branco', () => {
+    expect(TOKENS).toContain('--texto-2: #3A3F47;'); // 10,6:1
+    expect(TOKENS).toContain('--texto-3: #6B6B6B;'); // 5,33:1
   });
 
-  it('paleta B "Aço Frio": acento #BC560A com texto BRANCO (o texto escuro reprova no acento novo)', () => {
-    expect(TOKENS).toContain('--amber: #BC560A;');
+  // Redesign Cobalto (18/11/2026) — substitui a paleta "Aço Frio".
+  it('Cobalto: destaque #0C4F9B com texto BRANCO, menu escuro #0F1631, página padrão ouro #EBEBEB', () => {
+    expect(TOKENS).toContain('--amber: #0C4F9B;');
     expect(TOKENS).toContain('--amber-txt: #FFFFFF;');
-    expect(TOKENS).toContain('--steel: #F3F4F6;');
-    expect(TOKENS).toContain('--ink: #111418;');
-    expect(TOKENS).not.toMatch(/:\s*#FF7A1A/i); // nenhum token com o âmbar antigo
+    expect(TOKENS).toContain('--steel: #EBEBEB;');
+    expect(TOKENS).toContain('--ink: #0F1631;');
+    expect(TOKENS).toContain('--destaque: #0C4F9B;');
+    expect(TOKENS).toContain('--aprovado: #009A3D;');
+    expect(TOKENS).toContain('--aprovado-bg: #DEFFE8;');
+    expect(TOKENS).toContain('--card-r: 4px;');
+    expect(TOKENS).not.toMatch(/:\s*#BC560A/i); // nenhum token com o acento laranja antigo
   });
 
-  it('identidade: IBM Plex Sans, Space Grotesk nos títulos, IBM Plex Mono nos dados (1ª prévia)', () => {
-    expect(TOKENS).toMatch(/--font-base: 'IBM Plex Sans'/);
-    expect(TOKENS).toMatch(/--font-display: 'Space Grotesk'/);
-    expect(TOKENS).toMatch(/--font-mono: 'IBM Plex Mono'/);
+  it('fonte ÚNICA: Figtree em texto, títulos e dados (self-hosted)', () => {
+    expect(TOKENS).toMatch(/--font-base: 'Figtree Variable'/);
+    expect(TOKENS).toMatch(/--font-display: 'Figtree Variable'/);
+    expect(TOKENS).toMatch(/--font-mono: 'Figtree Variable'/);
+    expect(ler('src/main.tsx')).toContain("import '@fontsource-variable/figtree/index.css'");
   });
 
-  it('nenhum azul como cor de ação — o link é o tom escuro do acento', () => {
-    expect(TOKENS).toContain('--link: #A34A08;');
+  it('o link é o azul de destaque', () => {
+    expect(TOKENS).toContain('--link: #0C4F9B;');
   });
 
   it('não redefine --surface/--border: 87 usos com fallback mudariam de cor fora do piloto', () => {
@@ -88,14 +94,50 @@ describe('sidebar agrupada', () => {
   });
 });
 
-describe('cabeçalho de 48px', () => {
+describe('shell Cobalto: topo escuro, painel da conta, carregamento e ripple', () => {
+  const MENU_USU = ler('src/app/MenuUsuario.tsx');
+
+  it('Cadastros na ordem do primeiro uso: Meus dados, Equipe, Clientes, Acessos', () => {
+    const iMeus = LAYOUT.indexOf('<NavItem item={ITEM_MEUS_DADOS} sub />');
+    const iCad = LAYOUT.indexOf('{itensCadastrar.map((item) => (');
+    const iAcessos = LAYOUT.indexOf('<NavItem item={ITEM_ACESSOS} sub />');
+    expect(iMeus).toBeGreaterThan(0);
+    expect(iMeus).toBeLessThan(iCad);
+    expect(iCad).toBeLessThan(iAcessos);
+    expect(ler('src/app/menu.ts')).toContain("label: 'Equipe'");
+  });
+
+  it('Trocar senha e Sair saíram do rodapé da sidebar e moram no painel da conta', () => {
+    const rodape = LAYOUT.slice(LAYOUT.indexOf('className="nav-rodape"'), LAYOUT.indexOf('</aside>'));
+    expect(rodape).not.toContain('handleLogout');
+    expect(rodape).not.toContain('Trocar Senha');
+    expect(LAYOUT).toContain('onTrocarSenha={() => setModalSenha(true)}');
+    expect(LAYOUT).toContain('onSair={handleLogout}');
+    expect(MENU_USU).toContain('Trocar senha');
+    expect(MENU_USU).toContain('className="um-sair"');
+  });
+
+  it('o painel da conta mantém Notificações e Instalar app', () => {
+    expect(MENU_USU).toContain('onNotificacoes');
+    expect(MENU_USU).toContain('<BotaoInstalarPWA');
+  });
+
+  it('carregamento só visual (não segura a tela) e ripple no menu', () => {
+    expect(LAYOUT).toContain('className={`carga${carregando');
+    expect(LAYOUT).toContain('<Outlet />');
+    expect(LAYOUT).toContain('instalarRipple');
+    expect(LAYOUT_CSS).toContain('prefers-reduced-motion');
+  });
+});
+
+describe('cabeçalho de uma linha', () => {
   it('uma linha: sem o subtítulo na tela, que vira dica do título', () => {
     expect(LAYOUT).not.toContain('className="path"');
     expect(LAYOUT).toContain('<h1 title={sub || undefined}>{titulo}</h1>');
   });
 
-  it('altura fixa pelo token', () => {
-    expect(LAYOUT_CSS).toMatch(/\.topbar \{[^}]*height: var\(--h-header\);/);
+  it('altura fixa: 52px no topo escuro do Cobalto', () => {
+    expect(LAYOUT_CSS).toMatch(/\.topbar \{[^}]*height: 52px;/);
   });
 
   it('"Último login" mora no menu da conta, não no cabeçalho', () => {

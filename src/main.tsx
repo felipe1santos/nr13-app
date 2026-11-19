@@ -1,6 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 // Fontes self-hosted (funcionam offline no PWA — sem Google Fonts em runtime)
+// Redesign Cobalto: Figtree é a fonte ÚNICA da interface (ver styles/tokens.css).
+import '@fontsource-variable/figtree/index.css'
 import '@fontsource/space-grotesk/500.css'
 import '@fontsource/space-grotesk/600.css'
 import '@fontsource/space-grotesk/700.css'
