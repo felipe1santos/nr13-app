@@ -1269,3 +1269,28 @@
 .verfunc-contagem {
   border-radius: var(--r-xs);
 }
+
+/* ============================================================================
+   COBALTO (18/11/2026) — Equipe e Acessos no padrão de cadastro: página cinza,
+   cartão branco padrão ouro, linhas de 44px com zebra e destaque rosado.
+   Acrescentado por último; tamanhos de toque e versão de celular seguem.
+   ============================================================================ */
+.cad-page { background: var(--page-cards); min-height: 100%; }
+.cad-page-header h2 { font: 400 20px/26px var(--font); color: #1A1A1A; letter-spacing: 0; }
+.cad-page-header .btn-primario,
+.acesso-page-larga .meta-card-header .btn-primario { height: 36px; padding: 0 18px; border: 0; border-radius: var(--card-r); background: var(--criar); color: #fff; font: var(--t-control); letter-spacing: 0.04em; text-transform: uppercase; }
+.cad-page-header .btn-primario:hover,
+.acesso-page-larga .meta-card-header .btn-primario:hover { background: var(--criar-hover); }
+.cad-lista { gap: 0; border-radius: var(--card-r); box-shadow: var(--card-sh); background: #fff; overflow: hidden; }
+.cad-lista > .cad-item-card { position: relative; margin: 0; min-height: 56px; border: 0; border-bottom: 1px solid #EDF0F5; border-radius: 0; box-shadow: none; background: #fff; transition: background-color 0.12s linear; }
+.cad-lista > .cad-item-card:nth-child(even) { background: var(--row-zebra); }
+.cad-lista > .cad-item-card:hover { transform: none; background: var(--row-hover); box-shadow: 0 1px 0 var(--row-hover-line), 0 -1px 0 var(--row-hover-line); box-shadow: inset 3px 0 0 var(--row-mark); }
+.cad-item-nome { font: var(--t-strong); color: #1A1A1A; }
+.cad-item-meta { font: var(--t-caption); color: #5F6B82; }
+.cad-tabela-wrap { border: 0; border-radius: var(--card-r); box-shadow: var(--card-sh); background: #fff; }
+.cad-tabela th { background: #fff; font: 300 12px/16px var(--font); color: rgba(0, 0, 0, 0.87); text-transform: none; letter-spacing: 0; border-bottom: 1px solid #DDDDDD; }
+.cad-tabela tbody td { height: var(--row-h); border-bottom: 1px solid #EDF0F5; font: var(--t-body); }
+.cad-tabela tbody tr:nth-child(even) td { background: var(--row-zebra); }
+.cad-tabela tbody tr:hover td { background: var(--row-hover); box-shadow: 0 1px 0 var(--row-hover-line), 0 -1px 0 var(--row-hover-line); }
+.cad-tabela tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--row-mark), 0 1px 0 var(--row-hover-line), 0 -1px 0 var(--row-hover-line); }
+.acesso-aba.ativa { color: var(--destaque); border-color: var(--destaque); }

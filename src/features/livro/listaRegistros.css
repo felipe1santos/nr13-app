@@ -828,3 +828,31 @@
   color: var(--ok, #1fa971);
   padding: 0;
 }
+
+/* ============================================================================
+   COBALTO (18/11/2026) — Registros de Segurança no padrão de lista. Lista NÃO
+   virtualizada: a zebra pode vir de :nth-child. Acrescentado por último.
+   ============================================================================ */
+.reg-painel.painel-lista { border: 0; border-radius: 0; box-shadow: none; background: #fff; }
+.reg-lista { gap: 0; }
+.reg-lista > li > .reg-card {
+  position: relative;
+  min-height: 56px;
+  border: 0;
+  border-bottom: 1px solid #EDF0F5;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: none;
+  transition: background-color 0.12s linear, box-shadow 0.12s linear;
+}
+.reg-lista > li:nth-child(even) > .reg-card { background: var(--row-zebra); }
+.reg-lista > li > .reg-card::after { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 0 3px 3px 0; background: var(--row-mark); opacity: 0; transition: opacity 0.12s linear; pointer-events: none; }
+.reg-lista > li > .reg-card:hover,
+.reg-lista > li > .reg-card:focus-visible { z-index: 1; transform: none; background: var(--row-hover); outline: none; box-shadow: 0 1px 0 var(--row-hover-line), 0 -1px 0 var(--row-hover-line), 0 4px 12px -6px rgba(229, 72, 77, 0.18); }
+.reg-lista > li > .reg-card:hover::after,
+.reg-lista > li > .reg-card:focus-visible::after { opacity: 1; }
+.reg-lista .reg-card-tag { font: var(--t-strong); color: #1A1A1A; }
+.reg-lista .reg-card-nome { font: var(--t-caption); color: #5F6B82; }
+.reg-lista .reg-card-ic { border-radius: 8px; background: #E3EAFF; color: #1A3591; }
+.reg-lista .reg-card-acao { color: #BDBDBD; transition: color 0.12s linear; }
+.reg-lista > li > .reg-card:hover .reg-card-acao { color: var(--row-mark); }
