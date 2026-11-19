@@ -176,7 +176,7 @@ export default function Empresas() {
                           setAberto({ cliente: c, novo: false });
                         }}
                       >
-                        <b>{nomeDe(c)}</b>
+                        <b title={nomeDe(c)}>{nomeDe(c)}</b>
                         {segundaLinha(c) && <small>{segundaLinha(c)}</small>}
                       </button>
                     </td>
