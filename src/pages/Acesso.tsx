@@ -328,6 +328,7 @@ export default function Acesso() {
                 <tr>
                   <th>E-mail</th>
                   {aba === 'equipe' ? <th>Papel</th> : <th>Empresa</th>}
+                  <th>Módulos</th>
                   <th>Último acesso</th>
                   <th>Última sincronização</th>
                   <th>Status</th>
@@ -360,6 +361,26 @@ export default function Acesso() {
                           <option value="funcionario">Inspetor</option>
                           <option value="gerente">Gerente</option>
                         </select>
+                      )}
+                    </td>
+                    {/* Cobalto · Módulos (protótipo): quantos módulos o login enxerga.
+                        Cliente vê só o Portal. Sem restrição gravada = todos. */}
+                    <td data-rot="Módulos">
+                      {u.papel === 'cliente' ? (
+                        <span className="acesso2-mod-txt">Só o Portal do Cliente</span>
+                      ) : (
+                        (() => {
+                          const lib = carregarPermissoes(u.id);
+                          const n = lib === null ? MODULOS.length : lib.length;
+                          return n >= MODULOS.length ? (
+                            <span className="acesso2-mod-txt"><b>Todos</b> os módulos</span>
+                          ) : (
+                            <span className="acesso2-mod">
+                              <span className="trk"><i style={{ width: `${(n / MODULOS.length) * 100}%` }} /></span>
+                              <b>{n}</b> de {MODULOS.length}
+                            </span>
+                          );
+                        })()
                       )}
                     </td>
                     <td data-rot="Último acesso"><CarimboTempo iso={u.ultimo_acesso ?? null} rotulo="Último acesso" vazio="Nunca acessou" /></td>

@@ -238,6 +238,10 @@ export default function Funcionarios() {
               <input type="text" value={form.crea} onChange={(e) => set('crea', e.target.value)} placeholder="CREA-UF 000000" />
             </div>
             <div className="cad-campo">
+              <label>E-mail</label>
+              <input type="email" value={form.email ?? ''} onChange={(e) => set('email', e.target.value)} placeholder="nome@empresa.com.br" />
+            </div>
+            <div className="cad-campo">
               <label>Tipo</label>
               <select value={form.tipo} onChange={(e) => mudarTipo(e.target.value as Funcionario['tipo'])}>
                 <option value="Engenheiro">Engenheiro (assina o laudo)</option>
@@ -394,6 +398,7 @@ export default function Funcionarios() {
             <span>Nome</span>
             <span>Função</span>
             <span>Registro</span>
+            <span>E-mail</span>
             <span>Assina</span>
             <span />
           </div>
@@ -416,6 +421,7 @@ export default function Funcionarios() {
               </div>
               <span className={`cad2-fun f-${(f.tipo || '').toLowerCase().normalize('NFD').replace(/[^a-z]/g, '')}`}>{f.tipo || '—'}</span>
               <span className="cad2-reg">{f.crea || '—'}</span>
+              <span className="cad2-email" title={f.email || undefined}>{f.email || '—'}</span>
               {/* Assina: rubrica cadastrada (caneta) e quantas folhas de cada
                   documento a pessoa carimba — derivado do cadastro. */}
               <span className="cad2-assina">

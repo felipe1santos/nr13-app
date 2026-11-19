@@ -30,6 +30,8 @@ export interface Funcionario {
   nome: string;
   crea: string;
   tipo: 'Engenheiro' | 'Inspetor';
+  /** E-mail do profissional (contato; não é login). Opcional — cadastros antigos não têm. */
+  email?: string;
   assinatura?: string; // imagem dataURL (comprimida)
   /**
    * FASE 7A — o mesmo conteúdo no bucket, endereçado pelo SHA-256 dos bytes

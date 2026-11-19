@@ -1367,3 +1367,21 @@
 .cli-v4 td.cli-nome { max-width: 360px; overflow: hidden; }
 .cli-v4 td.cli-nome > .cli-nome-btn { max-width: calc(100% - 44px); }
 .cli-v4 .cli-nome-btn b, .cli-v4 .cli-nome-btn small { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Equipe · coluna E-mail (protótipo): Nome · Função · Registro · E-mail · Assina · Ações */
+.cad2-linha { grid-template-columns: minmax(200px, 1.3fr) 110px minmax(130px, .9fr) minmax(170px, 1fr) 170px 120px !important; }
+.cad2-email { font: var(--t-caption); color: #3A3F47; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 760px) { .cad2-email { display: none; } }
+
+/* Clientes · Exportar e Equipamentos (protótipo) */
+.cli-v4 .cli-exportar { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 0; border-radius: 4px; background: none; color: #3A3F47; font: 600 13px/1 var(--font); letter-spacing: .04em; text-transform: uppercase; cursor: pointer; }
+.cli-v4 .cli-exportar:hover:not(:disabled) { background: #F4F6F9; color: var(--destaque); }
+.cli-v4 .cli-exportar:disabled { opacity: .45; cursor: default; }
+.cli-v4 .cli-qtd { display: inline-grid; place-items: center; min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--destaque-bg); color: var(--destaque); font: 600 11.5px/1 var(--font); }
+.cli-v4 .cli-qtd.vazio { background: none; color: #A0A0A0; }
+/* Acessos · Módulos (protótipo): barra "N de 10" */
+.acesso2-mod { display: inline-flex; align-items: center; gap: 8px; font: var(--t-caption); color: #6B6B6B; white-space: nowrap; }
+.acesso2-mod b, .acesso2-mod-txt b { font-weight: 600; color: #1A1A1A; }
+.acesso2-mod .trk { width: 56px; height: 5px; border-radius: 999px; background: #EDEDED; overflow: hidden; }
+.acesso2-mod .trk i { display: block; height: 100%; border-radius: 999px; background: var(--destaque); }
+.acesso2-mod-txt { font: var(--t-caption); color: #6B6B6B; white-space: nowrap; }
