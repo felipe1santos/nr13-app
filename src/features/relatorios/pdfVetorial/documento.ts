@@ -1321,12 +1321,20 @@ const SIGLAS = new Set([
  */
 export function fraseProntuario(texto: string): string {
   const palavras = texto.trim().split(/\s+/);
+  let primeira = true;
   return palavras
-    .map((w, i) => {
+    .map((w) => {
       const nu = w.toUpperCase();
-      if (SIGLAS.has(nu.replace(/[():,;]/g, '')) || /\d/.test(w)) return w;
+      if (SIGLAS.has(nu.replace(/[():,;]/g, '')) || /\d/.test(w)) {
+        if (/[A-Za-zÀ-ú]/.test(w)) primeira = false;
+        return w;
+      }
       const min = w.toLocaleLowerCase('pt-BR');
-      return i === 0 ? min.charAt(0).toLocaleUpperCase('pt-BR') + min.slice(1) : min;
+      if (primeira) {
+        primeira = false;
+        return min.charAt(0).toLocaleUpperCase('pt-BR') + min.slice(1);
+      }
+      return min;
     })
     .join(' ');
 }

@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 import RecusaPalco from '../components/RecusaPalco';
 import { useEffect, useMemo, useState } from 'react';
@@ -1409,10 +1410,12 @@ export default function Prontuarios() {
         </>
       )}
 
-      {tela === 'visualizador' && (
+      {tela === 'visualizador' && createPortal(
         // Cobalto · a prévia é a JANELA do protótipo: folhas à esquerda, o
         // documento sobre o fundo cinza, ações no rodapé. Não fecha pelo fundo:
         // há assinantes escolhidos na tela que só se gravam ao salvar/emitir.
+        // Portal no <body>: a animação de entrada da rota usa `transform`, e
+        // `position: fixed` dentro dela ficaria presa à área do conteúdo.
         <div className="pv-ov">
           <div className="pv-modal" role="dialog" aria-modal="true" aria-labelledby="pv-tit">
             <header className="pv-h">
@@ -1560,7 +1563,8 @@ export default function Prontuarios() {
               )}
             </footer>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {mostrarModelador && (

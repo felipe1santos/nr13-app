@@ -304,7 +304,7 @@ describe('a exclusão saiu da barra', () => {
 const previaVet = readFileSync('src/features/prontuarios/PreviaProntuarioVetorial.tsx', 'utf8');
 
 describe('a prévia é a janela do protótipo (Cobalto)', () => {
-  const janela = () => pagina.slice(pagina.indexOf("{tela === 'visualizador' && ("), pagina.indexOf('{mostrarModelador && ('));
+  const janela = () => pagina.slice(pagina.indexOf("{tela === 'visualizador' && createPortal("), pagina.indexOf('{mostrarModelador && ('));
 
   it('cabeçalho, seções à esquerda e documento no centro', () => {
     const j = janela();
@@ -341,7 +341,7 @@ describe('o formulário: uma barra, campos agrupados, sem ar sobrando', () => {
   /** O bloco do formulário, isolado das outras telas do arquivo. */
   const form = pagina.slice(
     pagina.indexOf("{tela === 'formulario' && ("),
-    pagina.indexOf("{tela === 'visualizador' && ("),
+    pagina.indexOf("{tela === 'visualizador' && createPortal("),
   );
 
   it('as três faixas do topo viraram UMA barra, com as ações', () => {
@@ -444,7 +444,7 @@ describe('o croqui continua no formulário', () => {
   it('a seção existe e o botão do editor está nela', () => {
     const form = pagina.slice(
       pagina.indexOf("{tela === 'formulario' && ("),
-      pagina.indexOf("{tela === 'visualizador' && ("),
+      pagina.indexOf("{tela === 'visualizador' && createPortal("),
     );
     expect(form).toContain('Dimensões e Croqui 2D');
     expect(form).toContain('Croqui 2D do Equipamento');
