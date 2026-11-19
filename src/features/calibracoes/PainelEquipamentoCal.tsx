@@ -16,7 +16,7 @@ import { ehOficial, ehTerceiro, type DadosCalibracao } from './tipos';
 import { parseDataPrazo, statusPrazo } from '../../services/vencimentos';
 
 /** Cor de identidade do instrumento (mesma família da lista). */
-export function classeDoInstrumento(tipo: string): string {
+function classeDoInstrumento(tipo: string): string {
   switch (tipo) {
     case 'psv':
       return 'i-psv';
@@ -37,13 +37,13 @@ function dataNum(c: DadosCalibracao): number {
   return parseDataPrazo(c.dataCalibracao || c.criadoEm)?.getTime() ?? 0;
 }
 
-export interface SituacaoAcessorio {
+interface SituacaoAcessorio {
   ultima: DadosCalibracao | null;
   rascunho: DadosCalibracao | null;
   dias: number | null;
 }
 
-export function situacaoDoAcessorio(c: ComponenteCal, cals: DadosCalibracao[], hoje = new Date()): SituacaoAcessorio {
+function situacaoDoAcessorio(c: ComponenteCal, cals: DadosCalibracao[], hoje = new Date()): SituacaoAcessorio {
   const doComp = cals.filter((x) => x.componenteId === c.id);
   const oficiais = doComp.filter(ehOficial).sort((a, b) => dataNum(b) - dataNum(a));
   const rascunho = doComp.find((x) => !ehOficial(x)) ?? null;
