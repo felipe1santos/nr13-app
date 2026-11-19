@@ -520,3 +520,7 @@
 .iv4-escolha-item .t small { font: var(--t-caption); color: #5F6B82; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .iv4-escolha-item:hover .lc-seta { color: var(--row-mark); }
 .iv4-escolha-dica { margin: 8px 0 0; font: var(--t-caption); color: #6B6B6B; }
+
+/* busca dentro do seletor: o campo herda o estilo de modal — sem borda dupla */
+.fj-modal-box .lc-busca input { min-height: 0; padding: 0; border: 0; background: none; box-shadow: none; }
+.fj-modal-box .lc-busca input:focus { box-shadow: none; }

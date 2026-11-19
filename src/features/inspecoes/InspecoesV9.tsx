@@ -479,7 +479,13 @@ export default function InspecoesV9() {
       {escolhendo && (
         // fecha-pelo-fundo: só ESCOLHE o equipamento — nada digitado se perde.
         <div className="fj-modal-overlay" onClick={(e) => e.target === e.currentTarget && setEscolhendo(false)}>
-          <div className="fj-modal-box iv4-escolha" role="dialog" aria-modal="true" aria-labelledby="iv4-escolha-tit">
+          <div
+            className="fj-modal-box iv4-escolha"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="iv4-escolha-tit"
+            onKeyDown={(e) => e.key === 'Escape' && setEscolhendo(false)}
+          >
             <div className="fj-modal-head">
               <div>
                 <h2 id="iv4-escolha-tit">Nova inspeção</h2>
