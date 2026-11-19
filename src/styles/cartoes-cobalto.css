@@ -1216,3 +1216,5 @@
   .pr-topo { flex-wrap: wrap; }
   .pr-form-pg .pr-sec > .pront-form-grid, .pr-form-pg .pr-sec .pront-dim-linha { grid-template-columns: 1fr 1fr !important; }
 }
+.pr-form-pg .pr-bar .fx-trilha.pront-barra-id { display: flex; flex-direction: row; align-items: center; gap: 8px; min-width: 0; }
+.pr-form-pg .pr-bar .fx-trilha.pront-barra-id > * { flex: none; }

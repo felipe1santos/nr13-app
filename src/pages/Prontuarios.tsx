@@ -1027,7 +1027,7 @@ export default function Prontuarios() {
               <div className="t">
                 <h1>Prontuário NR-13 · {tag}</h1>
                 <p>
-                  {[dados.descricao?.trim(), dados.empresaRazaoSocial?.trim(), ROTULO_TIPO[tipoEquip] ?? tipoEquip]
+                  {[...new Set([dados.descricao?.trim(), dados.empresaRazaoSocial?.trim(), ROTULO_TIPO[tipoEquip] ?? tipoEquip])]
                     .filter(Boolean)
                     .join(' · ')}
                 </p>
