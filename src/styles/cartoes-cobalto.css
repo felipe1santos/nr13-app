@@ -861,3 +861,7 @@
   .equipamento-page .ficha-topo-rodape { grid-column: 1 !important; grid-row: auto !important; width: 100%; }
   .fx-bar { flex-wrap: wrap; }
 }
+
+.fx-voltar { text-decoration: none; }
+.fx-trilha a { color: #5F6B82; text-decoration: none; }
+.fx-trilha a:hover { color: var(--destaque); text-decoration: underline; }

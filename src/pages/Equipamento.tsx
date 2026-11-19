@@ -139,11 +139,12 @@ function EquipamentoView({ tag }: { tag: string }) {
       {/* Cobalto: barra fixa do protótipo — voltar, trilha e os chips de tipo e
           unidade (INFORMAÇÃO, não controle; os mesmos do cartão). */}
       <div className="fx-bar">
-        <button type="button" className="fx-voltar" onClick={() => navigate('/equipamentos')}>
+        {/* Links, não `navigate`: a ficha só redireciona por exclusão (§3-ter). */}
+        <Link to="/equipamentos" className="fx-voltar">
           <Icone nome="arrowleft" tam={16} /> Voltar
-        </button>
+        </Link>
         <nav className="fx-trilha" aria-label="Caminho">
-          <button type="button" onClick={() => navigate('/equipamentos')}>Equipamentos</button>
+          <Link to="/equipamentos">Equipamentos</Link>
           <span className="sep">›</span>
           <b>{tag}</b>
         </nav>
