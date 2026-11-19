@@ -68,3 +68,7 @@
   .gp-venc-tot { flex-direction: row; justify-content: space-around; }
 }
 @media (prefers-reduced-motion: reduce) { .gp-tooltip { transition: none; } }
+
+.gp-vazio { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 28px 20px 32px; text-align: center; color: #8A8A8A; }
+.gp-vazio b { font: 500 15px/20px var(--font); color: #1A1A1A; }
+.gp-vazio span { font: var(--t-caption); }

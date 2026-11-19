@@ -132,6 +132,14 @@ export function CartaoRealizadoMes({ notas }: { notas: NotaAgenda[] }) {
           {dados.semValor} serviço{dados.semValor === 1 ? '' : 's'} sem valor informado — fora destas contas.
         </p>
       )}
+      {dados.total === 0 ? (
+        <div className="gp-vazio">
+          <Icone nome="calendar" tam={22} />
+          <b>Nenhum serviço com valor neste mês</b>
+          <span>Agende serviços com valor na Agenda para acompanhar o realizado aqui.</span>
+        </div>
+      ) : (
+      <>
       <div className="gp-grafico" onMouseLeave={() => setDiaHover(null)}>
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Realizado e previsto acumulados por dia do mês">
           {[0, 1, 2, 3, 4].map((k) => (
@@ -177,6 +185,8 @@ export function CartaoRealizadoMes({ notas }: { notas: NotaAgenda[] }) {
         <li><i className="real" /> Realizado acumulado</li>
         <li><i className="prev" /> Previsto acumulado</li>
       </ul>
+      </>
+      )}
     </section>
   );
 }
