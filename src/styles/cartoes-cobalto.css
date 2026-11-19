@@ -1218,3 +1218,8 @@
 }
 .pr-form-pg .pr-bar .fx-trilha.pront-barra-id { display: flex; flex-direction: row; align-items: center; gap: 8px; min-width: 0; }
 .pr-form-pg .pr-bar .fx-trilha.pront-barra-id > * { flex: none; }
+
+/* Relatórios: nº do relatório na 2ª linha do nome (protótipo) */
+.rel-page .rel-tabela-v9 .rel-cel-nome { display: flex; flex-direction: column; justify-content: center; min-width: 0; line-height: 1.2; }
+.rel-page .rel-tabela-v9 .rel-cel-nome .rel-nome-forte { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rel-page .rel-tabela-v9 .rel-nome-num { font: var(--t-caption); color: #6B6B6B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }

@@ -1068,6 +1068,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                     </span>
                     <span role="cell" className="rel-cel-nome" title={r.nome}>
                       <b className="rel-nome-forte">{r.nome || r.codigo}</b>
+                      {r.nome && r.codigo && <small className="rel-nome-num">{r.codigo}</small>}
                     </span>
                     {/* O "atualizado em" saiu da célula do nome e virou o
                         tooltip da criação: é metadado de quem já achou a linha,
@@ -1160,6 +1161,8 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                   </span>
                   <span role="cell" className="rel-cel-nome" title={r.nome ?? r.codigo ?? ''}>
                     <b className="rel-nome-forte">{ou(r.nome ?? r.codigo)}</b>
+                    {/* Cobalto: o nº do relatório na 2ª linha do nome (protótipo). */}
+                    {r.nome && r.codigo && <small className="rel-nome-num">{r.codigo}</small>}
                   </span>
                   {/* RASTREABILIDADE em coluna própria. O `title` da empresa
                       guarda o cliente sem gastar uma coluna: ele só existe
