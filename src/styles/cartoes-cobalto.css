@@ -1290,3 +1290,7 @@
 .cert2-chave input:focus-visible + .sw { outline: 2px solid var(--destaque); outline-offset: 2px; }
 @media (max-width: 1100px) { .cert2-dados { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; } }
 @media (max-width: 640px) { .cert2-dados { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } .cert2-topo { flex-wrap: wrap; } .cert2-cards { padding: 12px 10px 72px !important; } }
+/* Certificados: página em largura total (a faixa do topo de ponta a ponta) e
+   a linha "Vai para" sem altura mínima herdada. */
+.certificados-page:has(.cert2-topo) { max-width: none !important; margin: 0 !important; }
+.cert2-card .cert-card-destino { min-height: 0 !important; height: auto !important; align-items: center; gap: 4px; padding: 0 20px 12px !important; }
