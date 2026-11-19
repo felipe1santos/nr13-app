@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom';
+import { iconeDoTipo } from '../components/listaCobalto';
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 import RecusaPalco from '../components/RecusaPalco';
 import { useEffect, useMemo, useState } from 'react';
@@ -829,6 +830,30 @@ export default function Prontuarios() {
   // Listas para os seletores de assinantes; se o funcionário salvo foi excluído, o select cai em ''.
   const engenheiros = funcionarios.filter((f) => f.tipo === 'Engenheiro');
   const tecnicos = funcionarios.filter((f) => String(f.tipo).startsWith('Inspetor'));
+
+  // Cobalto · a situação de cada seção do formulário, derivada dos campos (nada gravado).
+  const vazioP = (v: unknown) => !String(v ?? '').trim();
+  const contaVazios = (...vs: unknown[]) => vs.filter(vazioP).length;
+  const secoesForm: SecaoFormPront[] = [
+    { id: 'emp', titulo: 'Empresa proprietária', faltam: contaVazios(dados.empresaRazaoSocial, dados.empresaCnpj) },
+    { id: 'id', titulo: 'Identificação', faltam: contaVazios(dados.descricao, dados.categoria, dados.classeFluid) },
+    { id: 'proj', titulo: 'Dados do projeto', faltam: contaVazios(dados.codigoProjeto, dados.pressaoProjeto, dados.pmta, dados.pressaoTH) },
+    {
+      id: 'mat',
+      titulo: 'Materiais',
+      faltam: contaVazios(dados.tempProjeto, dados.tipoTampos, dados.fundoCorpo, dados.tampa, dados.manipulos, dados.prisioneiros, dados.aro, dados.luvConexoes),
+    },
+    {
+      id: 'dim',
+      titulo: 'Dimensões e croqui 2D',
+      faltam: temCroqui2d(tipoEquip) && !croquiSalvo ? 1 : 0,
+      texto: !temCroqui2d(tipoEquip) ? 'Não se aplica' : croquiSalvo ? 'Croqui gerado' : 'Croqui não gerado',
+    },
+    { id: 'ens', titulo: 'Ensaios', faltam: dados.containerEnsaioId ? 0 : 1, texto: dados.containerEnsaioId ? 'Vinculado' : 'Sem medição vinculada' },
+    { id: 'rev', titulo: 'Revisão', faltam: contaVazios(dados.revisao) },
+    { id: 'ass', titulo: 'Responsabilidade técnica', faltam: assinantes.engenheiroId ? 0 : 1, texto: assinantes.engenheiroId ? 'Definida' : 'Sem engenheiro' },
+  ].map((x) => ({ ...x, ok: x.faltam === 0 }));
+  const secaoForm = (id: string) => secoesForm.find((x) => x.id === id)!;
   const valorAssinante = (id: string | null, lista: Funcionario[]) =>
     id && lista.some((f) => f.id === id) ? id : '';
 
@@ -962,59 +987,85 @@ export default function Prontuarios() {
 
 
       {tela === 'formulario' && (
-        <>
-          {/* UMA BARRA. Eram três faixas empilhadas antes do primeiro campo:
-              trilha com "← Voltar {tag}", cabeçalho com "Prontuário — {tag}", e
-              as ações lá embaixo, no fim do formulário — o usuário rolava a
-              tela inteira para salvar. Agora: voltar, identificação, situação e
-              ações na mesma linha, no topo, sempre alcançáveis. */}
-          <div className="bloco-dados pront-topo">
-            <div className="pront-barra">
+        <div className="pr-form-pg">
+          {/* Cobalto · a barra do protótipo: Voltar · Prontuários › TAG · o que
+              se emite · ações. Uma linha, sempre no topo. */}
+          <div className="fx-bar pr-bar pront-barra">
+            <button type="button" className="fx-voltar pront-barra-voltar" onClick={() => setTela('equipamentos')}>
+              <Icone nome="arrowleft" tam={16} /> <span className="pront-btn-rotulo">Voltar</span>
+            </button>
+            <nav className="fx-trilha pront-barra-id" aria-label="Caminho">
+              <button type="button" onClick={() => setTela('equipamentos')}>Prontuários</button>
+              <span className="sep">›</span>
+              <b>{tag}</b>
+            </nav>
+            <span className="fx-chip">
+              <span>Documento</span>
+              {emissao ? `Nova revisão · Rev. ${String(revisaoAtual + 1).padStart(2, '0')}` : jaExistia ? 'Rascunho' : 'Primeira emissão'}
+            </span>
+            <span className="grow" />
+            <div className="pront-visualizador-acoes">
               <button
                 type="button"
-                className="fj-btn fj-btn-ghost pront-barra-voltar"
-                onClick={() => setTela('equipamentos')}
+                className={`pr-btn${salvando ? ' is-loading' : ''}`}
+                onClick={salvar}
+                disabled={salvando}
               >
-                ← <span className="pront-btn-rotulo">Voltar</span>
+                <Icone nome="check" tam={15} /> {salvando ? 'Salvando…' : 'Salvar rascunho'}
               </button>
-              <div className="pront-barra-id">
-                <strong>{jaExistia ? 'Prontuário' : 'Novo prontuário'} — {tag}</strong>
-                <span>{emissao ? `emitido · rev. ${String(revisaoAtual).padStart(2, '0')}` : 'rascunho'}</span>
-              </div>
-              <div className="pront-visualizador-acoes">
-                <button type="button" className="fj-btn fj-btn-ghost" onClick={visualizar}>
-                  <span className="pront-btn-rotulo">Pré-visualizar</span>
-                  <span className="pront-btn-icone" aria-hidden>
-                    <Icone nome="eye" tam={14} />
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className={`fj-btn fj-btn-primary${salvando ? ' is-loading' : ''}`}
-                  onClick={salvar}
-                  disabled={salvando}
-                >
-                  {salvando ? 'Salvando…' : 'Salvar rascunho'}
-                </button>
-              </div>
-            </div>
-
-            {/* RESUMO · o que identifica o documento, numa faixa de uma linha.
-                Ele responde "estou no equipamento certo?" sem rolar até os
-                campos, que é a pergunta de quem volta a um rascunho. */}
-            <div className="pront-resumo">
-              <span><b>Equipamento</b>{dados.descricao?.trim() || '—'}</span>
-              <span><b>Tipo</b>{ROTULO_TIPO[tipoEquip] ?? tipoEquip ?? '—'}</span>
-              <span><b>Cliente</b>{dados.empresaRazaoSocial?.trim() || '—'}</span>
-              <span><b>Categoria</b>{dados.categoria?.trim() || '—'}</span>
+              <button type="button" className="pr-btn pr-btn-ver" onClick={visualizar}>
+                <Icone nome="eye" tam={15} /> <span className="pront-btn-rotulo">Visualizar</span>
+              </button>
             </div>
           </div>
 
-        <div className="bloco-dados">
+          <div className="mz pr-form">
+            <section className="mz-card pr-topo">
+              <span className={`lc-ico ${tipoEquip || 'outro'} pr-topo-ic`} aria-hidden>
+                <Icone nome={iconeDoTipo(tipoEquip)} tam={32} />
+              </span>
+              <div className="t">
+                <h1>Prontuário NR-13 · {tag}</h1>
+                <p>
+                  {[dados.descricao?.trim(), dados.empresaRazaoSocial?.trim(), ROTULO_TIPO[tipoEquip] ?? tipoEquip]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+              </div>
+              <div className="pr-prog">
+                <span>
+                  <b>{secoesForm.filter((x) => x.ok).length}</b> de {secoesForm.length} seções completas
+                </span>
+                <span className="trk">
+                  <i style={{ width: `${(secoesForm.filter((x) => x.ok).length / secoesForm.length) * 100}%` }} />
+                </span>
+              </div>
+            </section>
+
+            <nav className="pr-indice" aria-label="Seções">
+              {secoesForm.map((x) => (
+                <a
+                  key={x.id}
+                  href={`#prs-${x.id}`}
+                  className={x.ok ? 'ok' : 'pend'}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    document.getElementById(`prs-${x.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                >
+                  <Icone nome={x.ok ? 'checkcircle' : 'clock'} tam={15} />
+                  {x.titulo}
+                </a>
+              ))}
+            </nav>
 
           {/* Empresa Proprietária — editável */}
-          <div className="pront-form-secao">
-            <div className="pront-form-secao-titulo">Empresa Proprietária</div>
+          <div className="mz-card pr-sec" id="prs-emp">
+            <header className="mz-h">
+              <h2>Empresa proprietária</h2>
+              <span className="grow" />
+              <SeloSecao s={secaoForm('emp')} />
+            </header>
             <div className="pront-form-grid cols-1">
               <div className="pront-campo">
                 <label>Selecionar Empresa Cadastrada (preenche automático)</label>
@@ -1084,37 +1135,13 @@ export default function Prontuarios() {
             </div>
           </div>
 
-          {/* Ensaios / Containers de Inspeção — fonte da medição de espessura */}
-          <div className="pront-form-secao">
-            <div className="pront-form-secao-titulo">Ensaios / Containers Salvos</div>
-            <div className="pront-form-grid cols-1">
-              <div className="pront-campo">
-                <label>Medição de Espessura (Ultrassom) — puxar do container de inspeção</label>
-                {containers.filter(containerTemEspessura).length > 0 ? (
-                  <select
-                    value={dados.containerEnsaioId ?? ''}
-                    onChange={(e) => selecionarEnsaio(e.target.value)}
-                  >
-                    <option value="">— Nenhum (não puxar espessura) —</option>
-                    {containers.filter(containerTemEspessura).map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {rotuloContainer(c)}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <p className="dashboard-vazio" style={{ margin: 0, fontSize: 13 }}>
-                    Nenhum container com Medição de Espessura salvo para este equipamento. Crie a
-                    inspeção em "Inspeções" e preencha o Ultrassom.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
           {/* Identificação */}
-          <div className="pront-form-secao">
-            <div className="pront-form-secao-titulo">Identificação do Vaso de Pressão</div>
+          <div className="mz-card pr-sec" id="prs-id">
+            <header className="mz-h">
+              <h2>{`Identificação do ${tipoEquip === 'vaso' ? 'vaso de pressão' : (ROTULO_TIPO[tipoEquip] ?? 'equipamento').toLowerCase()}`}</h2>
+              <span className="grow" />
+              <SeloSecao s={secaoForm('id')} />
+            </header>
             <div className="pront-form-grid cols-1">
               <CampoProntuario
                 rotulo="Descrição"
@@ -1167,8 +1194,12 @@ export default function Prontuarios() {
           </div>
 
           {/* Dados do Projeto */}
-          <div className="pront-form-secao">
-            <div className="pront-form-secao-titulo">Dados do Projeto</div>
+          <div className="mz-card pr-sec" id="prs-proj">
+            <header className="mz-h">
+              <h2>Dados do projeto</h2>
+              <span className="grow" />
+              <SeloSecao s={secaoForm('proj')} />
+            </header>
             <div className="pront-form-grid cols-3">
               <CampoProntuario
                 rotulo="Código do Projeto"
@@ -1222,8 +1253,12 @@ export default function Prontuarios() {
           </div>
 
           {/* Materiais */}
-          <div className="pront-form-secao">
-            <div className="pront-form-secao-titulo">Especificações dos Materiais</div>
+          <div className="mz-card pr-sec" id="prs-mat">
+            <header className="mz-h">
+              <h2>Especificações dos materiais</h2>
+              <span className="grow" />
+              <SeloSecao s={secaoForm('mat')} />
+            </header>
             <div className="pront-form-grid">
               <CampoProntuario
                 rotulo="Temperatura de Projeto"
@@ -1277,8 +1312,12 @@ export default function Prontuarios() {
           </div>
 
           {/* Dimensões + Croqui 2D */}
-          <div className="pront-form-secao">
-            <div className="pront-form-secao-titulo">Dimensões e Croqui 2D</div>
+          <div className="mz-card pr-sec" id="prs-dim">
+            <header className="mz-h">
+              <h2>Dimensões e croqui 2D</h2>
+              <span className="grow" />
+              <SeloSecao s={secaoForm('dim')} />
+            </header>
 
             {/* Linha única de dimensões adaptada por tipo de equipamento */}
             {(() => {
@@ -1372,9 +1411,45 @@ export default function Prontuarios() {
             </div>
           </div>
 
+          {/* Ensaios / Containers de Inspeção — fonte da medição de espessura */}
+          <div className="mz-card pr-sec" id="prs-ens">
+            <header className="mz-h">
+              <h2>Ensaios</h2>
+              <span className="grow" />
+              <SeloSecao s={secaoForm('ens')} />
+            </header>
+            <div className="pront-form-grid cols-1">
+              <div className="pront-campo">
+                <label>Medição de Espessura (Ultrassom) — puxar do container de inspeção</label>
+                {containers.filter(containerTemEspessura).length > 0 ? (
+                  <select
+                    value={dados.containerEnsaioId ?? ''}
+                    onChange={(e) => selecionarEnsaio(e.target.value)}
+                  >
+                    <option value="">— Nenhum (não puxar espessura) —</option>
+                    {containers.filter(containerTemEspessura).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {rotuloContainer(c)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="dashboard-vazio" style={{ margin: 0, fontSize: 13 }}>
+                    Nenhum container com Medição de Espessura salvo para este equipamento. Crie a
+                    inspeção em "Inspeções" e preencha o Ultrassom.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Revisão */}
-          <div className="pront-form-secao">
-            <div className="pront-form-secao-titulo">Revisão</div>
+          <div className="mz-card pr-sec" id="prs-rev">
+            <header className="mz-h">
+              <h2>Revisão</h2>
+              <span className="grow" />
+              <SeloSecao s={secaoForm('rev')} />
+            </header>
             <div className="pront-form-grid">
               <CampoProntuario
                 rotulo="Revisão"
@@ -1392,6 +1467,51 @@ export default function Prontuarios() {
             </div>
           </div>
 
+          {/* Responsabilidade técnica · os MESMOS seletores da prévia; entregues ao
+              gerador e gravados em nr13_assinantes_pront_<TAG> só em Salvar/Emitir. */}
+          <div className="mz-card pr-sec" id="prs-ass">
+            <header className="mz-h">
+              <h2>Responsabilidade técnica</h2>
+              <span className="grow" />
+              <SeloSecao s={secaoForm('ass')} />
+            </header>
+            <div className="pront-form-grid">
+              <div className="pront-campo">
+                <label htmlFor="pront-form-engenheiro">Engenheiro responsável</label>
+                <select
+                  id="pront-form-engenheiro"
+                  value={valorAssinante(assinantes.engenheiroId, engenheiros)}
+                  onChange={(e) => trocarAssinante('engenheiroId', e.target.value)}
+                >
+                  <option value="">— sem assinatura —</option>
+                  {engenheiros.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.nome}{f.crea ? ` — ${f.crea}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="pront-campo">
+                <label htmlFor="pront-form-tecnico">Técnico</label>
+                <select
+                  id="pront-form-tecnico"
+                  value={valorAssinante(assinantes.tecnicoId, tecnicos)}
+                  onChange={(e) => trocarAssinante('tecnicoId', e.target.value)}
+                >
+                  <option value="">— sem técnico —</option>
+                  {tecnicos.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.nome}{f.crea ? ` — ${f.crea}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <p className="pr-nota">
+              <Icone nome="info" tam={15} /> A escolha só é gravada ao salvar ou emitir.
+            </p>
+          </div>
+
           {/* O rodapé repete o SALVAR — e só ele. Quem terminou de preencher
               está no fim da página, e mandá-lo rolar de volta ao topo para
               salvar seria trocar uma rolagem por outra. As demais ações moram
@@ -1406,8 +1526,8 @@ export default function Prontuarios() {
               {salvando ? 'Salvando…' : 'Salvar rascunho'}
             </button>
           </div>
+          </div>
         </div>
-        </>
       )}
 
       {tela === 'visualizador' && createPortal(
@@ -1577,4 +1697,19 @@ export default function Prontuarios() {
       )}
     </div>
   );
+}
+
+interface SecaoFormPront {
+  id: string;
+  titulo: string;
+  faltam: number;
+  texto?: string;
+  ok: boolean;
+}
+
+/** O selo de situação no cabeçalho de cada seção do formulário (protótipo). */
+function SeloSecao({ s }: { s: SecaoFormPront }) {
+  const texto = s.texto ?? (s.ok ? 'Completa' : `${s.faltam} campo${s.faltam === 1 ? '' : 's'} vazio${s.faltam === 1 ? '' : 's'}`);
+  const classe = s.texto === 'Não se aplica' ? 's-conf' : s.ok ? 's-ok' : 's-pend';
+  return <span className={`sit ${classe}`}>{texto}</span>;
 }

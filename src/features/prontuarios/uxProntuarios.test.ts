@@ -349,16 +349,19 @@ describe('o formulário: uma barra, campos agrupados, sem ar sobrando', () => {
     // no fim do formulário — o usuário rolava a tela inteira para salvar.
     expect(form).not.toContain('meta-breadcrumb');
     expect(form).not.toContain('meta-card-header');
-    expect(form).toContain('className="pront-barra"');
+    // Cobalto: a barra do protótipo (Voltar · Prontuários › TAG · ações).
+    expect(form).toContain('className="fx-bar pr-bar pront-barra"');
     expect(form).toContain('Salvar rascunho');
-    expect(form).toContain('Pré-visualizar');
+    expect(form).toContain('Visualizar');
   });
 
   it('o resumo diz de qual documento se trata, sem rolar', () => {
-    expect(form).toContain('className="pront-resumo"');
-    for (const r of ['Equipamento', 'Tipo', 'Cliente', 'Categoria']) {
-      expect(form).toContain(`<b>${r}</b>`);
-    }
+    // Cobalto: o cartão do topo do protótipo — equipamento, cliente, tipo e o
+    // progresso das seções; o índice leva a cada uma.
+    expect(form).toContain('className="mz-card pr-topo"');
+    expect(form).toContain('Prontuário NR-13 · {tag}');
+    expect(form).toContain('seções completas');
+    expect(form).toContain('className="pr-indice"');
   });
 
   it('o rodapé repete só o SALVAR', () => {
@@ -446,7 +449,7 @@ describe('o croqui continua no formulário', () => {
       pagina.indexOf("{tela === 'formulario' && ("),
       pagina.indexOf("{tela === 'visualizador' && createPortal("),
     );
-    expect(form).toContain('Dimensões e Croqui 2D');
+    expect(form).toContain('Dimensões e croqui 2D');
     expect(form).toContain('Croqui 2D do Equipamento');
   });
 });
