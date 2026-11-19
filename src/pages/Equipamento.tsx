@@ -136,6 +136,20 @@ function EquipamentoView({ tag }: { tag: string }) {
 
   return (
     <div className="equipamento-page">
+      {/* Cobalto: barra fixa do protótipo — voltar, trilha e os chips de tipo e
+          unidade (INFORMAÇÃO, não controle; os mesmos do cartão). */}
+      <div className="fx-bar">
+        <button type="button" className="fx-voltar" onClick={() => navigate('/equipamentos')}>
+          <Icone nome="arrowleft" tam={16} /> Voltar
+        </button>
+        <nav className="fx-trilha" aria-label="Caminho">
+          <button type="button" onClick={() => navigate('/equipamentos')}>Equipamentos</button>
+          <span className="sep">›</span>
+          <b>{tag}</b>
+        </nav>
+        <span className="fx-chip"><span>Tipo</span>{rotuloTipo}</span>
+        <span className="fx-chip"><span>Unidade</span>{rotuloSistemaCompleto(unidade)}</span>
+      </div>
       <div className="bloco-dados equipamento-header-card">
         <div className="equipamento-header-info">
           <div className="equipamento-header-topo">

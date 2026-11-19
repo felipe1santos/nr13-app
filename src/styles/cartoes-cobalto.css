@@ -781,3 +781,83 @@
 /* Inspeções: chips de tipo à ESQUERDA da busca, como no protótipo */
 .iv4 .iv4-seg { order: -1; }
 .iv4 .busca-lista-campo { flex: 1 1 auto; }
+
+/* ============================================================================
+   FICHA DO EQUIPAMENTO — EXATA do protótipo (fx-*): barra fixa; cartão do
+   topo em 3 colunas (foto 200 · identificação · 300 com os slots); seções
+   como cartões com cabeçalho 16px/600, fio embaixo e corpo 14/16/16.
+   ============================================================================ */
+.equipamento-page { max-width: none !important; padding: 0 0 24px !important; gap: 0 !important; background: var(--page-cards); }
+.equipamento-page > :not(.fx-bar) { box-sizing: border-box; width: calc(100% - 32px); max-width: 1192px; margin-left: auto !important; margin-right: auto !important; }
+.equipamento-page > :not(.fx-bar) + * { margin-top: 16px !important; }
+.fx-bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 16px 16px 8px; background: #fff; border-bottom: 1px solid #E3E7EF; margin: 0 0 24px; }
+.fx-voltar { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px 0 8px; border: 0; border-radius: 4px; background: #EEEEEE; color: #555; font: 500 14px/1 var(--font); cursor: pointer; }
+.fx-voltar:hover { background: var(--destaque-bg); color: var(--destaque); }
+.fx-trilha { display: flex; align-items: center; gap: 8px; color: #5F6B82; font: var(--t-body); }
+.fx-trilha button { border: 0; background: none; padding: 0; color: #5F6B82; font: inherit; cursor: pointer; }
+.fx-trilha button:hover { color: var(--destaque); text-decoration: underline; }
+.fx-trilha .sep { color: #8C97AB; }
+.fx-trilha b { font: 600 16px/24px var(--font); color: #0E1630; }
+.fx-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: #F8FAFD; box-shadow: inset 0 0 0 1px #E3E7EF; font: 500 12.5px/1 var(--font); color: #0E1630; }
+.fx-chip span { font: var(--t-caption); color: #5F6B82; }
+
+/* Cartão do topo: 200 · 1fr · 300 */
+.equipamento-page .equipamento-header-card {
+  display: grid !important;
+  grid-template-columns: 200px minmax(0, 1fr) 300px;
+  grid-template-rows: auto auto 1fr;
+  column-gap: 20px;
+  align-items: start;
+  padding: 16px !important;
+  border: 0 !important;
+  border-radius: var(--card-r) !important;
+  box-shadow: var(--card-sh) !important;
+  background: #fff !important;
+}
+.equipamento-page .equipamento-header-info { display: contents !important; }
+.equipamento-page .equipamento-foto-principal { grid-column: 1; grid-row: 1 / span 3; order: 0 !important; flex: none !important; max-width: none !important; width: 200px; height: 166px !important; max-height: none !important; border-radius: var(--card-r); overflow: hidden; background: linear-gradient(135deg, #C9D3E3, #9AA8BF); }
+.equipamento-page .equipamento-foto-principal img { width: 100%; height: 166px !important; object-fit: cover; }
+.equipamento-page .equipamento-foto-vazia { display: grid; place-items: center; height: 100%; color: #fff; font: var(--t-caption); }
+.equipamento-page .equipamento-header-topo { grid-column: 2; grid-row: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; }
+.equipamento-page .equipamento-tag-titulo { margin: 0; font: 400 27px/32px var(--font) !important; color: var(--destaque) !important; }
+.equipamento-page .equipamento-tag-titulo > span:first-child:not(:only-child) { font: inherit !important; color: inherit !important; }
+.equipamento-page .ficha-descricao { grid-column: 2; grid-row: 2; margin: 2px 0 0; font: var(--t-body); color: #5F6B82; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.equipamento-page .equipamento-header-card .ficha-chips { display: none; }
+.equipamento-page .ficha-resumo { grid-column: 2; grid-row: 3; align-self: end; display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 12px 18px !important; margin: 0 !important; padding: 14px 0 0 !important; background: none !important; border: 0 !important; }
+.equipamento-page .ficha-resumo-item { padding: 0 !important; border: 0 !important; background: none !important; }
+.equipamento-page .ficha-resumo dt { font: var(--t-caption) !important; color: #5F6B82 !important; text-transform: none !important; letter-spacing: 0 !important; }
+.equipamento-page .ficha-resumo dd { margin: 3px 0 0 !important; font: 500 15px/22px var(--font) !important; color: #0E1630; }
+.equipamento-page .ficha-resumo-pmta dd { color: var(--petroleo) !important; }
+.equipamento-page .ficha-topo-rodape { grid-column: 3; grid-row: 1 / span 3; align-self: center; display: flex !important; flex-direction: column !important; gap: 8px !important; margin: 0 !important; padding: 0 !important; border: 0 !important; }
+.equipamento-page .ficha-topo-rodape > * { margin: 0 !important; padding: 10px !important; border: 1px solid #E3E7EF !important; border-radius: var(--card-r) !important; background: #fff !important; box-shadow: none !important; }
+
+/* Seções: cartão com cabeçalho do protótipo */
+.equipamento-page .equipamento-secao > .bloco-dados,
+.equipamento-page .equipamento-secao > div > .bloco-dados,
+.equipamento-page .bloco-categoria { padding: 0 !important; border: 0 !important; border-radius: var(--card-r) !important; box-shadow: var(--card-sh) !important; background: #fff !important; }
+.equipamento-page .bloco-header-acoes { display: flex; align-items: center; gap: 10px; min-height: 0; margin: 0 !important; padding: 12px 12px 10px 16px !important; border-bottom: 1px solid #EDF0F5 !important; }
+.equipamento-page .bloco-header-acoes h3,
+.equipamento-page .bloco-dados > h3 { margin: 0 !important; padding: 0 !important; font: 600 16px/24px var(--font) !important; color: #0E1630 !important; border: 0 !important; }
+.equipamento-page .bloco-dados > h3 { padding: 12px 12px 10px 16px !important; border-bottom: 1px solid #EDF0F5 !important; }
+.equipamento-page .bloco-header-acoes ~ *,
+.equipamento-page .bloco-dados > h3 ~ * { margin-left: 16px !important; margin-right: 16px !important; }
+.equipamento-page .bloco-header-acoes + *,
+.equipamento-page .bloco-dados > h3 + * { margin-top: 14px !important; }
+.equipamento-page .bloco-dados > :last-child:not(.bloco-header-acoes) { margin-bottom: 16px !important; }
+.equipamento-page .ficha-natureza-calculado { height: 20px; padding: 0 7px; border-radius: 4px; background: #F8FAFD; box-shadow: inset 0 0 0 1px #E3E7EF; color: #5F6B82; font: 700 10.5px/20px var(--font); letter-spacing: 0.06em; text-transform: uppercase; }
+.equipamento-page .ficha-natureza-adotado { height: 20px; padding: 0 7px; border-radius: 4px; background: var(--petroleo); color: #fff; font: 700 10.5px/20px var(--font); letter-spacing: 0.06em; text-transform: uppercase; }
+.equipamento-page .ficha-pressoes { box-shadow: var(--card-sh), inset 0 3px 0 var(--petroleo) !important; }
+.equipamento-page .resultado-item .lbl-view { font: var(--t-caption) !important; color: #5F6B82 !important; }
+.equipamento-page .resultado-item .val-view { margin-top: 3px; font: 400 14px/20px var(--font) !important; color: #0E1630 !important; }
+.equipamento-page .bloco-header-acoes .btn-editar-pencil { margin-left: auto; width: 32px; height: 32px; border: 0; border-radius: 6px; background: none; color: #5F6B82; }
+.equipamento-page .bloco-header-acoes .btn-editar-pencil:hover { background: var(--destaque-bg); color: var(--destaque); }
+
+@media (max-width: 1000px) {
+  .equipamento-page .equipamento-header-card { grid-template-columns: 1fr !important; }
+  .equipamento-page .equipamento-foto-principal,
+  .equipamento-page .equipamento-header-topo,
+  .equipamento-page .ficha-descricao,
+  .equipamento-page .ficha-resumo,
+  .equipamento-page .ficha-topo-rodape { grid-column: 1 !important; grid-row: auto !important; width: 100%; }
+  .fx-bar { flex-wrap: wrap; }
+}
