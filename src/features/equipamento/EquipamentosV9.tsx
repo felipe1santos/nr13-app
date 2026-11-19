@@ -34,7 +34,8 @@ import {
   precisaVarrerTudo,
 } from '../../services/recorteCatalogo';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
-import { classeCategoria } from '../../components/listaCobalto';
+import { classeCategoria, iconeDoTipo } from '../../components/listaCobalto';
+import { vidaDaBarra } from './barraVida';
 import { Icone } from '../../components/Icone';
 import FotoImg from '../../components/FotoImg';
 import * as buscaIndex from '../../services/buscaIndex';
@@ -57,7 +58,7 @@ const ROTULO_TIPO: Record<string, string> = {
 
 /** Altura estimada de uma linha, em px. Corrigida por medição no 1º quadro. */
 const ALT_GRADE = 430;
-const ALT_LISTA = 92;
+const ALT_LISTA = 52; // Cobalto: linha de tabela (medida real corrige)
 
 export default function EquipamentosV9() {
   const navigate = useNavigate();
@@ -415,6 +416,21 @@ export default function EquipamentosV9() {
             )}
           </div>
         ) : (
+          <>
+          {visao === 'lista' && (
+            <div className="eq2-linha lc-cab eq2-cab" aria-hidden="true">
+              <span />
+              <span>TAG</span>
+              <span>Equipamento</span>
+              <span>Cliente</span>
+              <span>Categoria</span>
+              <span className="eq2-num">PMTA</span>
+              <span className="eq2-num">PTH</span>
+              <span>Vida remanescente</span>
+              <span>Resultado</span>
+              <span />
+            </div>
+          )}
           <ListaVirtualizada
             // `visiveis`, não `itens`: é aqui que o recorte por cliente e
             // fabricante aparece. Com `itens`, o contador dizia "1 resultado" e
@@ -423,7 +439,7 @@ export default function EquipamentosV9() {
             itens={visiveis}
             chaveDe={(i) => i.tag}
             alturaEstimada={visao === 'lista' ? ALT_LISTA : ALT_GRADE}
-            classeGrade={visao === 'lista' ? 'lista-cards-horiz equip-lista' : 'vasos-grid'}
+            classeGrade={visao === 'lista' ? 'equip-lista eq2-lista' : 'vasos-grid'}
             // Conjunto novo, rolagem no começo: filtrar com a lista rolada
             // deixaria o usuário olhando para o vazio enquanto o cabeçalho
             // anuncia resultados.
@@ -442,6 +458,7 @@ export default function EquipamentosV9() {
               )
             }
           />
+          </>
         )}
       </div>
 
@@ -480,43 +497,52 @@ function pendentesQueCasam(filtros: FiltrosBusca): ItemCatalogo[] {
     .filter((i) => catalogo.casaTermo(i, filtros.termo ?? ''));
 }
 
-/** A linha do modo lista — mesmas colunas da tela antiga. */
+/**
+ * A linha do modo lista — redesign Cobalto (18/11/2026): a tabela do protótipo,
+ * com cabeçalho de colunas. Mesmas fontes do cartão da grade (`CardCatalogo`):
+ * PMTA e PTH ADOTADAS (§3-bis — sem adoção, "—", nunca a calculada), vida pela
+ * mesma régua (`vidaDaBarra`) e o resultado do memorial.
+ */
 function LinhaCatalogo({ item, zebra, aoAbrir }: { item: ItemCatalogo; zebra?: boolean; aoAbrir: () => void }) {
   const unidade = unidadeValida(item.unidade);
+  const vida = vidaDaBarra(item.vidaAnos);
+  const tipo = item.tipo ?? 'outro';
   return (
-    <button type="button" className="card-equipamento-horiz" onClick={aoAbrir} data-z={zebra || undefined}>
-      <div className="card-eq-img">
+    <button type="button" className="eq2-linha lc-linha" onClick={aoAbrir} data-z={zebra || undefined}>
+      <span className={`lc-ico ${tipo}`} aria-hidden="true">
         {item.fotoRef ? (
-          <FotoImg foto={{ ref: item.fotoRef }} alt={`Foto do equipamento ${item.tag}`} variante="thumb" />
+          <FotoImg foto={{ ref: item.fotoRef }} alt="" variante="thumb" placeholder="" />
         ) : (
-          <span className="card-eq-img-vazio">{item.tag.slice(0, 2)}</span>
+          <Icone nome={iconeDoTipo(item.tipo)} tam={18} />
         )}
-      </div>
-      <div className="card-eq-info">
-        <div className="eq-col">
-          <span className="eq-tag">{item.tag}</span>
-          <span className="eq-tipo">{ROTULO_TIPO[item.tipo ?? ''] ?? item.tipo ?? '—'}</span>
-        </div>
-        <div className="eq-col eq-col-cat">
-          <span className="eq-label">Categoria</span>
-          <span className="eq-value">
-            {item.categoria ? <span className={`lc-cat ${classeCategoria(item.categoria)}`}>Cat. {item.categoria}</span> : '—'}
-          </span>
-        </div>
-        <div className="eq-col eq-col-pmta">
-          {/* A ADOTADA da ficha, pelo mesmo motivo do cartão — esta linha é a
-              MESMA lista, só na forma compacta. Ver o cabeçalho de
-              `CardCatalogo.tsx`. Sem adoção: "—", nunca a calculada. */}
-          <span className="eq-label">PMTA</span>
-          <span className="eq-value">
-            {item.pmtaAdotadaMpa != null ? formatarValor(item.pmtaAdotadaMpa, unidade) : '—'}
-          </span>
-        </div>
-        <div className="eq-col eq-col-empresa">
-          <span className="eq-label">Empresa</span>
-          <span className="eq-value">{buscaIndex.textoCliente(item) || '—'}</span>
-        </div>
-      </div>
+      </span>
+      <span className="lc-tag">{item.tag}</span>
+      <span className="lc-nome">{item.descricao?.trim() || (ROTULO_TIPO[item.tipo ?? ''] ?? item.tipo ?? '—')}</span>
+      <span className="lc-cli">{buscaIndex.textoCliente(item) || '—'}</span>
+      <span>
+        {item.categoria ? <span className={`lc-cat ${classeCategoria(item.categoria)}`}>Cat. {item.categoria}</span> : '—'}
+      </span>
+      <span className="lc-pressao eq2-num">{item.pmtaAdotadaMpa != null ? formatarValor(item.pmtaAdotadaMpa, unidade) : '—'}</span>
+      <span className="lc-pressao eq2-num">{item.pthAdotadaMpa != null ? formatarValor(item.pthAdotadaMpa, unidade) : '—'}</span>
+      <span className="eq2-vida">
+        {vida ? (
+          <>
+            <span className="trk"><i style={{ width: `${vida.pct}%`, background: vida.cor }} /></span>
+            <b style={{ color: vida.cor }}>{vida.texto}</b>
+          </>
+        ) : (
+          <span className="sem">Não calculada</span>
+        )}
+      </span>
+      <span>
+        {item.resultado === 'APROVADO' ? (
+          <span className="lc-selo ok">Aprovado</span>
+        ) : item.resultado === 'REPROVADO' ? (
+          <span className="lc-selo crit">Reprovado</span>
+        ) : (
+          <span className="lc-selo off">Pendente</span>
+        )}
+      </span>
       <Icone nome="chevright" tam={16} className="lc-seta" />
     </button>
   );
