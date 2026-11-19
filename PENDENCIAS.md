@@ -24,6 +24,23 @@
       topo, a cor por tipo, os 6 dados, o selo de validade, a linha do PDF e o interruptor.
       Conferir lado a lado com o protótipo e fechar o que ainda difere (ex.: "Versões
       anteriores (N)" com o histórico, espaçamentos, tipografia).
+- [ ] **Clientes · coluna Equipamentos** conta pelo catálogo guardado NO APARELHO (sem consulta
+      ao servidor). Aparelho sem catálogo baixado mostra "—". Decidir se vira contagem do servidor.
+- [ ] **Clientes · Exportar** (CSV) não foi exercitado em produção (download não testado).
+- [ ] **Equipe · E-mail**: campo novo (opcional) no cadastro; ninguém preenchido ainda → "—".
+- [ ] **Acessos · Módulos**: o sistema tem 12 módulos (o protótipo mostra "de 10"); exibe o real.
+- [ ] **Memorial salvo abre com os elementos "A conferir"** até gerar o cálculo de novo (no
+      protótipo já abrem confirmados).
+- [ ] **Autoclave**: o editor do vaso aparece duas vezes (gerador de vapor + corpo), cada um com
+      sua barra de resultado no pé.
+- [ ] **Prévia do prontuário**: em volta da folha o fundo ficou cinza-claro (imagem de
+      referência: cinza-escuro #525659).
+- [ ] **Calibrações · ZZ-TESTE-P2**: o resumo conta 1 rascunho e a tabela o mostra no
+      ZZ-F7-SMOKE-PSV, mas o cartão desse acessório aparece "Sem prazo" em vez de "Rascunho em
+      aberto" (rascunho provavelmente sem `componenteId`). Investigar.
+- [ ] **Ficha**: a faixa verde "Enquadra" da Categoria continua (diferente do protótipo) — decidir.
+- [ ] **Lint pré-existente** (não introduzido no redesign): `react-hooks/set-state-in-effect` em
+      CatalogoCalibracoesV9, EquipamentosV9, Prontuarios, Acesso; `static-components` em Layout.
 - [ ] **Calibrações demora para abrir pelo menu.** Analisar se é erro, atraso de rota ou
       peso da tela (catálogo do servidor + agregado de vencimentos + bundle da página) e dizer
       ao dono o que causa e o que dá para fazer — só depois de terminar o redesign.
