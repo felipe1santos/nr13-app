@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Icone } from '../../components/Icone';
-import type { TipoComponenteVaso } from '../../calc/vaso';
-import Campo from './Campo';
+import { camposFaltantesVaso, type TipoComponenteVaso } from '../../calc/vaso';
+import { useFocoPreso } from '../../components/useFocoPreso';
 import MemorialLog from './MemorialLog';
-import TerminalMemorial from './TerminalMemorial';
 import {
   calcularResumoVaso,
   carregarVaso,
@@ -19,6 +18,7 @@ import { emitirAviso } from '../../services/eventos';
 import { avisarCamposFaltando, avisarGereOCalculo } from './avisoMemorial';
 import { useAvisoSairSemSalvar } from './useAvisoSairSemSalvar';
 import './memorial.css';
+import './memorialEditor.css';
 
 const ROTULO_CASCO = 'Casco Cilíndrico (UG-27c)';
 
@@ -80,6 +80,8 @@ interface Props {
   sufixo?: string;
   titulo?: string;
   imagemSrc?: string;
+  /** Voltar + trilha da página: com ela, as ações (Gerar/Salvar) sobem para a barra do topo. */
+  barra?: ReactNode;
 }
 
 export default function MemorialVaso(props: Props) {
@@ -111,9 +113,10 @@ function validarCamposVaso(vaso: VasoSalvo): string[] {
   return erros;
 }
 
-function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', imagemSrc }: Props) {
+function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', barra }: Props) {
   const [vaso, setVaso] = useState<VasoSalvo>(() => carregarVaso(tag, sufixo));
-  const [abaId, setAbaId] = useState<string>('tampo1');
+  // elemento aberto na janela: edita uma CÓPIA; só o Salvar devolve ao vaso
+  const [elemento, setElemento] = useState<{ id: string; rascunho: ComponenteVasoSalvo; novo: boolean } | null>(null);
   const [resumo, setResumo] = useState<ResumoMemorialVaso | null>(null);
   const [calcCount, setCalcCount] = useState(0);
   const [salvando, setSalvando] = useState(false);
@@ -153,26 +156,21 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
     }));
   }
 
-  // editar um componente desfaz a confirmação daquela etapa
-  function invalidarConfirmacao(id: string) {
-    setConfirmados((m) => (m[id] ? { ...m, [id]: false } : m));
+  function abrirElemento(id: string) {
+    const c = vaso.componentes.find((x) => x.id === id);
+    if (c) setElemento({ id, rascunho: JSON.parse(JSON.stringify(c)) as ComponenteVasoSalvo, novo: false });
   }
 
-  function atualizarTipoTampo(id: 'tampo1' | 'tampo2', tipo: TipoComponenteVaso) {
-    // troca só o tipo — preserva S/E/Tnom/CA já digitados pelo usuário
-    setVaso((v) => ({
-      ...v,
-      componentes: v.componentes.map((c) => (c.id === id ? { ...c, tipo } : c)),
-    }));
-    invalidarConfirmacao(id);
-  }
-
-  function atualizarDado(id: string, chave: string, valor: unknown) {
-    setVaso((v) => ({
-      ...v,
-      componentes: v.componentes.map((c) => (c.id === id ? { ...c, dados: { ...c.dados, [chave]: valor } } : c)),
-    }));
-    invalidarConfirmacao(id);
+  function fecharElemento(salvarElemento: boolean) {
+    if (!elemento) return;
+    const { id, rascunho, novo } = elemento;
+    if (salvarElemento) {
+      setVaso((v) => ({ ...v, componentes: v.componentes.map((c) => (c.id === id ? rascunho : c)) }));
+      setConfirmados((m) => ({ ...m, [id]: true }));
+    } else if (novo) {
+      setVaso((v) => ({ ...v, componentes: v.componentes.filter((c) => c.id !== id) }));
+    }
+    setElemento(null);
   }
 
   function adicionarBocal() {
@@ -186,11 +184,10 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
       dados: { ...DADOS_VAZIOS },
     };
     setVaso((v) => ({ ...v, componentes: [...v.componentes, novo] }));
-    setAbaId(`bocal${seq}`);
+    setElemento({ id: novo.id, rascunho: JSON.parse(JSON.stringify(novo)) as ComponenteVasoSalvo, novo: true });
   }
 
   function removerBocal(id: string) {
-    if (!window.confirm('Remover este bocal do memorial?')) return;
     setVaso((v) => ({ ...v, componentes: v.componentes.filter((c) => c.id !== id) }));
     setConfirmados((m) => {
       const copia = { ...m };
@@ -198,11 +195,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
       return copia;
     });
     if (filtro === id) setFiltro('full');
-    if (abaId === id) setAbaId('casco');
-  }
-
-  function atualizarNome(id: string, nome: string) {
-    setVaso((v) => ({ ...v, componentes: v.componentes.map((c) => (c.id === id ? { ...c, nome } : c)) }));
+    setElemento(null);
   }
 
   function handleCalcular() {
@@ -230,7 +223,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
     setGeradoEm(null);
     setCalcCount(0);
     setFiltro('full');
-    setAbaId('tampo1');
+    setElemento(null);
   }
 
   async function salvar() {
@@ -274,391 +267,561 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
 
   if (!vaso.orientacao) {
     return (
-      <div>
-        <h3>{titulo}</h3>
-        <div className="orientacao-gate">
-          <p>Selecione a orientação do vaso de pressão pra continuar:</p>
-          <div className="orientacao-opcoes">
-            <button type="button" className="btn-orientacao" onClick={() => escolherOrientacao('vertical')}>
-              Vaso Vertical
-            </button>
-            <button type="button" className="btn-orientacao" onClick={() => escolherOrientacao('horizontal')}>
-              Vaso Horizontal
-            </button>
+      <div className="mz-wrap">
+      {barra ? <div className="fx-bar mz-topo">{barra}</div> : null}
+      <div className="mz">
+        <section className="mz-card">
+          <header className="mz-h"><h2>{titulo}</h2><span className="mz-norma">ASME VIII Div. 1</span></header>
+          <div className="orientacao-gate">
+            <p>Selecione a orientação do vaso de pressão pra continuar:</p>
+            <div className="orientacao-opcoes">
+              <button type="button" className="btn-orientacao" onClick={() => escolherOrientacao('vertical')}>
+                Vaso Vertical
+              </button>
+              <button type="button" className="btn-orientacao" onClick={() => escolherOrientacao('horizontal')}>
+                Vaso Horizontal
+              </button>
+            </div>
           </div>
-        </div>
+        </section>
+      </div>
       </div>
     );
   }
 
-  const componenteAtivo = vaso.componentes.find((c) => c.id === abaId)!;
-  const idxAtivo = vaso.componentes.findIndex((c) => c.id === abaId);
-  const ehUltimo = idxAtivo === vaso.componentes.length - 1;
   const resultadoPorComp = resumo?.porComponente ?? [];
-  const resultadoAtivo = resultadoPorComp.find((c) => c.id === abaId)?.resultado ?? null;
-
   const qtdConfirmados = vaso.componentes.filter((c) => confirmados[c.id]).length;
-  const todosConfirmados = qtdConfirmados === vaso.componentes.length;
   const progresso = vaso.componentes.length > 0 ? (qtdConfirmados / vaso.componentes.length) * 100 : 0;
 
-  function irPara(idx: number) {
-    const c = vaso.componentes[idx];
-    if (c) setAbaId(c.id);
+  // Situação de cada elemento na lista/desenho — derivada, nada gravado.
+  function situacao(c: ComponenteVasoSalvo): [string, string] {
+    if (camposFaltantesVaso(c.tipo, c.dados).length > 0) return ['pend', 'Faltam dados'];
+    const r = resultadoPorComp.find((x) => x.id === c.id);
+    if (r) return r.resultado.resultado === 'APROVADO' ? ['ok', 'Aprovado'] : ['crit', 'Reprovado'];
+    return confirmados[c.id] ? ['conf', 'Confirmado'] : ['novo', 'A conferir'];
   }
 
-  function confirmarEtapa() {
-    setConfirmados((m) => ({ ...m, [abaId]: true }));
-    // avança suavemente pra próxima etapa
-    if (!ehUltimo) setTimeout(() => irPara(idxAtivo + 1), 450);
-  }
-
-  // Cabeçalho do terminal (padrão design/painel_pmta): título com a TAG e a
-  // linha "Gerado em dd/mm/aaaa hh:mm · Material X · NR-13 / ASME VIII Div.1"
+  // Cabeçalho do memorial: TAG + "Gerado em dd/mm/aaaa hh:mm · Material X · NR-13 / ASME VIII Div.1"
   const materialMemorial = vaso.componentes
     .map((c) => String(c.dados.mat ?? '').trim())
     .find((m) => m !== '');
-  const cabecalhoTerminal =
+  const subMemorial =
     resumo && geradoEm
-      ? {
-          titulo: `Memorial de Cálculo — TAG: ${tag}`,
-          sub:
-            `Gerado em ${geradoEm.toLocaleDateString('pt-BR')} ` +
-            `${geradoEm.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` +
-            `${materialMemorial ? ` · Material ${materialMemorial}` : ''} · NR-13 / ASME VIII Div.1`,
-        }
-      : undefined;
+      ? `Gerado em ${geradoEm.toLocaleDateString('pt-BR')} ` +
+        `${geradoEm.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` +
+        `${materialMemorial ? ` · Material ${materialMemorial}` : ''} · NR-13 / ASME VIII Div.1`
+      : '';
 
-  const pmtaDisplay = resumo?.pmtaFinal != null ? `${resumo.pmtaFinal.toFixed(2)} MPa` : '0.00 MPa';
-  const tMinDisplay = resultadoAtivo?.t_min ?? '--';
-  const pthDisplay = resumo?.pthFinal != null ? `${resumo.pthFinal.toFixed(2)} MPa` : '--';
   const statusFinal = resumo?.resultado ?? null;
+  // Barra de resultado: só números que o motor devolveu
+  const comPmta = resultadoPorComp.filter((c) => c.tipo !== 'bocal' && Number.isFinite(Number(c.resultado.pmta)));
+  const limitante =
+    resumo?.pmtaFinal != null ? comPmta.find((c) => Number(c.resultado.pmta) === resumo.pmtaFinal) ?? null : null;
+  const tMins = comPmta.map((c) => Number(c.resultado.t_min)).filter((n) => Number.isFinite(n));
+  const espMinima = tMins.length > 0 ? Math.max(...tMins) : null;
 
   const logParaMostrar =
     filtro === 'full'
       ? resumo?.logCompleto ?? []
       : resultadoPorComp.find((c) => c.id === filtro)?.resultado.log ?? [];
 
-  const filtrosTerminal = [
-    { id: 'full', label: 'Completo' },
-    ...vaso.componentes.map((c) => ({ id: c.id, label: c.nome.replace(/\s*\(.*\)$/, '') })),
-  ];
+  const acoes = (
+    <>
+      <span className={`mx-st ${statusFinal ? statusFinal.toLowerCase() : 'aguardando'}`}>
+        {statusFinal === 'APROVADO' ? 'Aprovado' : statusFinal === 'REPROVADO' ? 'Reprovado' : statusFinal === 'PENDENTE' ? 'Pendente' : 'Aguardando cálculo'}
+      </span>
+      <button type="button" className="btn btn-sec mz-gerar" onClick={handleCalcular}>
+        <Icone nome="calculator" tam={17} />
+        Gerar cálculo
+      </button>
+      <button
+        type="button"
+        className={`btn btn-pri mz-salvar-memorial ${salvando ? 'is-loading' : ''}`}
+        onClick={salvar}
+        disabled={!resumo || salvando}
+      >
+        <Icone nome="check" tam={16} />
+        {salvando ? 'Salvando...' : dirty || !resumo ? 'Salvar memorial' : 'Salvo'}
+      </button>
+    </>
+  );
 
   return (
-    <div className="calc-calculadora">
-      {/* ── Top bar: título + stepper (tampo 1 → casco → tampo 2) + orientação ── */}
-      <div className="calc-card-top-bar">
-        <div className="calc-top-row">
-          <div className="calc-stepper">
-            {vaso.componentes.map((c, i) => {
-              const done = !!confirmados[c.id];
-              const res = resultadoPorComp.find((r) => r.id === c.id);
-              return (
-                <span key={c.id} className="calc-step-item">
-                  <button
-                    type="button"
-                    className={`calc-step ${c.id === abaId ? 'ativa' : ''} ${done ? 'done' : ''}`}
-                    onClick={() => irPara(i)}
-                  >
-                    <span className="num">
-                      {done ? (
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-                      ) : (
-                        i + 1
-                      )}
-                    </span>
-                    <span className="calc-step-nome">{c.nome.replace(/\s*\(.*\)$/, '')}</span>
-                    {res && <span className={`calc-tab-dot ${res.resultado.resultado === 'APROVADO' ? 'ok' : 'err'}`} />}
-                  </button>
-                  {i < vaso.componentes.length - 1 && (
-                    <span className={`calc-step-arrow ${done ? 'filled' : ''}`}>
-                      <Icone nome="chevright" tam={15} />
-                    </span>
-                  )}
-                </span>
-              );
-            })}
-            <button
-              type="button"
-              className="calc-step calc-step-add-bocal"
-              onClick={adicionarBocal}
-              title="Adicionar bocal (opcional — abertura e reforço UG-37)"
-            >
-              <span className="num">+</span>
-              <span className="calc-step-nome">Bocal</span>
-            </button>
-          </div>
-          <div className="calc-orientacao-toggle">
-            <button
-              type="button"
-              className={`calc-orientacao-btn ${vaso.orientacao === 'vertical' ? 'ativa' : ''}`}
-              onClick={() => trocarOrientacao('vertical')}
-            >
-              Vertical
-            </button>
-            <button
-              type="button"
-              className={`calc-orientacao-btn ${vaso.orientacao === 'horizontal' ? 'ativa' : ''}`}
-              onClick={() => trocarOrientacao('horizontal')}
-            >
-              Horizontal
-            </button>
-          </div>
+    <div className="mz-wrap">
+      {barra ? (
+        <div className="fx-bar mz-topo">
+          {barra}
+          <span className="grow" />
+          {acoes}
         </div>
-        <div className="calc-progress"><i style={{ width: `${progresso}%` }} /></div>
-      </div>
+      ) : null}
 
-      {/* ── Card body: campos + painel do equipamento ── */}
-      <div className="calc-card-body">
-        <div className="calc-campos-section">
-          <p className="memorial-legenda-aviso">
-            <span className="campo-aviso-icon">⚠</span> = campo obrigatório sem valor válido. O cálculo usa
-            valores padrão nesses campos e o memorial sai como <b>PENDENTE</b> até você preencher.
-          </p>
-          {/* P e D globais */}
-          <div className="memorial-campos-grid">
-            <Campo
-              label="Pressão de Projeto P (MPa)"
-              value={vaso.P}
-              warn={!vaso.P || Number(vaso.P) <= 0}
-              onChange={(v) => setVaso((s) => ({ ...s, P: v === '' ? '' : Number(v) }))}
-            />
-            <Campo
-              label="Diâmetro Interno D (mm)"
-              value={vaso.D}
-              warn={!vaso.D || Number(vaso.D) <= 0}
-              onChange={(v) => setVaso((s) => ({ ...s, D: v === '' ? '' : Number(v) }))}
-            />
-          </div>
-
-          {/* Campos do componente ativo */}
-          <ComponenteCampos
-            componente={componenteAtivo}
-            onTipoChange={(tipo) => atualizarTipoTampo(componenteAtivo.id as 'tampo1' | 'tampo2', tipo)}
-            onDadoChange={(chave, valor) => atualizarDado(componenteAtivo.id, chave, valor)}
-            onNomeChange={(nome) => atualizarNome(componenteAtivo.id, nome)}
-            onRemover={componenteAtivo.tipo === 'bocal' ? () => removerBocal(componenteAtivo.id) : undefined}
-          />
-
-          {/* Navegação sequencial: Voltar | OK (confirma etapa) | Próximo */}
-          <div className="calc-nav-row">
-            <button type="button" className="btn-nav-ghost" disabled={idxAtivo === 0} onClick={() => irPara(idxAtivo - 1)}>
-              <Icone nome="chevleft" tam={15} />
-              Voltar
+      <div className="mz">
+        <section className="mz-card mz-geo">
+          <header className="mz-h">
+            <h2>{barra ? 'Geometria do vaso' : titulo}</h2>
+            <span className="mz-norma">ASME VIII Div. 1</span>
+            <span className="grow" />
+            <button type="button" className="mz-limpar" onClick={limparCampos} title="Zera os campos na tela — o salvo só muda ao clicar em Salvar">
+              Limpar campos
             </button>
-            <div className="calc-nav-right">
-              <button
-                type="button"
-                className={`btn-ok ${confirmados[abaId] ? 'confirmed' : ''}`}
-                onClick={confirmarEtapa}
-              >
-                {confirmados[abaId] ? (
-                  <>
-                    <Icone nome="check" tam={14} />
-                    Salvo
-                  </>
-                ) : (
-                  'OK'
-                )}
-              </button>
-              {ehUltimo ? (
-                <span className="calc-nav-nota">Último componente</span>
-              ) : (
-                <button type="button" className="btn-nav-next" onClick={() => irPara(idxAtivo + 1)}>
-                  Próximo
-                  <Icone nome="chevright" tam={15} />
-                </button>
-              )}
+            <div className="mx-orient" role="group" aria-label="Orientação">
+              <button type="button" aria-pressed={vaso.orientacao === 'vertical'} onClick={() => trocarOrientacao('vertical')}>Vertical</button>
+              <button type="button" aria-pressed={vaso.orientacao === 'horizontal'} onClick={() => trocarOrientacao('horizontal')}>Horizontal</button>
+            </div>
+            {!barra && <span className="mz-acoes-card">{acoes}</span>}
+          </header>
+          <div className="mz-geo-c">
+            <div className="mz-esq">
+              <div className="mz-desenho">
+                <DesenhoVaso
+                  orientacao={vaso.orientacao}
+                  componentes={vaso.componentes}
+                  ativo={elemento?.id ?? null}
+                  situacao={(c) => situacao(c)[0]}
+                  diametro={vaso.D}
+                  onAbrir={abrirElemento}
+                />
+                <small>Clique numa parte do vaso ou num item ao lado para preencher</small>
+              </div>
+              <div className="mz-gerais">
+                <CampoMx
+                  rotulo="Pressão de projeto P"
+                  unidade="MPa"
+                  valor={vaso.P}
+                  obrigatorio
+                  onChange={(v) => setVaso((s) => ({ ...s, P: v === '' ? '' : Number(v) }))}
+                />
+                <CampoMx
+                  rotulo="Diâmetro interno D"
+                  unidade="mm"
+                  valor={vaso.D}
+                  obrigatorio
+                  onChange={(v) => setVaso((s) => ({ ...s, D: v === '' ? '' : Number(v) }))}
+                />
+              </div>
+            </div>
+            <div className="mz-geo-lado">
+              <h3 className="mz-sub">Elementos do vaso</h3>
+              <ul className="mz-comps">
+                {vaso.componentes.map((c) => {
+                  const [s, t] = situacao(c);
+                  const r = resultadoPorComp.find((x) => x.id === c.id);
+                  const pm = r && c.tipo !== 'bocal' && Number.isFinite(Number(r.resultado.pmta)) ? Number(r.resultado.pmta) : null;
+                  return (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        className={`mz-comp ${corDoElemento(c.id)} ${elemento?.id === c.id ? 'on' : ''}`}
+                        onClick={() => abrirElemento(c.id)}
+                      >
+                        <span className="cor" />
+                        <span className="nm">
+                          <b>{c.nome.replace(/\s*\(.*\)$/, '')}</b>
+                          <small>{resumoElemento(c)}</small>
+                        </span>
+                        {pm != null && (
+                          <span className="pm">
+                            {pm.toFixed(3).replace('.', ',')} <small>MPa</small>
+                          </span>
+                        )}
+                        <span className={`sit s-${s}`}>{t}</span>
+                        <Icone nome="pencil" tam={16} className="ed" />
+                      </button>
+                    </li>
+                  );
+                })}
+                <li>
+                  <button type="button" className="mz-comp mz-add" onClick={adicionarBocal}>
+                    <span className="cor" />
+                    <span className="nm">
+                      <b>Adicionar bocal</b>
+                      <small>Opcional · abertura e reforço (UG-37)</small>
+                    </span>
+                    <Icone nome="plus" tam={18} />
+                  </button>
+                </li>
+              </ul>
+              <div className="mz-prog">
+                <span>{qtdConfirmados} de {vaso.componentes.length} elementos preenchidos</span>
+                <span className="trk"><i style={{ width: `${progresso}%` }} /></span>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Painel do equipamento */}
-        <div className="calc-equip-section">
-          {imagemSrc ? (
-            <img src={imagemSrc} alt={componenteAtivo.nome} />
-          ) : (
-            <Icone nome="calculator" tam={44} />
-          )}
-          <span className="calc-equip-label">{componenteAtivo.nome}</span>
-          {resultadoAtivo && (
-            <span className={`resultado-final-badge ${resultadoAtivo.resultado === 'APROVADO' ? 'aprovado' : 'reprovado'}`}
-              style={{ fontSize: 11 }}>
-              {resultadoAtivo.resultado}
+        {/* ── Banner de campos faltantes (PENDENTE) ── */}
+        {resumo && resumo.resultado === 'PENDENTE' && (
+          <div className="memorial-banner-pendente">
+            <b>Cálculo PENDENTE — campos obrigatórios sem valor:</b>
+            <ul>
+              {resumo.porComponente
+                .filter((c) => (c.resultado.faltantes ?? []).length > 0)
+                .map((c) => (
+                  <li key={c.id}>
+                    {c.nome}: {(c.resultado.faltantes ?? []).join(', ')}
+                  </li>
+                ))}
+              {(!vaso.P || Number(vaso.P) <= 0) && <li>Dados gerais: P — Pressão de Projeto</li>}
+              {(!vaso.D || Number(vaso.D) <= 0) && <li>Dados gerais: D — Diâmetro Interno</li>}
+            </ul>
+          </div>
+        )}
+
+        <section className="mz-card mz-memo">
+          <header className="mz-h">
+            <h2>Memorial</h2>
+            {subMemorial && <span className="mz-gerado">{subMemorial}</span>}
+            <span className="grow" />
+            {resumo && (
+              <>
+                <span className="mz-exib">Exibindo</span>
+                <select className="mz-filtro" aria-label="Componente exibido" value={filtro} onChange={(e) => setFiltro(e.target.value)}>
+                  <option value="full">todos os componentes</option>
+                  {vaso.componentes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nome.replace(/\s*\(.*\)$/, '').toLowerCase()}</option>
+                  ))}
+                </select>
+              </>
+            )}
+          </header>
+          <div className="mz-memo-c">
+            <MemorialLog
+              key={`${calcCount}-${filtro}`}
+              log={logParaMostrar}
+              animado={calcCount > 0}
+              showPlaceholder={calcCount === 0}
+              placeholder="Preencha os dados estruturais do equipamento e clique em Gerar Cálculo para ver o memorial técnico desta geometria."
+            />
+            {calcCount === 0 && (
+              <div className="mz-vazio-acao">
+                <button type="button" className="btn-novo sq" onClick={handleCalcular}>
+                  <Icone nome="calculator" tam={18} />
+                  Gerar cálculo
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* ── Barra de resultado — fina ── */}
+      <div className="mz-barra">
+        {resumo ? (
+          <>
+            <span><em>PMTA</em><b className="pet">{resumo.pmtaFinal != null ? resumo.pmtaFinal.toFixed(3).replace('.', ',') : '—'}</b><small>MPa</small></span>
+            <span><em>Teste (1,3×)</em><b className="pet">{resumo.pthFinal != null ? resumo.pthFinal.toFixed(3).replace('.', ',') : '—'}</b><small>MPa</small></span>
+            <span><em>Esp. mínima</em><b>{espMinima != null ? espMinima.toFixed(2).replace('.', ',') : '—'}</b><small>mm</small></span>
+            <span><em>Limitante</em><b className="lim">{limitante ? limitante.nome : '—'}</b></span>
+            <span className="grow" />
+            <span className={`eres ${statusFinal === 'APROVADO' ? 'ok' : statusFinal === 'PENDENTE' ? 'off' : 'crit'}`}>
+              {statusFinal === 'APROVADO' ? 'Aprovado' : statusFinal === 'PENDENTE' ? 'Pendente' : 'Reprovado'}
             </span>
-          )}
-        </div>
-      </div>
-
-      {/* ── Banner de campos faltantes (PENDENTE) ── */}
-      {resumo && resumo.resultado === 'PENDENTE' && (
-        <div className="memorial-banner-pendente">
-          <b>Cálculo PENDENTE — campos obrigatórios sem valor:</b>
-          <ul>
-            {resumo.porComponente
-              .filter((c) => (c.resultado.faltantes ?? []).length > 0)
-              .map((c) => (
-                <li key={c.id}>
-                  {c.nome}: {(c.resultado.faltantes ?? []).join(', ')}
-                </li>
-              ))}
-            {(!vaso.P || Number(vaso.P) <= 0) && <li>Dados gerais: P — Pressão de Projeto</li>}
-            {(!vaso.D || Number(vaso.D) <= 0) && <li>Dados gerais: D — Diâmetro Interno</li>}
-          </ul>
-        </div>
-      )}
-
-      {/* ── PMTA bar ── */}
-      <div className="calc-pmta-bar">
-        <span>PMTA CALCULADA: <span className="calc-pmta-valor">{pmtaDisplay}</span></span>
-        <span className="calc-pmta-sep">|</span>
-        <span>Esp. Mínima: <span className="calc-pmta-valor">{tMinDisplay} mm</span></span>
-        <span className="calc-pmta-sep">|</span>
-        <span>P. Teste: <span className="calc-pmta-valor">{pthDisplay}</span></span>
-        <span className="calc-pmta-sep">|</span>
-        <span>Status:{' '}
-          <span className={statusFinal === 'APROVADO' ? 'calc-pmta-status-ok' : statusFinal === 'REPROVADO' ? 'calc-pmta-status-err' : ''}>
-            {statusFinal ?? '--'}
+          </>
+        ) : (
+          <span className="mz-barra-vazia">
+            <Icone nome="info" tam={16} />
+            Resultado aparece aqui depois de gerar o cálculo
           </span>
-        </span>
+        )}
       </div>
 
-      {/* ── Actions bar ── */}
-      <div className="calc-acoes-bar">
-        <button type="button" className={`btn-gerar-calculo ${todosConfirmados ? 'ready' : ''}`} onClick={handleCalcular}>
-          Σ GERAR CÁLCULO
-        </button>
-        <button type="button" className="btn-limpar-campos" onClick={limparCampos} title="Zera os campos na tela — o salvo só muda ao clicar em Salvar">
-          Limpar
-        </button>
-        <span className="calc-terminal-label">Memória de Cálculo — {titulo}</span>
-        <button
-          type="button"
-          className={`btn-primario ${salvando ? 'is-loading' : ''}`}
-          onClick={salvar}
-          disabled={!resumo || salvando}
-          style={{ opacity: resumo ? 1 : 0.4, fontSize: 12 }}
-        >
-          {salvando ? 'Salvando...' : 'Salvar'}
-        </button>
-      </div>
-
-      {/* ── Terminal (coluna direita no desktop) com filtro Completo/por etapa ── */}
-      <TerminalMemorial
-        arquivo={`memorial_${tag.toLowerCase().replace(/\s+/g, '_')}.log`}
-        status={
-          statusFinal === 'APROVADO' ? 'aprovado'
-            : statusFinal === 'REPROVADO' ? 'reprovado'
-              : statusFinal === 'PENDENTE' ? 'pendente'
-                : 'aguardando'
-        }
-        filtros={filtrosTerminal}
-        filtroAtivo={filtro}
-        onFiltro={setFiltro}
-        cabecalho={cabecalhoTerminal}
-      >
-        <MemorialLog
-          key={`${calcCount}-${filtro}`}
-          log={logParaMostrar}
-          animado={calcCount > 0}
-          showPlaceholder={calcCount === 0}
-          placeholder="Preencha os dados estruturais do equipamento e clique em Gerar Cálculo para ver o memorial técnico desta geometria."
+      {elemento && (
+        <ModalElemento
+          rascunho={elemento.rascunho}
+          novo={elemento.novo}
+          pmtaAtual={(() => {
+            const r = resultadoPorComp.find((x) => x.id === elemento.id);
+            return r && elemento.rascunho.tipo !== 'bocal' && Number.isFinite(Number(r.resultado.pmta)) ? Number(r.resultado.pmta) : null;
+          })()}
+          onMudar={(rasc) => setElemento((e) => (e ? { ...e, rascunho: rasc } : e))}
+          onCancelar={() => fecharElemento(false)}
+          onSalvar={() => fecharElemento(true)}
+          onRemover={elemento.rascunho.tipo === 'bocal' && !elemento.novo ? () => removerBocal(elemento.id) : undefined}
         />
-      </TerminalMemorial>
-
+      )}
     </div>
   );
 }
 
-function ComponenteCampos({
-  componente,
-  onTipoChange,
-  onDadoChange,
-  onNomeChange,
+// Cor de identidade de cada elemento (tampo 1 violeta, casco âmbar, tampo 2
+// magenta, bocal ciano) — mesma do protótipo; só desenho e lista.
+function corDoElemento(id: string): string {
+  if (id === 'tampo1') return 'c-t1';
+  if (id === 'casco') return 'c-cs';
+  if (id === 'tampo2') return 'c-t2';
+  return 'c-bc';
+}
+
+function rotuloTipo(c: ComponenteVasoSalvo): string {
+  if (c.id === 'casco') return 'Casco · UG-27(c)';
+  if (c.tipo === 'bocal') return 'Bocal · UG-37';
+  const o = OPCOES_TAMPO.find((x) => x.value === c.tipo);
+  if (!o) return String(c.tipo);
+  const m = o.label.match(/^(.*?)\s*\((.+)\)$/);
+  return m ? `${m[1].replace(/^Tampo\s+/, '')} · ${m[2]}` : o.label;
+}
+
+function resumoElemento(c: ComponenteVasoSalvo): string {
+  const mat = String(c.dados.mat ?? '').trim();
+  const t = c.dados.t_comercial;
+  const tn = t !== undefined && t !== null && t !== '' ? `${String(t).replace('.', ',')} mm` : 'Tnom —';
+  return `${rotuloTipo(c)} · ${mat || '—'} · ${tn}`;
+}
+
+function CampoMx({
+  rotulo,
+  unidade,
+  valor,
+  onChange,
+  obrigatorio = false,
+  tipo = 'number',
+  cheio = false,
+}: {
+  rotulo: string;
+  unidade?: string;
+  valor: unknown;
+  onChange: (v: string) => void;
+  obrigatorio?: boolean;
+  tipo?: 'number' | 'text';
+  cheio?: boolean;
+}) {
+  const v = valor === undefined || valor === null ? '' : String(valor);
+  const warn = obrigatorio && !(Number(v) > 0);
+  return (
+    <label className={`mx-c${warn ? ' warn' : ''}${cheio ? ' full' : ''}`}>
+      <span>
+        {rotulo}
+        {warn && <span className="mx-warn" title="Obrigatório sem valor válido"><Icone nome="alerttri" tam={14} /></span>}
+      </span>
+      <input
+        type={tipo}
+        step="any"
+        inputMode={tipo === 'number' ? 'decimal' : undefined}
+        value={v}
+        onChange={(e) => onChange(e.target.value)}
+        onWheel={(e) => e.currentTarget.blur()}
+      />
+      {unidade && <em>{unidade}</em>}
+    </label>
+  );
+}
+
+function DesenhoVaso({
+  orientacao,
+  componentes,
+  ativo,
+  situacao,
+  diametro,
+  onAbrir,
+}: {
+  orientacao: OrientacaoVaso;
+  componentes: ComponenteVasoSalvo[];
+  ativo: string | null;
+  situacao: (c: ComponenteVasoSalvo) => string;
+  diametro: unknown;
+  onAbrir: (id: string) => void;
+}) {
+  const zona = (id: string, forma: ReactNode) => {
+    const c = componentes.find((x) => x.id === id);
+    if (!c) return null;
+    return (
+      <g
+        key={id}
+        className={`zz ${corDoElemento(id)} ${id === ativo ? 'on' : ''} s-${situacao(c)}`}
+        tabIndex={0}
+        role="button"
+        aria-label={c.nome}
+        onClick={() => onAbrir(id)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onAbrir(id);
+          }
+        }}
+      >
+        {forma}
+      </g>
+    );
+  };
+  const bocais = componentes.filter((c) => c.tipo === 'bocal');
+  const d = Number(diametro);
+  if (orientacao === 'horizontal') {
+    return (
+      <svg viewBox="0 0 420 200" className="mz-svg" aria-label="Geometria do vaso horizontal">
+        <defs>
+          <pattern id="mz-hach" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="6" stroke="#C9CED8" strokeWidth="1" />
+          </pattern>
+        </defs>
+        {zona('tampo1', <path d="M120 46 C62 46 46 100 46 100 C46 100 62 154 120 154 Z" />)}
+        {zona('casco', <rect x="120" y="46" width="180" height="108" />)}
+        {zona('tampo2', <path d="M300 46 C358 46 374 100 374 100 C374 100 358 154 300 154 Z" />)}
+        {bocais.map((c, i) => zona(c.id, <rect x={168 + (i % 4) * 46} y="22" width="24" height="24" rx="2" />))}
+        <path className="sela" d="M146 154l-10 26h56l-10-26M238 154l-10 26h56l-10-26" />
+        <rect x="40" y="180" width="340" height="6" fill="url(#mz-hach)" />
+        {d > 0 && (
+          <>
+            <path className="cota" d="M46 196h328" />
+            <text x="210" y="194" className="ct">D = {d.toLocaleString('pt-BR')} mm</text>
+          </>
+        )}
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 260 260" className="mz-svg mz-svg-v" aria-label="Geometria do vaso vertical">
+      {zona('tampo2', <path d="M80 74 C80 26 130 18 130 18 C130 18 180 26 180 74 Z" />)}
+      {zona('casco', <rect x="80" y="74" width="100" height="120" />)}
+      {zona('tampo1', <path d="M80 194 C80 242 130 250 130 250 C130 250 180 242 180 194 Z" />)}
+      {bocais.map((c, i) => zona(c.id, <rect x="180" y={92 + (i % 3) * 34} width="22" height="20" rx="2" />))}
+    </svg>
+  );
+}
+
+function ModalElemento({
+  rascunho,
+  novo,
+  pmtaAtual,
+  onMudar,
+  onCancelar,
+  onSalvar,
   onRemover,
 }: {
-  componente: ComponenteVasoSalvo;
-  onTipoChange: (tipo: TipoComponenteVaso) => void;
-  onDadoChange: (chave: string, valor: unknown) => void;
-  onNomeChange: (nome: string) => void;
+  rascunho: ComponenteVasoSalvo;
+  novo: boolean;
+  pmtaAtual: number | null;
+  onMudar: (c: ComponenteVasoSalvo) => void;
+  onCancelar: () => void;
+  onSalvar: () => void;
   onRemover?: () => void;
 }) {
-  const d = componente.dados;
-  const ehCasco = componente.id === 'casco';
+  const ref = useRef<HTMLDivElement>(null);
+  useFocoPreso(ref, onCancelar);
+  const c = rascunho;
+  const d = c.dados;
+  const ehCasco = c.id === 'casco';
+  const ehBocal = c.tipo === 'bocal';
+  const num = (v: string) => (v === '' ? '' : Number(v));
+  const dado = (chave: string, valor: unknown) => onMudar({ ...c, dados: { ...c.dados, [chave]: valor } });
+  const subtitulo = ehCasco
+    ? ROTULO_CASCO
+    : ehBocal
+      ? 'Bocal — Abertura e Reforço (ASME UG-37 / UG-40)'
+      : OPCOES_TAMPO.find((o) => o.value === c.tipo)?.label ?? '';
+  const vazioTemp = d.temp === undefined || d.temp === null || d.temp === '';
 
-  if (componente.tipo === 'bocal') {
-    return (
-      <div>
-        <div className="memorial-bocal-header">
-          <p className="memorial-tipo-fixo">Bocal — Abertura e Reforço (ASME UG-37 / UG-40)</p>
+  // Sem onClick no fundo: o elemento tem dados digitados (modal com edição só
+  // fecha por X, Cancelar, Salvar ou Esc).
+  return (
+    <div className="mzm-ov mzm-overlay">
+      <div ref={ref} className={`mzm ${corDoElemento(c.id)}`} role="dialog" aria-modal="true" aria-labelledby="mzm-tit">
+        <header className="mzm-h">
+          <span className="cor" />
+          <div className="t">
+            <h2 id="mzm-tit">{c.nome}</h2>
+            <small>
+              {subtitulo}
+              {pmtaAtual != null && (
+                <>
+                  {' · PMTA atual '}
+                  <b>{pmtaAtual.toFixed(3).replace('.', ',')} MPa</b>
+                </>
+              )}
+            </small>
+          </div>
+          <button type="button" className="ibtn" onClick={onCancelar} aria-label="Fechar">
+            <Icone nome="x" tam={18} />
+          </button>
+        </header>
+        <div className="mzm-c">
+          {ehCasco && <p className="mx-fixo">{ROTULO_CASCO} — espessura pela tensão circunferencial</p>}
+          {ehBocal && (
+            <CampoMx rotulo="Nome do bocal" tipo="text" cheio valor={c.nome} onChange={(v) => onMudar({ ...c, nome: v })} />
+          )}
+          {!ehCasco && !ehBocal && (
+            <label className="mx-c full">
+              <span>Tipo de tampo</span>
+              <select value={c.tipo} onChange={(e) => onMudar({ ...c, tipo: e.target.value as TipoComponenteVaso })}>
+                {OPCOES_TAMPO.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <h4 className="mz-grupo"><Icone nome="box" tam={16} />Material e tensão</h4>
+          <div className="mx-grid c3">
+            <CampoMx rotulo="Material" tipo="text" valor={d.mat} onChange={(v) => dado('mat', v)} />
+            <CampoMx rotulo={ehBocal ? 'S — tensão adm. do bocal' : 'S — tensão admissível'} unidade="MPa" obrigatorio valor={d.S} onChange={(v) => dado('S', num(v))} />
+            <CampoMx rotulo={ehBocal ? 'E — efic. junta do bocal' : 'E — eficiência de junta'} obrigatorio={!ehBocal} valor={d.E} onChange={(v) => dado('E', num(v))} />
+          </div>
+
+          <h4 className="mz-grupo"><Icone nome="gauge" tam={16} />Espessuras e corrosão</h4>
+          <div className="mx-grid c3">
+            {ehBocal && <CampoMx rotulo="d — diâm. interno do bocal" unidade="mm" obrigatorio valor={d.d} onChange={(v) => dado('d', num(v))} />}
+            <CampoMx rotulo={ehBocal ? 'Tnom — esp. do pescoço' : 'Tnom — esp. comercial'} unidade="mm" obrigatorio valor={d.t_comercial} onChange={(v) => dado('t_comercial', num(v))} />
+            <CampoMx rotulo="CA — corrosão admissível" unidade="mm" valor={d.ca} onChange={(v) => dado('ca', num(v))} />
+            <label className={`mx-c${vazioTemp ? ' warn' : ''}`}>
+              <span>
+                Temperatura de projeto
+                {vazioTemp && <span className="mx-warn" title="Obrigatório sem valor válido"><Icone nome="alerttri" tam={14} /></span>}
+              </span>
+              <input type="number" step="any" inputMode="decimal" value={d.temp === undefined || d.temp === null ? '' : String(d.temp)} onChange={(e) => dado('temp', num(e.target.value))} onWheel={(e) => e.currentTarget.blur()} />
+              <em>°C</em>
+            </label>
+            {ehBocal && <CampoMx rotulo="h — projeção interna" unidade="mm" valor={d.proj_int} onChange={(v) => dado('proj_int', num(v))} />}
+            {c.tipo === 'cone' && <CampoMx rotulo="α — meio-ângulo do cone" unidade="°" valor={d.alfa} onChange={(v) => dado('alfa', num(v))} />}
+          </div>
+
+          {c.tipo === 'planoAparafusado' && (
+            <>
+              <h4 className="mz-grupo"><Icone nome="tool" tam={16} />Parafusos (UG-34)</h4>
+              <div className="mx-grid c2">
+                <CampoMx rotulo="C — fator UG-34 (0,3 aparafusado)" valor={d.C_fator ?? 0.3} onChange={(v) => dado('C_fator', num(v))} />
+                <CampoMx rotulo="N — nº de parafusos/travas" valor={d.N_parafusos} onChange={(v) => dado('N_parafusos', num(v))} />
+                <CampoMx rotulo="d_par — diâm. raiz do parafuso" unidade="mm" valor={d.d_parafuso} onChange={(v) => dado('d_parafuso', num(v))} />
+                <CampoMx rotulo="S_par — tensão adm. do parafuso" unidade="MPa" valor={d.S_parafuso} onChange={(v) => dado('S_parafuso', num(v))} />
+              </div>
+            </>
+          )}
+
+          {ehBocal && (
+            <>
+              <p className="memorial-bocal-nota">E vazio = 1,0 (bocal sem solda). Projeção interna vazia = 0.</p>
+              <label className="memorial-check-reforco">
+                <input type="checkbox" checked={!!d.temReforco} onChange={(e) => dado('temReforco', e.target.checked)} />
+                Possui chapa de reforço (pad)
+              </label>
+              {!!d.temReforco && (
+                <div className="mx-grid c3" style={{ marginTop: 10 }}>
+                  <CampoMx rotulo="W — largura da chapa" unidade="mm" obrigatorio valor={d.w_reforco} onChange={(v) => dado('w_reforco', num(v))} />
+                  <CampoMx rotulo="te — esp. da chapa" unidade="mm" obrigatorio valor={d.t_reforco} onChange={(v) => dado('t_reforco', num(v))} />
+                  <CampoMx rotulo="Sp — tensão adm. da chapa" unidade="MPa" valor={d.S_reforco} onChange={(v) => dado('S_reforco', num(v))} />
+                </div>
+              )}
+            </>
+          )}
+
+          <p className="mx-aviso">
+            <Icone nome="alerttri" tam={15} />
+            <span>Campo obrigatório vazio deixa o memorial como <b>Pendente</b>.</span>
+          </p>
+        </div>
+        <footer className="mzm-f">
           {onRemover && (
-            <button type="button" className="btn-remover-bocal" onClick={onRemover}>
+            <button type="button" className="btn btn-perigo" onClick={onRemover}>
+              <Icone nome="trash" tam={16} />
               Remover bocal
             </button>
           )}
-        </div>
-        <div className="memorial-campos-grid" style={{ marginTop: 10 }}>
-          <Campo label="Nome do Bocal" type="text" value={componente.nome} warn={false} onChange={onNomeChange} />
-          <Campo label="d — Diâm. Interno do Bocal (mm)" value={d.d ?? ''} warn={!d.d || Number(d.d) <= 0} onChange={(v) => onDadoChange('d', v === '' ? '' : Number(v))} />
-          <Campo label="Tnom — Esp. do Pescoço (mm)" value={d.t_comercial ?? ''} warn={!d.t_comercial || Number(d.t_comercial) <= 0} onChange={(v) => onDadoChange('t_comercial', v === '' ? '' : Number(v))} />
-          <Campo label="CA — Corrosão Adm. (mm)" value={d.ca ?? ''} warn={false} onChange={(v) => onDadoChange('ca', v === '' ? '' : Number(v))} />
-          <Campo label="S — Tensão Adm. do Bocal (MPa)" value={d.S ?? ''} warn={!d.S || Number(d.S) <= 0} onChange={(v) => onDadoChange('S', v === '' ? '' : Number(v))} />
-          <Campo label="E — Efic. Junta do Bocal" value={d.E ?? ''} warn={false} onChange={(v) => onDadoChange('E', v === '' ? '' : Number(v))} />
-          <Campo label="Material" type="text" value={d.mat ?? ''} warn={false} onChange={(v) => onDadoChange('mat', v)} />
-          <Campo label="Temp. Projeto (°C)" value={d.temp ?? ''} warn={d.temp === undefined || d.temp === null || d.temp === ''} onChange={(v) => onDadoChange('temp', v === '' ? '' : Number(v))} />
-          <Campo label="h — Projeção Interna (mm)" value={d.proj_int ?? ''} warn={false} onChange={(v) => onDadoChange('proj_int', v === '' ? '' : Number(v))} />
-        </div>
-        <p className="memorial-bocal-nota">E vazio = 1,0 (bocal sem solda). Projeção interna vazia = 0.</p>
-        <label className="memorial-check-reforco">
-          <input type="checkbox" checked={!!d.temReforco} onChange={(e) => onDadoChange('temReforco', e.target.checked)} />
-          Possui chapa de reforço (pad)
-        </label>
-        {!!d.temReforco && (
-          <div className="memorial-campos-grid" style={{ marginTop: 10 }}>
-            <Campo label="W — Largura da Chapa (mm)" value={d.w_reforco ?? ''} warn={!d.w_reforco || Number(d.w_reforco) <= 0} onChange={(v) => onDadoChange('w_reforco', v === '' ? '' : Number(v))} />
-            <Campo label="te — Esp. da Chapa (mm)" value={d.t_reforco ?? ''} warn={!d.t_reforco || Number(d.t_reforco) <= 0} onChange={(v) => onDadoChange('t_reforco', v === '' ? '' : Number(v))} />
-            <Campo label="Sp — Tensão Adm. da Chapa (MPa)" value={d.S_reforco ?? ''} warn={false} onChange={(v) => onDadoChange('S_reforco', v === '' ? '' : Number(v))} />
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      {ehCasco ? (
-        <p className="memorial-tipo-fixo">{ROTULO_CASCO}</p>
-      ) : (
-        <select
-          className="calc-tipo-selector"
-          value={componente.tipo}
-          onChange={(e) => onTipoChange(e.target.value as TipoComponenteVaso)}
-        >
-          {OPCOES_TAMPO.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-      )}
-
-      <div className="memorial-campos-grid" style={{ marginTop: 10 }}>
-        <Campo label="S — Tensão Adm. (MPa)" value={d.S ?? ''} warn={!d.S || Number(d.S) <= 0} onChange={(v) => onDadoChange('S', v === '' ? '' : Number(v))} />
-        <Campo label="E — Eficiência Junta" value={d.E ?? ''} warn={!d.E || Number(d.E) <= 0} onChange={(v) => onDadoChange('E', v === '' ? '' : Number(v))} />
-        <Campo label="Tnom — Esp. Comercial (mm)" value={d.t_comercial ?? ''} warn={!d.t_comercial || Number(d.t_comercial) <= 0} onChange={(v) => onDadoChange('t_comercial', v === '' ? '' : Number(v))} />
-        <Campo label="CA — Corrosão Adm. (mm)" value={d.ca ?? ''} onChange={(v) => onDadoChange('ca', v === '' ? '' : Number(v))} />
-        <Campo label="Material" type="text" value={d.mat ?? ''} onChange={(v) => onDadoChange('mat', v)} />
-        <Campo label="Temp. Projeto (°C)" value={d.temp ?? ''} warn={d.temp === undefined || d.temp === null || d.temp === ''} onChange={(v) => onDadoChange('temp', v === '' ? '' : Number(v))} />
-
-        {componente.tipo === 'cone' && (
-          <Campo label="α — Meio-ângulo do cone (°)" value={d.alfa ?? ''} onChange={(v) => onDadoChange('alfa', v === '' ? '' : Number(v))} />
-        )}
-
-        {componente.tipo === 'planoAparafusado' && (
-          <>
-            <Campo label="C — Fator UG-34 (0.3 aparafusado)" value={d.C_fator ?? 0.3} onChange={(v) => onDadoChange('C_fator', v === '' ? '' : Number(v))} />
-            <Campo label="N — Nº de parafusos/travas" value={d.N_parafusos ?? ''} onChange={(v) => onDadoChange('N_parafusos', v === '' ? '' : Number(v))} />
-            <Campo label="d_par — Diâm. raiz parafuso (mm)" value={d.d_parafuso ?? ''} onChange={(v) => onDadoChange('d_parafuso', v === '' ? '' : Number(v))} />
-            <Campo label="S_par — Tensão adm. parafuso (MPa)" value={d.S_parafuso ?? ''} onChange={(v) => onDadoChange('S_parafuso', v === '' ? '' : Number(v))} />
-          </>
-        )}
+          <span style={{ flex: 1 }} />
+          <button type="button" className="btn btn-sec" onClick={onCancelar}>Cancelar</button>
+          <button type="button" className="btn mz-salvar" onClick={onSalvar}>
+            <Icone nome="check" tam={16} />
+            {novo ? 'Adicionar' : 'Salvar'} {ehBocal ? 'bocal' : ehCasco ? 'casco' : 'tampo'}
+          </button>
+        </footer>
       </div>
     </div>
   );

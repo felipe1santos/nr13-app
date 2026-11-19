@@ -7,7 +7,8 @@ import Agenda from '../pages/Agenda';
 import Pendencias from '../pages/Pendencias';
 import LivroRegistro from '../pages/LivroRegistro';
 import Equipamento from '../pages/Equipamento';
-import Memorial from '../pages/Memorial';
+import Memorial, { MemorialView } from '../pages/Memorial';
+import type { InfoEquipamento } from '../features/equipamento/tipos';
 import Relatorios from '../pages/Relatorios';
 import Inspecoes from '../pages/Inspecoes';
 import InspecaoContainer from '../pages/InspecaoContainer';
@@ -45,6 +46,7 @@ const rotasDev = import.meta.env.DEV
           { index: true, element: <div style={{ padding: 24 }}>Prévia do shell (somente desenvolvimento)</div> },
           { path: 'agenda', element: <Agenda /> },
           { path: 'dashboard', element: <Dashboard /> },
+          { path: 'memorial', element: <MemorialView tag="PREVIA-01" info={{ tipo: 'vaso' } as InfoEquipamento} /> },
         ],
       },
     ]

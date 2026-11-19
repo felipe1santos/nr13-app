@@ -18,6 +18,7 @@
  * a porta as semeou antes de montar.
  */
 import { Link, useParams } from 'react-router-dom';
+import { Icone } from '../components/Icone';
 import MemorialVaso from '../features/memorial/MemorialVaso';
 import MemorialAutoclave from '../features/memorial/MemorialAutoclave';
 import MemorialCaldeira from '../features/memorial/MemorialCaldeira';
@@ -53,26 +54,38 @@ function PortaMemorial({ tag }: { tag: string }) {
   return <MemorialView tag={abertura.tag} info={abertura.info} />;
 }
 
-function MemorialView({ tag, info }: { tag: string; info: InfoEquipamento }) {
-  return (
-    <div className="memorial-page">
-      <div className="memorial-page-header">
-        <Link to={rotaEquipamento(tag)} className="btn-voltar-memorial">
-          ← Voltar para Lista
-        </Link>
-        <div>
-          <h1>{tag} — Calculadora de Memorial</h1>
-          <p className="equipamento-subtitulo">
-            {info.tipo === 'vaso'
-              ? 'Vaso de Pressão'
-              : info.tipo === 'autoclave'
-                ? `Autoclave (${info.subtipo})`
-                : 'Caldeira'}
-          </p>
-        </div>
-      </div>
+export function MemorialView({ tag, info }: { tag: string; info: InfoEquipamento }) {
+  // Barra do protótipo: Voltar · Equipamentos › TAG › Memorial de cálculo.
+  // Links (não navigate): a tela só navega por ação do usuário.
+  const trilha = (
+    <>
+      <Link to={rotaEquipamento(tag)} className="fx-voltar">
+        <Icone nome="arrowleft" tam={16} />
+        Voltar
+      </Link>
+      <nav className="fx-trilha" aria-label="Caminho">
+        <Link to="/equipamentos">Equipamentos</Link>
+        <span className="sep">›</span>
+        <Link to={rotaEquipamento(tag)}>{tag}</Link>
+        <span className="sep">›</span>
+        <b>Memorial de cálculo</b>
+      </nav>
+      <span className="fx-chip">
+        <span>Tipo</span>
+        {info.tipo === 'vaso'
+          ? 'Vaso de Pressão'
+          : info.tipo === 'autoclave'
+            ? `Autoclave (${info.subtipo})`
+            : 'Caldeira'}
+      </span>
+    </>
+  );
 
-      {info.tipo === 'vaso' && <MemorialVaso tag={tag} />}
+  return (
+    <div className="memorial-page mz-page">
+      {info.tipo !== 'vaso' && <div className="fx-bar mz-topo">{trilha}</div>}
+
+      {info.tipo === 'vaso' && <MemorialVaso tag={tag} barra={trilha} />}
       {info.tipo === 'autoclave' && (
         <MemorialAutoclave tag={tag} subtipo={(info.subtipo as 'retangular' | 'cilindrica' | 'vertical') || 'cilindrica'} />
       )}
