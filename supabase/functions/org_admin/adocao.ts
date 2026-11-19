@@ -26,7 +26,11 @@ export interface PerfilExistente {
 export interface PedidoAdocao {
   /** id do usuário que já existe no Auth com o e-mail pedido */
   existenteId: string;
-  /** user_metadata desse usuário (a origem gravada na criação, Fase 0 D-24) */
+  /**
+   * app_metadata desse usuário — a origem gravada pelo service_role na criação
+   * (Fase 0 D-24). Nunca `user_metadata`: esse o próprio usuário escreve no
+   * signUp, e serviria para forjar "sobra desta organização" (25/10/2026).
+   */
   metadata: Record<string, unknown> | null | undefined;
   /** perfil dele em `profiles`, ou null se não existe */
   perfil: PerfilExistente | null;

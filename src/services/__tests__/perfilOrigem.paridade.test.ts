@@ -6,9 +6,9 @@ import { metadataPerfil, PAPEIS_VALIDOS } from '../perfilOrigem';
 /**
  * Paridade entre o formato da metadata em TRÊS lugares que não podem divergir:
  *
- *   1. `src/services/perfilOrigem.ts`            — os dois signUp do frontend
- *   2. `supabase/functions/org_admin/index.ts`   — createUser dos sub-logins
- *   3. `supabase/perfil_origem.sql`              — o trigger que LÊ a metadata
+ *   1. `src/services/perfilOrigem.ts`            — a fonte do formato
+ *   2. `supabase/functions/org_admin/index.ts`   — createUser dos sub-logins (app_metadata)
+ *   3. `supabase/perfil_origem.sql`              — o trigger que LÊ raw_app_meta_data
  *
  * A Edge roda em Deno e o trigger em plpgsql; nenhum dos dois importa de
  * `src/`, então o formato é necessariamente replicado. Duplicação de tabela é a
@@ -56,42 +56,77 @@ describe('paridade da metadata de origem do perfil', () => {
     }
   });
 
-  it('a Edge passa a metadata no createUser, não só em comentário', () => {
+  it('a Edge registra a origem no createUser como app_metadata, não só em comentário', () => {
     const fonte = readFileSync(EDGE, 'utf8');
-    // `user_metadata` precisa estar no objeto do createUser. Sem isso o papel
-    // nunca chega ao trigger e a correção inteira vira decoração.
-    expect(fonte).toContain('user_metadata');
-    const trecho = fonte.slice(fonte.indexOf('createUser'), fonte.indexOf('createUser') + 1200);
-    expect(trecho, 'user_metadata fora do bloco do createUser').toContain('nr13_papel');
+    // É a origem que a adoção confere numa retentativa (`adocao.ts`). Vai em
+    // `app_metadata` porque só o service_role grava esse campo; o
+    // `user_metadata` é o `options.data` do signUp público (achado #1 da
+    // auditoria de 25/10/2026).
+    const trecho = fonte.slice(fonte.indexOf('createUser'), fonte.indexOf('createUser') + 1500);
+    expect(trecho, 'app_metadata fora do bloco do createUser').toMatch(/app_metadata:\s*\{[^}]*nr13_papel/);
+    expect(trecho, 'papel ainda vai em user_metadata').not.toMatch(/user_metadata:\s*\{[^}]*nr13_papel/);
   });
 
-  it('o SQL do trigger LÊ as mesmas chaves', () => {
+  it('a adoção da Edge confere a origem em app_metadata', () => {
+    // `user_metadata` do usuário existente é escrito por ele mesmo: confiar
+    // nele para decidir a adoção reabriria o mesmo furo por outra porta.
+    const fonte = readFileSync(EDGE, 'utf8');
+    expect(fonte).toContain('metadata: existente.app_metadata');
+    expect(fonte).not.toContain('metadata: existente.user_metadata');
+  });
+
+  /** Só o corpo de handle_new_user — a conferência no fim do arquivo cita nomes de propósito. */
+  function corpoFuncao(): string {
     const sql = corpoSql(SQL);
+    const corpo = sql.slice(sql.indexOf('as $$'), sql.indexOf('$$;'));
+    expect(corpo.length, 'corpo de handle_new_user não encontrado').toBeGreaterThan(100);
+    return corpo;
+  }
+
+  it('o trigger NÃO lê metadata nenhuma — nem a do signUp público, nem app_metadata', () => {
+    // Achado #1 (25/10/2026): `raw_user_meta_data` é o `options.data` do
+    // signUp, escrito por quem se cadastra. E `raw_app_meta_data` não serve no
+    // INSERT: o GoTrue (v2.197, medido no laboratório) insere o usuário só com
+    // provider/providers e grava o app_metadata num UPDATE depois. Papel e org
+    // de sub-login são atribuídos pelo upsert do service_role na Edge.
+    const corpo = corpoFuncao();
+    expect(corpo, 'o trigger voltou a confiar em raw_user_meta_data').not.toContain('raw_user_meta_data');
+    expect(corpo, 'raw_app_meta_data está vazio no INSERT — ler daria falsa garantia').not.toContain('raw_app_meta_data');
     for (const chave of CHAVES) {
-      expect(sql, `o trigger não lê "${chave}"`).toContain(chave);
+      expect(corpo, `o trigger ainda lê "${chave}"`).not.toContain(chave);
     }
   });
 
-  it('o SQL valida os mesmos quatro papéis, na mesma caixa', () => {
-    const sql = corpoSql(SQL);
-    for (const papel of PAPEIS_VALIDOS) {
-      expect(sql, `o trigger não reconhece o papel "${papel}"`).toContain(`'${papel}'`);
+  it('todo usuário novo nasce mestre, com org preenchida pelo trg_definir_org_padrao (a própria)', () => {
+    const corpo = corpoFuncao();
+    expect(corpo).toContain('insert into public.profiles (id, email, ativo, role, papel, org_id, cliente_id)');
+    expect(corpo).toMatch(/'mestre',\s*\n?\s*null,\s*\n?\s*null/);
+  });
+
+  it('o conflito continua preservando o perfil que a Edge já gravou', () => {
+    expect(corpoFuncao()).toContain('on conflict (id) do update set email = excluded.email');
+  });
+
+  it('o signUp do frontend não declara papel nem org — o trigger ignoraria, e a falsa garantia confunde', () => {
+    const auth = readFileSync(join(RAIZ, 'src', 'services', 'auth.ts'), 'utf8');
+    expect(auth).not.toContain('metadataPerfil(');
+  });
+
+  it('a Edge org_admin grava papel e org pelo upsert do service_role', () => {
+    const fonte = readFileSync(EDGE, 'utf8');
+    const i = fonte.indexOf("action === 'criar_subusuario'");
+    const bloco = fonte.slice(i, fonte.indexOf("action === 'resetar_senha'", i));
+    expect(bloco).toMatch(/org_id:\s*orgId/);
+    expect(bloco).toMatch(/\bpapel,/);
+    expect(bloco).toContain(".upsert(linha, { onConflict: 'id' })");
+    expect(bloco, 'o erro do upsert precisa ser lido').toContain('if (upErr) return json(');
+  });
+
+  it('os papéis da Edge são os mesmos da fonte, na mesma caixa', () => {
+    const fonte = readFileSync(EDGE, 'utf8');
+    for (const papel of PAPEIS_VALIDOS.filter((p) => p !== 'mestre')) {
+      expect(fonte, `a Edge não reconhece o papel "${papel}"`).toContain(`'${papel}'`);
     }
-  });
-
-  it('papel desconhecido cai em sem_papel no trigger, nunca em mestre', () => {
-    const sql = corpoSql(SQL);
-    // Fail closed: a lista branca das policies (D-04) recusa 'sem_papel'.
-    // Se alguém trocar por 'mestre', o defeito que este arquivo conserta volta.
-    expect(sql).toContain("v_papel := 'sem_papel'");
-  });
-
-  it('o cast de uuid do trigger é guardado, para não derrubar o signup', () => {
-    const sql = corpoSql(SQL);
-    // O trigger roda `after insert on auth.users`: se lançar, o cadastro
-    // inteiro falha. A conversão só acontece depois de o formato ser conferido.
-    expect(sql).toMatch(/\[0-9a-f\]\{8\}-/);
-    expect(sql).toContain('::uuid');
   });
 
   it('o rollback existe e restaura o insert SEM papel', () => {

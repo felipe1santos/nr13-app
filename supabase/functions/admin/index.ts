@@ -92,18 +92,17 @@ Deno.serve(async (req) => {
 
       // Cria já confirmado (sem precisar de e-mail de confirmação).
       //
-      // `user_metadata` com o papel: `handle_new_user` insere o profile sem a
-      // coluna `papel`, que cai no default. Aqui o default é o certo — conta
-      // nova é dona da própria organização —, mas escrever explícito impede que
-      // uma mudança futura naquele default vire uma conta com papel errado, e
-      // deixa a origem igual à da Edge `org_admin`. Ver
-      // `src/services/perfilOrigem.ts`.
+      // Origem registrada em `app_metadata`, igual à Edge `org_admin`. O trigger
+      // não lê metadata (perfil_origem.sql, 25/10/2026): toda conta nasce mestre
+      // da própria organização, que aqui é o certo, e o upsert abaixo confirma.
+      // `app_metadata` e não `user_metadata` porque só o service_role grava o
+      // primeiro. Ver `src/services/perfilOrigem.ts`.
       let userId: string | null = null;
       const { data: novo, error } = await admin.auth.admin.createUser({
         email,
         password: senha,
         email_confirm: true,
-        user_metadata: { nr13_papel: 'mestre' },
+        app_metadata: { nr13_papel: 'mestre' },
       });
 
       if (error) {
