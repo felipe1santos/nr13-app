@@ -24,7 +24,7 @@ export const ITEM_MEUS_DADOS: ItemMenu = {
   id: 'meusdados',
   to: '/minha-empresa',
   label: 'Meus dados',
-  icone: 'building',
+  icone: 'user',
 };
 
 export const ITENS_TOPO: ItemMenu[] = [
@@ -41,21 +41,21 @@ export const ITENS_CADASTRAR: ItemMenu[] = [
   // Redesign Cobalto (18/11/2026): o rótulo virou "Equipe" — engenheiros,
   // inspetores e técnicos que assinam. A ROTA e o id de permissão não mudam.
   { id: 'funcionarios', to: '/funcionarios', label: 'Equipe', icone: 'users' },
-  { id: 'clientes', to: '/empresas', label: 'Clientes', icone: 'briefcase' },
+  { id: 'clientes', to: '/empresas', label: 'Clientes', icone: 'notebook' },
 ];
 
 export const ITENS_BAIXO: ItemMenu[] = [
   // 09/09/2026 · era 'barchart' — gráfico de barras para a tela que lista
   // DOCUMENTOS. O ícone agora é o do arquivo que a seção produz, e é o mesmo
   // desenho que marca cada linha da lista.
-  { id: 'relatorios', to: '/relatorios', label: 'Relatórios', icone: 'pdf' },
+  { id: 'relatorios', to: '/relatorios', label: 'Relatórios', icone: 'filetext' },
   { id: 'prontuarios', to: '/prontuarios', label: 'Prontuários', icone: 'book' },
   { id: 'calibracoes', to: '/calibracoes', label: 'Calibrações', icone: 'sliders' },
-  { id: 'certificados', to: '/certificados', label: 'Certificados', icone: 'shield' },
+  { id: 'certificados', to: '/certificados', label: 'Certificados', icone: 'award' },
   // A ROTA continua `/livro-registro` — links já emitidos e a memória muscular
   // de quem usa não podem quebrar por uma troca de rótulo. O nome na INTERFACE
   // é 'Registros de Segurança'.
-  { id: 'livro', to: '/livro-registro', label: 'Registros de Segurança', icone: 'filetext' },
+  { id: 'livro', to: '/livro-registro', label: 'Registros de Segurança', icone: 'file' },
   /**
    * A central de ajuda (10/09/2026).
    *

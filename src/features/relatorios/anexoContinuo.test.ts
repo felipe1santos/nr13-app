@@ -143,7 +143,8 @@ describe('o ícone da seção Relatórios', () => {
 
   it('o menu usa o ícone do documento que a seção produz', () => {
     // Era `barchart` — gráfico de barras para a tela que lista documentos.
-    expect(menu).toContain("{ id: 'relatorios', to: '/relatorios', label: 'Relatórios', icone: 'pdf' },");
+    // Cobalto: o ícone do protótipo — a folha com linhas (documento, não gráfico).
+    expect(menu).toContain("{ id: 'relatorios', to: '/relatorios', label: 'Relatórios', icone: 'filetext' },");
   });
 
   it('é desenhado no sprite, não um arquivo de imagem', () => {
