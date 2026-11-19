@@ -122,7 +122,8 @@
   color: #1A1A1A;
   transition: background-color 0.12s linear, box-shadow 0.12s linear;
 }
-.lc-linha:nth-child(even),
+/* Zebra pela classe `.z` (índice do item), nunca por :nth-child — na lista
+   virtualizada só uma fatia está no DOM e a paridade trocaria ao rolar. */
 .lc-linha.z { background: var(--row-zebra); }
 .lc-linha::before {
   content: "";

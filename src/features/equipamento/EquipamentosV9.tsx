@@ -34,6 +34,7 @@ import {
   precisaVarrerTudo,
 } from '../../services/recorteCatalogo';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
+import { classeCategoria } from '../../components/listaCobalto';
 import { Icone } from '../../components/Icone';
 import FotoImg from '../../components/FotoImg';
 import * as buscaIndex from '../../services/buscaIndex';
@@ -248,6 +249,8 @@ export default function EquipamentosV9() {
   const contagemNaTela: Contagem | null = precisaVarrerTudo(recorteAtivo)
     ? { total: visiveis.length, exato: !temMais }
     : contagem;
+  // Cobalto: zebra pelo índice (lista virtualizada).
+  const posicao = useMemo(() => new Map(visiveis.map((it, n) => [it.tag, n])), [visiveis]);
 
   function limparFiltros() {
     setParams(new URLSearchParams(), { replace: true });
@@ -429,7 +432,11 @@ export default function EquipamentosV9() {
             rodape={rodape}
             desenhar={(item) =>
               visao === 'lista' ? (
-                <LinhaCatalogo item={item} aoAbrir={() => navigate(rotaEquipamento(item.tag))} />
+                <LinhaCatalogo
+                  item={item}
+                  zebra={(posicao.get(item.tag) ?? 0) % 2 === 1}
+                  aoAbrir={() => navigate(rotaEquipamento(item.tag))}
+                />
               ) : (
                 <CardCatalogo item={item} />
               )
@@ -474,10 +481,10 @@ function pendentesQueCasam(filtros: FiltrosBusca): ItemCatalogo[] {
 }
 
 /** A linha do modo lista — mesmas colunas da tela antiga. */
-function LinhaCatalogo({ item, aoAbrir }: { item: ItemCatalogo; aoAbrir: () => void }) {
+function LinhaCatalogo({ item, zebra, aoAbrir }: { item: ItemCatalogo; zebra?: boolean; aoAbrir: () => void }) {
   const unidade = unidadeValida(item.unidade);
   return (
-    <button type="button" className="card-equipamento-horiz" onClick={aoAbrir}>
+    <button type="button" className="card-equipamento-horiz" onClick={aoAbrir} data-z={zebra || undefined}>
       <div className="card-eq-img">
         {item.fotoRef ? (
           <FotoImg foto={{ ref: item.fotoRef }} alt={`Foto do equipamento ${item.tag}`} variante="thumb" />
@@ -492,7 +499,9 @@ function LinhaCatalogo({ item, aoAbrir }: { item: ItemCatalogo; aoAbrir: () => v
         </div>
         <div className="eq-col eq-col-cat">
           <span className="eq-label">Categoria</span>
-          <span className="eq-value">{item.categoria ?? '—'}</span>
+          <span className="eq-value">
+            {item.categoria ? <span className={`lc-cat ${classeCategoria(item.categoria)}`}>Cat. {item.categoria}</span> : '—'}
+          </span>
         </div>
         <div className="eq-col eq-col-pmta">
           {/* A ADOTADA da ficha, pelo mesmo motivo do cartão — esta linha é a
@@ -508,6 +517,7 @@ function LinhaCatalogo({ item, aoAbrir }: { item: ItemCatalogo; aoAbrir: () => v
           <span className="eq-value">{buscaIndex.textoCliente(item) || '—'}</span>
         </div>
       </div>
+      <Icone nome="chevright" tam={16} className="lc-seta" />
     </button>
   );
 }

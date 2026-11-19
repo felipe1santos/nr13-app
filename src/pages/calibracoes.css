@@ -1006,3 +1006,44 @@
 .cal-status-cert.externo { background: var(--st-info-bg); color: var(--st-info); }
 .cal-emissao-selo { color: var(--texto-2); }
 .cal-emissao-resp > span { font-size: var(--fs-12); font-weight: 500; }
+
+/* ============================================================================
+   COBALTO (18/11/2026) — Calibrações no padrão de lista. Acrescentado por
+   último; colunas e regras de celular de cima seguem.
+   ============================================================================ */
+.calibracoes-page { background: #fff; min-height: 100%; }
+.calibracoes-page .bloco-dados { border: 0; border-radius: 0; box-shadow: none; background: #fff; }
+.calibracoes-page .lista-cards-horiz { gap: 0; }
+.calibracoes-page .lista-cards-horiz > .card-equipamento-horiz {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 56px;
+  margin: 0;
+  padding: 6px 12px;
+  border: 0;
+  border-bottom: 1px solid #EDF0F5;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s linear, box-shadow 0.12s linear;
+}
+.calibracoes-page .lista-cards-horiz > .card-equipamento-horiz[data-z] { background: var(--row-zebra); }
+.calibracoes-page .lista-cards-horiz > .card-equipamento-horiz::after { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 0 3px 3px 0; background: var(--row-mark); opacity: 0; transition: opacity 0.12s linear; pointer-events: none; }
+.calibracoes-page .lista-cards-horiz > .card-equipamento-horiz:hover,
+.calibracoes-page .lista-cards-horiz > .card-equipamento-horiz:focus-visible { z-index: 1; transform: none; background: var(--row-hover); border-color: #EDF0F5; outline: none; box-shadow: 0 1px 0 var(--row-hover-line), 0 -1px 0 var(--row-hover-line), 0 4px 12px -6px rgba(229, 72, 77, 0.18); }
+.calibracoes-page .lista-cards-horiz > .card-equipamento-horiz:hover::after,
+.calibracoes-page .lista-cards-horiz > .card-equipamento-horiz:focus-visible::after { opacity: 1; }
+.calibracoes-page .lista-cards-horiz > .card-equipamento-horiz .card-eq-img { width: 40px; height: 40px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: #E3EAFF; }
+.calibracoes-page .lista-cards-horiz > .card-equipamento-horiz .card-eq-img-vazio { display: grid; place-items: center; width: 100%; height: 100%; font: 700 12px/1 var(--font); color: #1A3591; }
+.calibracoes-page .lista-cards-horiz > .card-equipamento-horiz .eq-tag { font: var(--t-strong); color: #1A1A1A; }
+.calibracoes-page .lista-cards-horiz > .card-equipamento-horiz .eq-tipo,
+.calibracoes-page .lista-cards-horiz > .card-equipamento-horiz .eq-label { font: var(--t-caption); color: #6B6B6B; text-transform: none; letter-spacing: 0; }
+.calibracoes-page .lista-cards-horiz > .card-equipamento-horiz .eq-value { font: var(--t-body); color: #1A1A1A; }
+.calibracoes-page .lista-cards-horiz > .card-equipamento-horiz .lc-seta { margin-left: auto; }
+.calibracoes-page .badge-relatorios.tem { background: var(--destaque-bg); color: var(--destaque); }
+.calibracoes-page .pront-btn-criar.fj-btn-primary { height: 36px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; background: var(--criar); color: #fff; font: 600 14px/1 var(--font); box-shadow: 0 2px 6px rgba(67, 160, 71, 0.35); }
+.calibracoes-page .pront-btn-criar.fj-btn-primary:hover { background: var(--criar-hover); }

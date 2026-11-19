@@ -38,6 +38,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BuscaLista from '../../components/BuscaLista';
+import { classeCategoria } from '../../components/listaCobalto';
 import { Icone } from '../../components/Icone';
 import ModalFiltrosProntuarios, {
   FILTRO_PRONT_PADRAO,
@@ -249,6 +250,8 @@ export default function CatalogoCalibracoesV9({
       ),
     [itens, recorte, contagensLocais],
   );
+  // Cobalto: zebra pelo índice (lista virtualizada).
+  const posicao = useMemo(() => new Map(visiveis.map((it, n) => [it.tag, n])), [visiveis]);
   /**
    * Revisão do engenheiro, fase 2 · o "bug do ZZ-UNID-BAR". Equipamento com 0
    * calibrações existe, a busca o encontra, e o recorte PADRÃO ("só com
@@ -374,6 +377,7 @@ export default function CatalogoCalibracoesV9({
                 type="button"
                 className="card-equipamento-horiz"
                 onClick={() => aoEscolher(item.tag)}
+                data-z={(posicao.get(item.tag) ?? 0) % 2 === 1 || undefined}
               >
                 <div className="card-eq-img">
                   {item.fotoRef ? (
@@ -404,7 +408,13 @@ export default function CatalogoCalibracoesV9({
                   </div>
                   <div className="eq-col">
                     <span className="eq-label">Categoria</span>
-                    <span className="eq-value">{item.categoria ?? '—'}</span>
+                    <span className="eq-value">
+                      {item.categoria ? (
+                        <span className={`lc-cat ${classeCategoria(item.categoria)}`}>Cat. {item.categoria}</span>
+                      ) : (
+                        '—'
+                      )}
+                    </span>
                   </div>
                   <div className="eq-col">
                     <span className="eq-label">PMTA</span>

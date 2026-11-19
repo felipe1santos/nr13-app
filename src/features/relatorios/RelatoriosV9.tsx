@@ -504,6 +504,9 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
     () => unificarLista(rascunhosVisiveis, visiveis),
     [rascunhosVisiveis, visiveis],
   );
+  // Cobalto: posição de cada linha, só para a zebra (`data-z`). A lista é
+  // virtualizada, então a paridade não pode vir de :nth-child.
+  const posicao = useMemo(() => new Map(linhas.map((l, i) => [l.chave, i])), [linhas]);
 
   /**
    * Com empresa escolhida, a lista precisa estar INTEIRA antes de o filtro
@@ -1040,7 +1043,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
               if (linha.tipo === 'rascunho') {
                 const r = linha.rascunho;
                 return (
-                  <div className="rel-linha rel-linha-rascunho" role="row">
+                  <div className="rel-linha rel-linha-rascunho" role="row" data-z={(posicao.get(linha.chave) ?? 0) % 2 || undefined}>
                     <span role="cell" className="rel-cel-icone">
                       <span className="rel-marca rel-marca-rascunho" title="Relatório em edição — ainda não finalizado">
                         <Icone nome="pencil" tam={15} />
@@ -1117,7 +1120,11 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
 
               const r = linha.item;
               return (
-                <div className={`rel-linha${sit === 'arquivado' ? ' rel-linha-arquivada' : ''}`} role="row">
+                <div
+                  className={`rel-linha${sit === 'arquivado' ? ' rel-linha-arquivada' : ''}`}
+                  role="row"
+                  data-z={(posicao.get(linha.chave) ?? 0) % 2 || undefined}
+                >
                   {/* A marca do arquivo: quadrada, do sprite do próprio sistema.
                       Com PDF arquivado (§7-quater) ela é o ícone `pdf` — o MESMO
                       do menu da seção, com a tarja vermelha. O relatório legado,

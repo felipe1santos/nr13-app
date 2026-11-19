@@ -1294,3 +1294,50 @@
 }
 /* Área de anexar foto: secundário (fio de campo), não âmbar. */
 .gallery-add-dropzone { border: 1px dashed var(--fio-campo); color: var(--texto-1); background: var(--panel); }
+
+/* ============================================================================
+   COBALTO (18/11/2026) — Equipamentos no padrão de lista e cartão padrão ouro.
+   Acrescentado por último; as regras de cima seguem (colunas, rótulos, celular).
+   ============================================================================ */
+.dashboard-page:has(.equip-topo) { background: #fff; min-height: 100%; }
+.equip-topo { padding: 16px 16px 8px; background: #fff; border: 0; }
+.equip-btn-criar.fj-btn-primary { height: 36px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; background: var(--criar); color: #fff; font: 600 14px/1 var(--font); box-shadow: 0 2px 6px rgba(67, 160, 71, 0.35); }
+.equip-btn-criar.fj-btn-primary:hover { background: var(--criar-hover); color: #fff; }
+.equip-btn-filtro { height: 36px; border-radius: 4px; background: #E9E9E9; border: 0; color: #1A1A1A; }
+.equip-visao-btn.ativo { background: var(--destaque-bg); color: var(--destaque); }
+.equip-lista { margin: 0 10px; padding: 0 6px 16px; gap: 0; }
+.equip-lista > .card-equipamento-horiz {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 56px;
+  margin: 0;
+  padding: 6px 12px;
+  border: 0;
+  border-bottom: 1px solid #EDF0F5;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s linear, box-shadow 0.12s linear;
+}
+.equip-lista > .card-equipamento-horiz[data-z] { background: var(--row-zebra); }
+.equip-lista > .card-equipamento-horiz::after { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 0 3px 3px 0; background: var(--row-mark); opacity: 0; transition: opacity 0.12s linear; pointer-events: none; }
+.equip-lista > .card-equipamento-horiz:hover,
+.equip-lista > .card-equipamento-horiz:focus-visible { z-index: 1; transform: none; background: var(--row-hover); border-color: #EDF0F5; outline: none; box-shadow: 0 1px 0 var(--row-hover-line), 0 -1px 0 var(--row-hover-line), 0 4px 12px -6px rgba(229, 72, 77, 0.18); }
+.equip-lista > .card-equipamento-horiz:hover::after,
+.equip-lista > .card-equipamento-horiz:focus-visible::after { opacity: 1; }
+.equip-lista > .card-equipamento-horiz .card-eq-img { width: 40px; height: 40px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: #E3EAFF; }
+.equip-lista > .card-equipamento-horiz .card-eq-img-vazio { display: grid; place-items: center; width: 100%; height: 100%; font: 700 12px/1 var(--font); color: #1A3591; }
+.equip-lista > .card-equipamento-horiz .eq-tag { font: var(--t-strong); color: #1A1A1A; }
+.equip-lista > .card-equipamento-horiz .eq-tipo,
+.equip-lista > .card-equipamento-horiz .eq-label { font: var(--t-caption); color: #6B6B6B; text-transform: none; letter-spacing: 0; }
+.equip-lista > .card-equipamento-horiz .eq-value { font: var(--t-body); color: #1A1A1A; }
+.equip-lista > .card-equipamento-horiz .lc-seta { margin-left: auto; }
+.equip-lista > .card-equipamento-horiz .eq-col-pmta .eq-value { font-weight: 600; color: var(--petroleo); }
+/* Visão em grade: cartão padrão ouro (branco, canto 4px, sombra de elevação, sem borda). */
+.vasos-grid .plate-card { border: 0; border-radius: var(--card-r); box-shadow: var(--card-sh); background: #fff; transition: box-shadow 0.15s linear; }
+.vasos-grid .plate-card:hover { box-shadow: var(--card-sh-hover); transform: none; }
+.dashboard-page:has(.vasos-grid) { background: var(--page-cards); }

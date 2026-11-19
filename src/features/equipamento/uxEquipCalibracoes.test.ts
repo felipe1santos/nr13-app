@@ -136,7 +136,8 @@ describe('/calibracoes: instrução e card', () => {
 
   it('nenhum campo é inventado: o que falta vira travessão', () => {
     expect(cal).toContain("{item.fabricante?.trim() || '—'}");
-    expect(cal).toContain("{item.categoria ?? '—'}");
+    // Cobalto: a categoria ganhou o selo colorido; sem categoria, travessão.
+    expect(cal).toMatch(/item\.categoria \? \([\s\S]*?lc-cat[\s\S]*?\) : \(\s*'—'\s*\)/);
   });
 
   it('as colunas somem por largura, na ordem certa', () => {

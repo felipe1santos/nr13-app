@@ -907,3 +907,24 @@
   letter-spacing: 0;
   font-size: var(--fs-12);
 }
+
+/* ============================================================================
+   COBALTO (18/11/2026) — Prontuários no padrão de lista. Acrescentado por
+   último: grade, selos e ações de cima seguem; muda superfície, altura,
+   zebra (data-z) e o destaque rosado com faixa vermelha.
+   ============================================================================ */
+.prontuarios-page { background: #fff; min-height: 100%; }
+.prontuarios-page .bloco-dados.painel-lista { border: 0; border-radius: 0; box-shadow: none; background: #fff; }
+.prontuarios-page .painel-lista-contagem b { color: var(--destaque); }
+.prontuarios-page .pront-linha.pront-linha-cabecalho { min-height: 34px; background: #fff; border-top: 1px solid #DDDDDD; border-bottom: 1px solid #DDDDDD; font: 300 12px/16px var(--font); color: rgba(0, 0, 0, 0.87); text-transform: none; letter-spacing: 0; }
+.prontuarios-page .pront-lista > .pront-linha { position: relative; min-height: var(--row-h); background: #fff; border-bottom: 1px solid #EDF0F5; font: var(--t-body); transition: background-color 0.12s linear, box-shadow 0.12s linear; }
+.prontuarios-page .pront-lista > .pront-linha[data-z] { background: var(--row-zebra); }
+.prontuarios-page .pront-lista > .pront-linha::after { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 0 3px 3px 0; background: var(--row-mark); opacity: 0; transition: opacity 0.12s linear; pointer-events: none; }
+.prontuarios-page .pront-lista > .pront-linha:hover,
+.prontuarios-page .pront-lista > .pront-linha:focus-within { z-index: 1; background: var(--row-hover); box-shadow: 0 1px 0 var(--row-hover-line), 0 -1px 0 var(--row-hover-line), 0 4px 12px -6px rgba(229, 72, 77, 0.18); }
+.prontuarios-page .pront-lista > .pront-linha:hover::after,
+.prontuarios-page .pront-lista > .pront-linha:focus-within::after { opacity: 1; }
+.prontuarios-page .pront-linha-nome strong { font: var(--t-strong); color: #1A1A1A; }
+.prontuarios-page .pront-btn-criar.fj-btn-primary { height: 36px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; background: var(--criar); color: #fff; font: 600 14px/1 var(--font); box-shadow: 0 2px 6px rgba(67, 160, 71, 0.35); }
+.prontuarios-page .pront-btn-criar.fj-btn-primary:hover { background: var(--criar-hover); }
+.prontuarios-page .pront-btn-filtro { height: 36px; border-radius: 4px; background: #E9E9E9; border: 0; color: #1A1A1A; }

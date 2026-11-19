@@ -116,6 +116,7 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
     const tags = new Set(filtrarDocumentos(docs, termo).filter((d) => passaNoFiltro(d, f)).map((d) => d.tag));
     return agruparPorTag(docs).filter((g) => tags.has(g.tag));
   }, [docs, termo, f]);
+  const posicao = useMemo(() => new Map(grupos.map((g, i) => [g.tag, i])), [grupos]);
 
   return (
     <>
@@ -185,7 +186,9 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
             alturaEstimada={ALT_LINHA}
             classeGrade="pront-lista"
             chaveDoConjunto={`${termo}|${JSON.stringify(f)}`}
-            desenhar={(g) => <LinhaGrupo grupo={g} aoAbrir={aoAbrir} aoVerHistorico={setHistoricoTag} />}
+            desenhar={(g) => (
+              <LinhaGrupo grupo={g} zebra={(posicao.get(g.tag) ?? 0) % 2 === 1} aoAbrir={aoAbrir} aoVerHistorico={setHistoricoTag} />
+            )}
           />
         </div>
       )}
@@ -214,10 +217,13 @@ async function baixarDocumento(doc: DocumentoProntuario) {
 
 function LinhaGrupo({
   grupo,
+  zebra,
   aoAbrir,
   aoVerHistorico,
 }: {
   grupo: GrupoProntuario;
+  /** Cobalto: linha sim, linha não (vem do índice — a lista é virtualizada). */
+  zebra?: boolean;
   aoAbrir: (d: DocumentoProntuario) => void;
   aoVerHistorico: (tag: string) => void;
 }) {
@@ -228,7 +234,7 @@ function LinhaGrupo({
   const nome = principal.equipamento?.trim() || tag;
   const situacao = vigente ? 'emitido' : 'rascunho';
   return (
-    <div className={`pront-linha pront-linha-${situacao}`} role="row" data-teste="linha-prontuario">
+    <div className={`pront-linha pront-linha-${situacao}`} role="row" data-teste="linha-prontuario" data-z={zebra || undefined}>
       <span className="pront-linha-icone" aria-hidden>
         <Icone nome={!vigente ? 'pencil' : anexado ? 'pdf' : 'filetext'} tam={15} />
       </span>
