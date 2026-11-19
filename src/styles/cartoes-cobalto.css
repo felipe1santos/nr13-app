@@ -1311,7 +1311,9 @@
 .cli-v4 .cli-tabela td { height: 36px; padding-top: 4px !important; padding-bottom: 4px !important; border-bottom: 1px solid #F0F0F0 !important; font: 400 13px/18px var(--font); color: #3A3F47; }
 .cli-v4 .cli-tabela tbody tr:nth-child(even) td { background: #F8F9FA; }
 .cli-v4 .cli-tabela tbody tr:hover td { background: var(--row-hover, #FFF5F4) !important; }
-.cli-v4 .cli-nome { display: flex; align-items: center; gap: 10px; }
+.cli-v4 td.cli-nome { display: table-cell !important; width: 32%; min-width: 240px; white-space: nowrap; }
+.cli-v4 td.cli-nome > .cli-logo { display: inline-block; vertical-align: middle; }
+.cli-v4 td.cli-nome > .cli-nome-btn { display: inline-flex !important; width: auto !important; overflow: visible !important; vertical-align: middle; margin-left: 10px; }
 .cli-v4 .cli-nome-btn { display: flex; flex-direction: column; align-items: flex-start; border: 0; background: none; padding: 0; text-align: left; cursor: pointer; }
 .cli-v4 .cli-nome-btn b { font: 600 14px/18px var(--font); color: #1A1A1A; }
 .cli-v4 .cli-nome-btn small { font: var(--t-caption); color: #6B6B6B; }
