@@ -809,7 +809,8 @@
 /* Menu lateral */
 .sidebar { grid-row: 2; background: var(--side-bg); border-right: 1px solid var(--nav-fio); color-scheme: dark; }
 .nav-list { padding: 8px; }
-.nav-grupo-tit { font: 700 11px/16px var(--font); letter-spacing: 0.07em; text-transform: uppercase; color: var(--nav-apagado); }
+.nav-grupo-tit { padding: 10px 10px 4px; height: auto; font: 700 11px/16px var(--font); letter-spacing: 0.07em; text-transform: uppercase; color: var(--nav-apagado); }
+.nav-grupo + .nav-grupo { margin-top: 6px; }
 .nav-item {
   height: 42px;
   padding: 0 12px;
@@ -817,8 +818,12 @@
   font: 500 14.5px/20px var(--font);
   color: var(--nav-texto);
   transition: background-color 0.2s linear, color 0.2s linear;
+  white-space: normal;
 }
+.sidebar .nav-item { height: auto; min-height: 42px; padding-top: 4px; padding-bottom: 4px; }
 .nav-item .left { gap: 12px; }
+.sidebar .nav-item .menu-text { overflow: visible; text-overflow: clip; line-height: 18px; }
+.um .btn-instalar-pwa { padding-left: 15px; gap: 19px; }
 .nav-item:hover { background: var(--side-hover); color: #fff; }
 .nav-item.active { background: var(--side-on); color: #fff; font-weight: 600; box-shadow: none; }
 .nav-item.active::before {

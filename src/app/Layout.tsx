@@ -126,9 +126,8 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuAberto, setMenuAberto] = useState(false);
-  const [cadastrarAberto, setCadastrarAberto] = useState(
-    () => location.pathname.startsWith('/funcionarios') || location.pathname.startsWith('/empresas'),
-  );
+  // Cobalto: Cadastros nasce aberto como os outros grupos; fechar é escolha do usuário.
+  const [cadastrarAberto, setCadastrarAberto] = useState(true);
   const [temAlerta, setTemAlerta] = useState(false);
   const [modalSenha, setModalSenha] = useState(false);
   const [recolhida, setRecolhida] = useState(() => lerPreferencia(CHAVE_MENU_RECOLHIDO) === '1');

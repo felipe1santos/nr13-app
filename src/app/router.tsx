@@ -31,10 +31,26 @@ import RotaCliente from './RotaCliente';
 import Layout from './Layout';
 import RotaErro from './RotaErro';
 
+/**
+ * Prévia do SHELL só no `npm run dev` (redesign Cobalto): topo, menu e painel da
+ * conta sem login, para conferir o visual localmente. `import.meta.env.DEV` vira
+ * `false` no build — a rota não existe em produção (o bundle nem a carrega).
+ */
+const rotasDev = import.meta.env.DEV
+  ? [
+      {
+        path: '/__previa',
+        element: <Layout />,
+        children: [{ index: true, element: <div style={{ padding: 24 }}>Prévia do shell (somente desenvolvimento)</div> }],
+      },
+    ]
+  : [];
+
 export const router = createBrowserRouter([
   {
     errorElement: <RotaErro />,
     children: [
+      ...rotasDev,
       { path: '/login', element: <Login /> },
       {
         element: <RotaProtegida />,
