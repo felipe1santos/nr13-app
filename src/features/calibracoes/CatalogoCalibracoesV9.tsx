@@ -355,11 +355,22 @@ export default function CatalogoCalibracoesV9({
                 : 'Nenhum equipamento cadastrado ainda.'}
           </p>
         ) : (
+          <>
+          {/* Cobalto: cabeçalho de colunas — a lista vira tabela (protótipo). */}
+          <div className="cal2-cab" aria-hidden="true">
+            <span />
+            <span>TAG</span>
+            <span>Proprietário</span>
+            <span>Fabricante</span>
+            <span>Categoria</span>
+            <span>PMTA</span>
+            <span>Calibrações</span>
+          </div>
           <ListaVirtualizada
             itens={visiveis}
             chaveDe={(i) => i.tag}
             alturaEstimada={ALT_LINHA}
-            classeGrade="lista-cards-horiz"
+            classeGrade="lista-cards-horiz cal2-lista"
             // Busca nova é lista nova: a rolagem volta ao começo. Sem isto, quem
             // busca com a lista rolada fica olhando para o vazio enquanto o
             // cabeçalho anuncia resultados — o defeito que o gate da 9F.1 pegou.
@@ -436,6 +447,7 @@ export default function CatalogoCalibracoesV9({
               </button>
             )}
           />
+          </>
         )}
       </div>
     </>

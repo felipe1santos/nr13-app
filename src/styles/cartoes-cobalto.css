@@ -437,3 +437,43 @@
   .reg-lista .reg-card-nome { grid-column: 2 / 3; grid-row: 2; }
   .reg-lista .reg-card-marcas, .reg-lista .reg-metrica-data { display: none; }
 }
+
+/* ── Calibrações · lista em TABELA (protótipo). A marcação de cartão segue
+      (testes); o CSS a desenha como linha com colunas. ── */
+.cal2-cab,
+.calibracoes-page .cal2-lista > .card-equipamento-horiz {
+  display: grid;
+  grid-template-columns: 30px 150px minmax(170px, 1.2fr) minmax(140px, 1fr) 90px 110px 120px;
+  column-gap: 14px;
+  align-items: center;
+}
+.cal2-cab { margin: 0; padding: 0 12px; min-height: 34px; border-top: 1px solid #DDDDDD; border-bottom: 1px solid #DDDDDD; background: #fff; font: 300 12px/16px var(--font); color: rgba(0, 0, 0, 0.87); }
+.calibracoes-page .cal2-lista > .card-equipamento-horiz { min-height: var(--row-h); padding: 4px 12px; }
+.calibracoes-page .cal2-lista > .card-equipamento-horiz .card-eq-img { width: 30px; height: 30px; border-radius: 8px; }
+.calibracoes-page .cal2-lista .card-eq-info.cal-card-info { display: contents; }
+.calibracoes-page .cal2-lista .cal-card-info .eq-col { display: flex !important; flex-direction: column; min-width: 0; }
+.calibracoes-page .cal2-lista .cal-card-info .eq-label { display: none; }
+.calibracoes-page .cal2-lista .eq-tag { font: var(--t-strong); color: #1A1A1A; }
+.calibracoes-page .cal2-lista .eq-tipo { font: var(--t-caption); color: #6B6B6B; }
+.calibracoes-page .cal2-lista .eq-value { font: var(--t-body); color: #1A1A1A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.calibracoes-page .cal2-lista .cal-card-info .eq-col:nth-child(2) .eq-value { font: var(--t-caption); color: #5F6B82; }
+.calibracoes-page .cal2-lista .cal-card-info .eq-col:nth-child(5) .eq-value { font-weight: 600; color: var(--petroleo); }
+.calibracoes-page .cal2-lista .badge-relatorios { justify-self: start; border-radius: 999px; }
+@media (max-width: 1180px) {
+  .cal2-cab > :nth-child(4) { display: none; }
+  .cal2-cab, .calibracoes-page .cal2-lista > .card-equipamento-horiz { grid-template-columns: 30px 140px minmax(0, 1.2fr) 84px 100px 110px; }
+}
+@media (max-width: 760px) {
+  .cal2-cab { display: none; }
+  .calibracoes-page .cal2-lista > .card-equipamento-horiz { grid-template-columns: 30px minmax(0, 1fr) auto; row-gap: 2px; padding: 8px 12px; }
+  .calibracoes-page .cal2-lista .cal-card-info .eq-col:nth-child(n+2) { display: none !important; }
+}
+
+/* ── Certificados (protótipo): um cartão por padrão, EMPILHADOS em largura
+      total, com faixa colorida no topo ── */
+.cert-grid, .certificados-grid, .cert-cards { grid-template-columns: 1fr !important; max-width: 1240px; }
+
+/* Prontuários: ações em botões cinza quadrados que ganham cor no hover (protótipo) */
+.prontuarios-page .pront-linha-acoes .btn-icone { width: 30px; height: 30px; border: 0; border-radius: 4px; background: #E9E9E9; color: rgba(0, 0, 0, 0.7); transition: background-color 0.15s, color 0.15s; }
+.prontuarios-page .pront-linha-acoes .btn-icone:hover { background: var(--destaque); color: #fff; }
+.prontuarios-page .pront-selo { display: inline-flex; align-items: center; gap: 5px; border-radius: 4px; font: 700 11.5px/1 var(--font); }
