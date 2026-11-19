@@ -799,7 +799,10 @@ export default function LivroRegistro() {
             <div className="livro-topo-l2">
               {/* Cobalto: o ícone do livro à esquerda do título da seção. */}
               <img className="livro-topo-ic" src="/ilustracoes/livro-registro.webp" alt="" width={94} height={96} />
-              <h2>{linhaAberta.tag}</h2>
+              <h2>
+                <span className="livro-topo-pre">Livro de Registro de Segurança · </span>
+                {linhaAberta.tag}
+              </h2>
               <span className="livro-topo-tipo">{linhaAberta.nomeEquip}</span>
               {linhaAberta.categoria && (
                 <span className="livro-topo-cat">Cat. {linhaAberta.categoria}</span>

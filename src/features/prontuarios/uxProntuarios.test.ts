@@ -225,7 +225,9 @@ describe('a lista canônica: uma linha por EQUIPAMENTO (vigente + histórico)', 
   });
 
   it('a coluna de REVISÃO existe e o rascunho não inventa número', () => {
-    expect(lista).toContain('<span>Revisão</span>');
+    // Cobalto: a coluna da revisão chama-se "Prontuário vigente" (chip Rev. NN).
+    expect(lista).toContain('<span>Prontuário vigente</span>');
+    expect(lista).toContain('{rotuloRevisao(vigente)}');
     expect(rotuloRevisao({ situacao: 'emitido', revisao: 2 })).toBe('Rev. 02');
     expect(rotuloRevisao({ situacao: 'emitido', revisao: null })).toBe('—');
     // Rascunho ainda não é revisão.

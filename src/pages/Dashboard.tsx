@@ -15,6 +15,7 @@ import { FILTROS_PRAZO, FILTRO_PRAZO_PADRAO, noFiltroPrazo, textoPrazo } from '.
 import type { FiltroPrazo, ItemVencimento } from '../services/vencimentos';
 import { usePainelVencimentos, textoContador } from '../services/vencimentosServidor';
 import SeloPainel from '../components/SeloPainel';
+import { CartaoPortalCliente, CartaoRealizadoMes, CartaoVencimentosMes } from '../features/dashboard/GraficosPainel';
 import './dashboard-novo.css';
 import { rotaEquipamento } from '../app/rotas';
 
@@ -438,6 +439,11 @@ export default function Dashboard() {
             )}
           </div>
         </section>
+
+        {/* Cobalto: os gráficos do protótipo — das MESMAS fontes da tela. */}
+        <CartaoRealizadoMes notas={notasAgenda} />
+        <CartaoVencimentosMes itens={itens} conformidade={kpis.conformidade} />
+        <CartaoPortalCliente />
       </div>
 
       {modalTag && (

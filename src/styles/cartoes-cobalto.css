@@ -524,3 +524,109 @@
 /* busca dentro do seletor: o campo herda o estilo de modal — sem borda dupla */
 .fj-modal-box .lc-busca input { min-height: 0; padding: 0; border: 0; background: none; box-shadow: none; }
 .fj-modal-box .lc-busca input:focus { box-shadow: none; }
+
+/* ── Prontuários IGUAL ao protótipo: colunas ícone · TAG · Equipamento ·
+      Cliente · Prontuário vigente · Emitido em · Situação · Ações. A ordem
+      visual vem daqui (grid-column); o DOM e as classes pinadas seguem. ── */
+@media (min-width: 1024px) {
+  .prontuarios-page .pront-linha,
+  .prontuarios-page .pront-linha.pront-linha-cabecalho {
+    display: grid;
+    grid-template-columns: 30px 130px minmax(170px, 1.2fr) minmax(160px, 1fr) minmax(170px, 1fr) 110px 150px 110px;
+    column-gap: 14px;
+    align-items: center;
+    padding: 0 12px;
+  }
+  .prontuarios-page .pront-lista > .pront-linha > * { grid-row: 1; min-width: 0; }
+  .prontuarios-page .pront-lista .pront-linha-icone { grid-column: 1; }
+  .prontuarios-page .pront-lista .pront-linha-meta { display: contents; }
+  .prontuarios-page .pront-lista .pront-linha-meta > .pront-linha-col:nth-child(1) { grid-column: 2; font: var(--t-strong); color: #1A1A1A; }
+  .prontuarios-page .pront-lista .pront-linha-nome { grid-column: 3; }
+  .prontuarios-page .pront-lista .pront-linha-meta > .pront-linha-col:nth-child(2) { grid-column: 4; font: var(--t-caption); color: #5F6B82; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prontuarios-page .pront-lista .pront-linha-meta > .pront-vigente { grid-column: 5; }
+  .prontuarios-page .pront-lista .pront-linha-meta > .pront-linha-col:nth-child(4) { grid-column: 6; }
+  .prontuarios-page .pront-lista .pront-linha-situacao { grid-column: 7; }
+  .prontuarios-page .pront-lista .pront-linha-acoes { grid-column: 8; justify-content: flex-end; }
+  .prontuarios-page .pront-linha-acoes .pront-btn-historico { display: none; }
+}
+.prontuarios-page .pront-linha-nome strong { font: 500 14px/20px var(--font); color: #1A1A1A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.prontuarios-page .pront-linha-sub { display: none; }
+.prontuarios-page .pront-linha-icone.lc-ico { width: 30px; height: 30px; }
+.prontuarios-page .painel-lista-head { display: none; }
+.pront-vigente { display: flex; align-items: center; gap: 10px; }
+.pront-chip { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 4px; font: 600 12px/1 var(--font); white-space: nowrap; }
+.pront-chip-rev { background: #E7EFF8; color: var(--destaque); }
+.pront-chip-anexo { background: #F1EDFF; color: #6D28D9; }
+.pront-link-historico { border: 0; background: none; padding: 0; color: #334155; font: 500 13px/1 var(--font); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
+.pront-link-historico:hover { color: var(--destaque); }
+.prontuarios-page .pront-linha-situacao { display: flex; align-items: center; gap: 8px; }
+.prontuarios-page .pront-selo { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border: 0; border-radius: 4px; font: 700 11.5px/1 var(--font); }
+.prontuarios-page .pront-selo::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.prontuarios-page .pront-selo.pront-selo-emitido { background: var(--aprovado-bg); color: var(--aprovado); }
+.prontuarios-page .pront-selo.pront-selo-rascunho { background: #FEF3C7; color: #92400E; }
+.pront-mais-rascunho { font: 600 11px/1 var(--font); color: #B45309; white-space: nowrap; }
+.prontuarios-page .pront-btn-anexar { width: 36px; height: 36px; padding: 0; justify-content: center; border: 0; border-radius: 4px; background: #E9E9E9; color: rgba(0, 0, 0, 0.75); }
+.prontuarios-page .pront-btn-anexar:hover { background: #DEDEDE; }
+.prontuarios-page .pront-btn-anexar .pront-btn-rotulo { display: none; }
+.prontuarios-page .rel-chips { margin-right: 4px; }
+
+/* ── Livro de Registro (tela do equipamento) IGUAL ao protótipo ── */
+.fj-panel:has(.livro-topo) { margin: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.dash-page:has(.livro-topo) { background: var(--page-cards); padding: 0 0 24px; }
+.fj-panel-head.livro-topo { display: block; padding: 0; border: 0; background: transparent; min-height: 0; }
+.livro-topo-l1 { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #E0E0E0; }
+.livro-topo-trilha { flex: 1; min-width: 0; }
+.livro-topo-trilha .btn-secundario { height: 34px; border-radius: 4px; }
+.livro-topo-foto { display: none; }
+.livro-toolbar-acoes { display: flex; gap: 8px; }
+.livro-toolbar-acoes .fj-btn-primary { order: 9; height: 36px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; background: var(--criar); color: #fff; font: 600 14px/1 var(--font); box-shadow: 0 2px 6px rgba(67, 160, 71, 0.35); }
+.livro-toolbar-acoes .fj-btn-primary:hover { background: var(--criar-hover); }
+.livro-toolbar-acoes .fj-btn-ghost { height: 36px; border: 1px solid #CFCFCF; border-radius: 999px; background: #fff; color: #333; }
+.livro-topo-l2 { display: flex; align-items: center; gap: 16px; max-width: 1240px; margin: 20px auto 0; padding: 18px 20px; background: #fff; border-radius: var(--card-r); box-shadow: var(--card-sh); }
+.livro-topo-l2 .livro-topo-ic { width: 52px; }
+.livro-topo-l2 h2 { margin: 0; font: 400 22px/28px var(--font); color: var(--destaque); letter-spacing: 0; }
+.livro-topo-tipo { font: var(--t-body); color: #555; }
+.livro-topo-cat { border-radius: 4px; background: #FEF3C7; color: #A16207; font: 700 11.5px/1 var(--font); padding: 5px 8px; }
+.livro-fixos { max-width: 1240px; margin: 16px auto 0; display: flex; align-items: stretch; gap: 16px; flex-wrap: wrap; padding: 0; border: 0; background: transparent; }
+.livro-fixos-docs { flex: 2; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.livro-doc-card { position: relative; display: flex; align-items: center; gap: 14px; padding: 14px 40px 14px 16px; border: 0; border-radius: var(--card-r); background: #fff; box-shadow: var(--card-sh); text-align: left; cursor: pointer; }
+.livro-doc-card::after { content: "›"; position: absolute; right: 16px; font: 300 24px/1 var(--font); color: #9E9E9E; }
+.livro-doc-card:hover { box-shadow: var(--card-sh-hover); }
+.livro-doc-card strong { font: 500 15px/20px var(--font); color: #1A1A1A; }
+.livro-doc-card span:not(.livro-doc-ic) { font: var(--t-caption); color: #6B6B6B; }
+.livro-doc-ic { width: 40px; height: 40px; border-radius: 8px; display: grid; place-items: center; background: #E7EFF8; color: var(--destaque); }
+.livro-doc-ic.termo { background: #F1EDFF; color: #6D28D9; }
+.livro-resumo { flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 12px 20px; border-radius: var(--card-r); background: #fff; box-shadow: var(--card-sh); }
+.livro-resumo-num b { font: var(--t-display); color: var(--destaque); }
+.livro-resumo-cadeia { border-radius: 4px; background: var(--aprovado-bg); color: var(--aprovado); }
+
+.livro-timeline { max-width: 1240px; margin: 16px auto 0; padding: 18px 20px 20px 20px; border-radius: var(--card-r); background: #fff; box-shadow: var(--card-sh); list-style: none; }
+.livro-timeline::before { content: "Registros"; display: block; margin: 0 0 14px; font: 400 20px/26px var(--font); color: #1A1A1A; }
+.livro-timeline-item { position: relative; display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: start; column-gap: 0; padding: 0 0 14px; border: 0; background: none; }
+.livro-timeline-item::before { content: ""; position: absolute; left: 26px; top: 34px; bottom: 0; width: 2px; background: #DCE6F3; }
+.livro-timeline-item:last-child::before { display: none; }
+.livro-timeline-marco { display: none; }
+.livro-timeline-corpo { grid-column: 2; padding: 12px 16px; border: 1px solid #E3E7EF; border-left: 3px solid var(--destaque); border-right: 0; border-radius: 4px 0 0 4px; background: #fff; }
+.livro-timeline-acoes { grid-column: 3; align-self: stretch; display: flex; align-items: flex-start; gap: 6px; padding: 12px 12px 0 8px; border: 1px solid #E3E7EF; border-left: 0; border-radius: 0 4px 4px 0; background: #fff; }
+.livro-timeline-num { position: absolute; left: 4px; top: 10px; min-width: 46px; height: 26px; padding: 0 6px; display: grid; place-items: center; border-radius: 4px; background: var(--destaque); color: #fff; font: 700 12px/1 var(--font); letter-spacing: 0.02em; }
+.livro-timeline-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.livro-timeline-data { font: var(--t-body); color: #1A1A1A; }
+.livro-timeline-tipo { padding: 3px 8px; border-radius: 4px; font: 700 11.5px/1.2 var(--font); }
+.livro-timeline-tipo.t-info { background: #E3EAFF; color: #1A3591; }
+.livro-timeline-tipo.t-ok { background: #CCFBF1; color: #0F766E; }
+.livro-timeline-tipo.t-warn { background: #FFEDD5; color: #C2410C; }
+.livro-timeline-tipo.t-crit { background: #FEE4E2; color: #B42318; }
+.livro-timeline-tipo.t-neutro { background: #F1F1F1; color: #334155; }
+.livro-timeline-lacre { border-radius: 4px; background: var(--aprovado-bg); color: var(--aprovado); }
+.livro-timeline-desc { margin-top: 6px; font: var(--t-body); color: #3A3F47; }
+.livro-timeline-meta { margin-top: 8px; font: var(--t-caption); color: #6B6B6B; }
+.livro-timeline-acoes .fj-btn-ghost { height: 30px; border: 0; border-radius: 4px; background: #E9E9E9; color: rgba(0, 0, 0, 0.7); font: 500 12.5px/1 var(--font); }
+.livro-timeline-acoes .fj-btn-ghost:hover { background: var(--destaque); color: #fff; }
+@media (max-width: 860px) {
+  .livro-topo-l1 { flex-wrap: wrap; }
+  .livro-topo-l2, .livro-fixos, .livro-timeline { margin-left: 8px; margin-right: 8px; }
+  .livro-fixos-docs { grid-template-columns: 1fr; }
+  .livro-timeline-item { grid-template-columns: 52px minmax(0, 1fr); }
+  .livro-timeline-acoes { grid-column: 2; border: 1px solid #E3E7EF; border-top: 0; border-radius: 0 0 4px 4px; padding: 0 12px 12px; }
+  .livro-timeline-corpo { border-right: 1px solid #E3E7EF; border-radius: 4px 4px 0 0; border-bottom: 0; }
+}

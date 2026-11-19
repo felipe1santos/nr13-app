@@ -33,6 +33,7 @@ import { useEffect, useMemo, useState } from 'react';
 import BuscaLista from '../../components/BuscaLista';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
 import { Icone } from '../../components/Icone';
+import { iconeDoTipo } from '../../components/listaCobalto';
 import {
   filtrarDocumentos,
   listarDocumentos,
@@ -118,6 +119,11 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
     return agruparPorTag(docs).filter((g) => tags.has(g.tag));
   }, [docs, termo, f]);
   const posicao = useMemo(() => new Map(grupos.map((g, i) => [g.tag, i])), [grupos]);
+  // Contagem dos chips: sobre a busca, sem o recorte de situação.
+  const gruposTodos = useMemo(() => {
+    const tags = new Set(filtrarDocumentos(docs, termo).filter((d) => passaNoFiltro(d, { ...f, situacao: '' })).map((d) => d.tag));
+    return agruparPorTag(docs).filter((g) => tags.has(g.tag));
+  }, [docs, termo, f]);
 
   return (
     <>
@@ -129,14 +135,24 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
         contagem={{ total: grupos.length, exato: true }}
         compacto
         antes={
-          <button
-            type="button"
-            className={`fj-btn fj-btn-ghost pront-btn-filtro${temFiltroDoc(f) ? ' filtro-ativo' : ''}`}
-            aria-haspopup="dialog"
-            onClick={() => setFiltroAberto(true)}
-          >
-            <Icone nome="filter" tam={14} /> <span className="pront-btn-rotulo">Filtrar</span>
-          </button>
+          <>
+            {/* Cobalto: situação em chips com contagem (o mesmo campo do filtro). */}
+            <div className="rel-chips" role="group" aria-label="Situação">
+              {([['', 'Todos', gruposTodos.length], ['emitido', 'Emitidos', gruposTodos.filter((g) => g.vigente).length], ['rascunho', 'Rascunhos', gruposTodos.filter((g) => !g.vigente).length]] as const).map(([v, r, n]) => (
+                <button key={v || 'todos'} type="button" aria-pressed={f.situacao === v} onClick={() => setF((x) => ({ ...x, situacao: v }))}>
+                  {r} <i>{n}</i>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className={`fj-btn fj-btn-ghost pront-btn-filtro${temFiltroDoc(f) ? ' filtro-ativo' : ''}`}
+              aria-haspopup="dialog"
+              onClick={() => setFiltroAberto(true)}
+            >
+              <Icone nome="filter" tam={14} /> <span className="pront-btn-rotulo">Filtrar</span>
+            </button>
+          </>
         }
       >
         {acoes}
@@ -173,11 +189,11 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
           </div>
           <div className="pront-linha pront-linha-cabecalho" role="row" aria-hidden>
             <span />
-            <span>Prontuário vigente</span>
             <span>TAG</span>
+            <span>Equipamento</span>
             <span>Cliente</span>
-            <span>Revisão</span>
-            <span>Data</span>
+            <span>Prontuário vigente</span>
+            <span>Emitido em</span>
             <span>Situação</span>
             <span className="pront-col-acoes">Ações</span>
           </div>
@@ -236,8 +252,8 @@ function LinhaGrupo({
   const situacao = vigente ? 'emitido' : 'rascunho';
   return (
     <div className={`pront-linha pront-linha-${situacao}`} role="row" data-teste="linha-prontuario" data-z={zebra || undefined}>
-      <span className="pront-linha-icone" aria-hidden>
-        <Icone nome={!vigente ? 'pencil' : anexado ? 'pdf' : 'filetext'} tam={15} />
+      <span className={`pront-linha-icone lc-ico ${principal.tipo ?? 'outro'}`} aria-hidden>
+        <Icone nome={iconeDoTipo(principal.tipo)} tam={18} />
       </span>
       <span className="pront-linha-nome" title={nome}>
         <strong>{nome}</strong>
@@ -250,17 +266,33 @@ function LinhaGrupo({
       <span className="pront-linha-meta">
         <span className="pront-linha-col">{tag}</span>
         <span className="pront-linha-col" title={principal.cliente ?? ''}>{principal.cliente ?? '—'}</span>
-        <span className="pront-linha-col pront-linha-data">{vigente ? rotuloRevisao(vigente) : '—'}</span>
+        {/* Cobalto: "Prontuário vigente" — chip da revisão (ou PDF anexado) e o
+            link do histórico, como no protótipo. */}
+        <span className="pront-linha-col pront-linha-data pront-vigente">
+          {vigente ? (
+            anexado ? (
+              <span className="pront-chip pront-chip-anexo"><Icone nome="link" tam={12} /> PDF anexado</span>
+            ) : (
+              <span className="pront-chip pront-chip-rev">{rotuloRevisao(vigente)}</span>
+            )
+          ) : (
+            '—'
+          )}
+          {historico.length > 0 && (
+            <button type="button" className="pront-link-historico" onClick={() => aoVerHistorico(tag)}>
+              Histórico ({historico.length})
+            </button>
+          )}
+        </span>
         <span className="pront-linha-col pront-linha-data">{dataDoc(principal.atualizadoEm)}</span>
       </span>
       <span className="pront-linha-situacao">
         {vigente ? (
-          <span className={`pront-selo ${anexado ? 'pront-selo-anexado' : 'pront-selo-emitido'}`}>
-            {anexado ? 'PDF anexado' : 'Emitido'}
-          </span>
+          <span className="pront-selo pront-selo-emitido">Emitido</span>
         ) : null}
         {/* Rascunho é trabalho em aberto: NÃO substitui o vigente, só avisa. */}
-        {rascunho && <span className="pront-selo pront-selo-rascunho">Rascunho</span>}
+        {rascunho && !vigente && <span className="pront-selo pront-selo-rascunho">Rascunho</span>}
+        {rascunho && vigente && <span className="pront-mais-rascunho">+ rascunho</span>}
         {vigente?.pdfPendente && (
           <span className="pront-selo pront-selo-pendente" title="O arquivo ainda não subiu para o servidor">
             No aparelho

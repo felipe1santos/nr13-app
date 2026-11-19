@@ -869,8 +869,9 @@ export default function Prontuarios() {
                   são os dois jeitos de um prontuário entrar no sistema. */}
               <button
                 type="button"
-                className="fj-btn pront-btn-criar"
+                className="fj-btn pront-btn-criar pront-btn-anexar"
                 aria-haspopup="dialog"
+                title="Anexar prontuário existente (PDF)"
                 onClick={() => setAnexando(true)}
               >
                 <Icone nome="upload" tam={14} />{' '}

@@ -714,7 +714,9 @@ describe('cabeçalho em duas linhas', () => {
     expect(l1).toContain('livro-toolbar-acoes');
     expect(l1).toContain('livro-topo-foto');
     const l2 = pagina.slice(pagina.indexOf('livro-topo-l2'));
-    expect(l2).toContain('<h2>{linhaAberta.tag}</h2>');
+    // Cobalto: o título é "Livro de Registro de Segurança · TAG" (protótipo).
+    expect(l2).toContain('livro-topo-pre');
+    expect(l2).toContain('{linhaAberta.tag}');
     expect(l2).toContain('livro-topo-tipo');
     expect(l2).toContain('livro-topo-cat');
   });
