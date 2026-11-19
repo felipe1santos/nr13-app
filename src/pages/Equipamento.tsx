@@ -22,6 +22,7 @@ import FotoImg from '../components/FotoImg';
 import { rotaMemorial } from '../app/rotas';
 import { assinarDadosAlterados } from '../services/eventos';
 import { resumoDaFicha } from '../features/equipamento/resumoFicha';
+import { classeCategoria } from '../components/listaCobalto';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -222,7 +223,14 @@ function EquipamentoView({ tag }: { tag: string }) {
             {resumoDaFicha({ info, categoria, vida: ler(`nr13_vida_${tag}`), unidade }).map((it) => (
               <div key={it.chave} className={`ficha-resumo-item ficha-resumo-${it.chave}`}>
                 <dt>{it.rotulo}</dt>
-                <dd>{it.valor}</dd>
+                <dd>
+                  {/* Cobalto: a categoria ganha o selo colorido (mesmo texto). */}
+                  {it.chave === 'categoria' && classeCategoria(String(it.valor)) ? (
+                    <span className={`lc-cat ${classeCategoria(String(it.valor))}`}>Cat. {it.valor}</span>
+                  ) : (
+                    it.valor
+                  )}
+                </dd>
               </div>
             ))}
           </dl>

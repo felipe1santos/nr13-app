@@ -96,10 +96,15 @@ export default function ModalNovaInspecaoContainer({ onClose, onCriar, pedirNome
           <fieldset className="tipo-equipamento-fieldset">
             <legend>Ensaios a atribuir a este container</legend>
             {ensaios.map((e) => (
-              <label key={e.value} className="radio-card" style={{ cursor: 'pointer' }}>
+              <label
+                key={e.value}
+                className={`radio-card ens-opcao ens-${e.value}${marcados.includes(e.value) ? ' on' : ''}`}
+                style={{ cursor: 'pointer' }}
+              >
                 <input type="checkbox" checked={marcados.includes(e.value)} onChange={() => toggle(e.value)} />
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: 'var(--accent)', flexShrink: 0 }}>{ICONES[e.value]}</span>
+                  {/* Cobalto: cada ensaio com a sua cor quando marcado; os outros em cinza. */}
+                  <span className="ens-ic" style={{ flexShrink: 0 }}>{ICONES[e.value]}</span>
                   {e.label}
                 </span>
               </label>

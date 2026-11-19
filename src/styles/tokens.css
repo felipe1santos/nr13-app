@@ -484,6 +484,29 @@ h1, h2, h3, h4, .titulo-display {
   --criar: #43A047;          /* botão de criar (padrão SimplesDental) */
   --criar-hover: #2E7D32;
 
+  /* Cor própria de cada ENSAIO (texto/borda · fundo) — protótipo Cobalto */
+  --e-checklist: #2F5BEA;  --e-checklist-bg: #E3EAFF;
+  --e-ultrassom: #6D28D9;  --e-ultrassom-bg: #EDE9FE;
+  --e-vext: #0F766E;       --e-vext-bg: #CCFBF1;
+  --e-vint: #0369A1;       --e-vint-bg: #E0F2FE;
+  --e-th: #B45309;         --e-th-bg: #FEF3C7;
+  --e-imagens: #BE185D;    --e-imagens-bg: #FCE7F3;
+  --e-acum: #C2410C;       --e-acum-bg: #FFEDD5;
+  /* Categoria NR-13 (I = maior risco) */
+  --cat-1: #B42318; --cat-1-bg: #FEE4E2;
+  --cat-2: #C2410C; --cat-2-bg: #FFEDD5;
+  --cat-3: #A16207; --cat-3-bg: #FEF3C7;
+  --cat-4: #0F766E; --cat-4-bg: #CCFBF1;
+  --cat-5: #15803D; --cat-5-bg: #DCFCE7;
+  /* Tipos de serviço da Agenda */
+  --t-insp: #2F5BEA; --t-insp-bg: #E3EAFF; --t-insp-ink: #1A3591;
+  --t-man: #C2410C;  --t-man-bg: #FFEDD5;  --t-man-ink: #7C2D12;
+  --t-vis: #0F766E;  --t-vis-bg: #CCFBF1;  --t-vis-ink: #134E4A;
+  --t-lem: #CA8A04;  --t-lem-bg: #FEF9C3;  --t-lem-ink: #422006;
+  /* Estados de documento (rascunho, emitido/passado) */
+  --draft: #78350F;  --draft-bg: #FDE68A;
+  --past: #0369A1;   --past-bg: #BAE6FD;
+
   --page-cards: #EBEBEB;
   --card-r: 4px;
   --card-sh: 0 2px 1px -1px rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.14), 0 1px 3px 0 rgba(0, 0, 0, 0.12);

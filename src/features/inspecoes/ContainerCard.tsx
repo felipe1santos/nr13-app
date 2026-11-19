@@ -58,7 +58,7 @@ export default function ContainerCard({
           </div>
           <div className="container-card-badges">
             {container.ensaios.map((e) => (
-              <span key={e} className="badge-item-ensaio">
+              <span key={e} className={`badge-item-ensaio ens-${e}`}>
                 {TODOS_ENSAIOS.find((d) => d.value === e)?.label ?? e}
               </span>
             ))}
