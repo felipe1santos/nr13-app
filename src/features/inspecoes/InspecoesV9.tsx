@@ -45,6 +45,7 @@ import AjudaContainers from './AjudaContainers';
 import { abrirEquipamentoParaInspecao } from './catalogoInspecoes';
 import { criarContainer, listarContainers, removerContainer } from './inspecaoService';
 import { Icone } from '../../components/Icone';
+import { classeCategoria, iconeDoTipo } from '../../components/listaCobalto';
 import type { ContainerInspecao, TipoEnsaio } from './tipos';
 import './visualizador.css';
 import '../../pages/relatorios.css';
@@ -58,7 +59,7 @@ const ROTULO_TIPO: Record<string, string> = {
 };
 
 /** Altura estimada de uma linha; corrigida por medição no primeiro quadro. */
-const ALT_LINHA = 40;
+const ALT_LINHA = 44; // Cobalto: linha de lista de 44px (--row-h)
 
 /** Abas da lista: o recorte por tipo que o catálogo do servidor já filtra. */
 const ABAS_TIPO: { valor: string; rotulo: string }[] = [
@@ -78,6 +79,8 @@ export default function InspecoesV9() {
   const tipo = params.get('tipo') ?? '';
 
   const [itens, setItens] = useState<ItemCatalogo[]>([]);
+  // Posição de cada TAG na lista: só para a zebra (linha sim, linha não).
+  const indice = useMemo(() => new Map(itens.map((it, i) => [it.tag, i])), [itens]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [temMais, setTemMais] = useState(false);
   const [carregando, setCarregando] = useState(true);
@@ -317,7 +320,7 @@ export default function InspecoesV9() {
     );
   }
 
-  // ── TELA DA LISTA (v4, 25/10/2026) ─────────────────────────────────────────
+  // ── TELA DA LISTA (v4, 25/10/2026 · Cobalto 18/11/2026) ─────────────────────
   // Tabela de 40px por linha dentro de UM cartão, com a barra de ferramentas no
   // topo dele (busca + tipo). As abas filtram por TIPO porque é o recorte que o
   // servidor sabe fazer (`p_tipo`); a prévia da v4 desenhava abas de situação
@@ -373,13 +376,14 @@ export default function InspecoesV9() {
           <>
             {/* Cabeçalho visual da tabela. Cada linha é um BOTÃO com o texto
                 inteiro, então o leitor de tela não precisa dele. */}
-            <div className="iv4-linha iv4-cab" aria-hidden="true">
+            <div className="iv4-linha iv4-cab lc-cab" aria-hidden="true">
+              <span />
               <span>TAG</span>
+              <span>Inspeções</span>
               <span>Equipamento</span>
               <span>Cliente</span>
               <span>Categoria</span>
               <span className="num">PMTA</span>
-              <span className="num">Inspeções</span>
               <span />
             </div>
             <ListaVirtualizada
@@ -405,29 +409,40 @@ export default function InspecoesV9() {
                 // afirmar um fato que ninguém mediu (ver `rotuloInspecoes`).
                 const qtd = rotuloInspecoes(item.inspecoes) ? String(item.inspecoes) : '—';
                 return (
-                  <button type="button" className="iv4-linha" onClick={() => trocarParam('tag', item.tag)}>
-                    <span className="iv4-tag">{item.tag}</span>
-                    <span className="iv4-eq">{item.descricao || rotuloTipo}</span>
-                    <span className="iv4-sub iv4-col-cli">
+                  <button
+                    type="button"
+                    className={`iv4-linha lc-linha${(indice.get(item.tag) ?? 0) % 2 ? ' z' : ''}`}
+                    onClick={() => trocarParam('tag', item.tag)}
+                  >
+                    <span className={`lc-ico iv4-col-ico ${item.tipo ?? 'outro'}`} aria-hidden="true">
+                      <Icone nome={iconeDoTipo(item.tipo)} tam={18} />
+                    </span>
+                    <span className="iv4-tag lc-tag">{item.tag}</span>
+                    <span className="iv4-col-qtd" title={rotuloInspecoes(item.inspecoes) ?? undefined}>
+                      <span className="iv4-rot-m">Inspeções </span>
+                      <span className={`lc-qtd${qtd === '—' || qtd === '0' ? ' zero' : ''}`}>{qtd}</span>
+                    </span>
+                    <span className="iv4-eq lc-nome">{item.descricao || rotuloTipo}</span>
+                    <span className="iv4-sub iv4-col-cli lc-cli">
                       {item.clienteNome
                         ? `${item.clienteNome}${item.clienteCidade ? ` · ${item.clienteCidade}` : ''}`
                         : '—'}
                     </span>
                     <span className="iv4-col-cat">
                       <span className="iv4-rot-m">Categoria </span>
-                      {item.categoria ?? '—'}
+                      {item.categoria ? (
+                        <span className={`lc-cat ${classeCategoria(item.categoria)}`}>Cat. {item.categoria}</span>
+                      ) : (
+                        '—'
+                      )}
                     </span>
-                    <span className="num iv4-mono iv4-col-pmta">
+                    <span className="num iv4-mono iv4-col-pmta lc-pressao">
                       <span className="iv4-rot-m">PMTA </span>
                       {item.pmtaMpa !== null
                         ? formatarValor(item.pmtaMpa, (item.unidade as SistemaUnidade) ?? 'SI')
                         : '—'}
                     </span>
-                    <span className="num iv4-mono iv4-col-qtd" title={rotuloInspecoes(item.inspecoes) ?? undefined}>
-                      <span className="iv4-rot-m">Inspeções </span>
-                      {qtd}
-                    </span>
-                    <Icone nome="chevright" tam={16} />
+                    <Icone nome="chevright" tam={16} className="lc-seta" />
                   </button>
                 );
               }}

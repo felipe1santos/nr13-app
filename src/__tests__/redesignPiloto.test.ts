@@ -259,9 +259,10 @@ describe('Inspeções em tabela de 40px, abas por tipo', () => {
     expect(V9).toContain("rotuloInspecoes(item.inspecoes) ? String(item.inspecoes) : '—'");
   });
 
-  it('linha de 40px e aba ativa branca (1ª prévia)', () => {
-    expect(V9).toContain('const ALT_LINHA = 40;');
-    expect(CSS).toMatch(/\.iv4-linha \{[^}]*min-height: var\(--h-row\);/);
-    expect(CSS).toMatch(/\.iv4-seg button\[aria-pressed='true'\] \{[^}]*background: var\(--superficie\);/);
+  it('Cobalto: linha de 44px com zebra e destaque, aba ativa em azul de destaque', () => {
+    expect(V9).toContain('const ALT_LINHA = 44;');
+    expect(V9).toContain('lc-linha');
+    expect(CSS).toMatch(/\.iv4-linha \{[^}]*min-height: var\(--row-h\);/);
+    expect(CSS).toMatch(/\.iv4-seg button\[aria-pressed='true'\] \{[^}]*background: var\(--destaque-bg\);/);
   });
 });

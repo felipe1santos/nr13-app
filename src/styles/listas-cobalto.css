@@ -1,0 +1,217 @@
+/* ============================================================================
+   LISTAS — padrão único do redesign Cobalto (18/11/2026)
+   Fonte: docs/design/prototipo-cobalto/ (Inspeções é a referência).
+
+   Classes ADITIVAS: cada tela acrescenta `lc-*` ao lado das classes que já
+   tinha — nenhuma marcação sai, nenhum handler muda. Assim a mesma linha vale
+   para Relatórios, Inspeções, Equipamentos, Prontuários, Registros,
+   Calibrações e Cadastros:
+
+     .lc-pagina   fundo branco de borda a borda (lista não é cartão)
+     .lc-barra    barra de ferramentas de UMA linha
+     .lc-busca    campo de busca cinza que fica branco com anel azul no foco
+     .lc-seg      segmentos/chips de filtro
+     .lc-conta    "15 de 15" com o número em azul de destaque
+     .lc-criar    botão verde de criar (pílula, padrão SimplesDental)
+     .lc-cab      cabeçalho de colunas (12px leve, fixo no rolar)
+     .lc-linha    linha de 44px, zebra, destaque rosado + faixa e seta vermelhas
+     .lc-seta     a setinha à direita (aparece vermelha no destaque)
+     .lc-tag      TAG em negrito · .lc-nome nome · .lc-cli cliente (cinza)
+     .lc-pressao  PMTA/PTH em azul petróleo
+     .lc-acoes    botões de ação da linha (cinza que ganha cor no hover)
+
+   A ALTURA da linha é a do token --row-h (44px). Tela virtualizada passa a
+   mesma constante para o JS — ver alturaDeLinha.ts.
+   ============================================================================ */
+
+.lc-pagina { background: #fff; }
+
+.lc-barra {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px 16px 8px;
+  background: #fff;
+}
+.lc-barra .grow { flex: 1; }
+
+.lc-busca {
+  flex: 1;
+  min-width: 240px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 4px;
+  background: #EEEEEE;
+  color: #777;
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+.lc-busca:hover { background: var(--destaque-bg); }
+.lc-busca:focus-within { background: #fff; box-shadow: inset 0 0 0 2px var(--destaque); color: var(--destaque); }
+.lc-busca input { flex: 1; min-width: 0; border: 0; background: none; outline: none; box-shadow: none; font: var(--t-body); color: #1A1A1A; }
+.lc-busca input::placeholder { color: #8A8A8A; }
+
+.lc-seg { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.lc-seg button,
+.lc-seg .lc-seg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #E9E9E9;
+  color: #1A1A1A;
+  font: var(--t-control);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+.lc-seg button:hover { background: #DEDEDE; }
+.lc-seg button[aria-pressed='true'],
+.lc-seg button.ativo,
+.lc-seg button.active { background: var(--destaque-bg); color: var(--destaque); box-shadow: inset 0 0 0 1px #C7D8EC; }
+
+.lc-conta { font-size: 13px; color: #6B6B6B; white-space: nowrap; }
+.lc-conta b { font: var(--t-strong); color: var(--destaque); }
+
+.lc-criar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--criar);
+  color: #fff;
+  font: 600 14px/1 var(--font);
+  box-shadow: 0 2px 6px rgba(67, 160, 71, 0.35);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.lc-criar:hover { background: var(--criar-hover); color: #fff; }
+.lc-criar:focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }
+
+.lc-cab {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  min-height: 34px;
+  align-items: center;
+  background: #fff;
+  border-bottom: 1px solid #DDDDDD;
+  font: 300 12px/16px var(--font);
+  color: rgba(0, 0, 0, 0.87);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.lc-linha {
+  position: relative;
+  min-height: var(--row-h);
+  align-items: center;
+  cursor: pointer;
+  border-bottom: 1px solid #EDF0F5;
+  background: #fff;
+  font: var(--t-body);
+  color: #1A1A1A;
+  transition: background-color 0.12s linear, box-shadow 0.12s linear;
+}
+.lc-linha:nth-child(even),
+.lc-linha.z { background: var(--row-zebra); }
+.lc-linha::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--row-mark);
+  opacity: 0;
+  transition: opacity 0.12s linear;
+  pointer-events: none;
+}
+.lc-linha:hover,
+.lc-linha:focus-visible,
+.lc-linha:focus-within {
+  z-index: 1;
+  background: var(--row-hover);
+  box-shadow: 0 1px 0 var(--row-hover-line), 0 -1px 0 var(--row-hover-line), 0 4px 12px -6px rgba(229, 72, 77, 0.18);
+  outline: none;
+}
+.lc-linha:hover::before,
+.lc-linha:focus-visible::before { opacity: 1; }
+.lc-linha:active { background: #FFECEA; }
+.lc-linha.lc-sem-clique { cursor: default; }
+
+.lc-seta { color: #BDBDBD; transition: color 0.12s linear, transform 0.12s ease-out; flex-shrink: 0; }
+.lc-linha:hover .lc-seta,
+.lc-linha:focus-visible .lc-seta { color: var(--row-mark); transform: translateX(2px); }
+
+.lc-tag { font: var(--t-strong); color: #1A1A1A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-nome { font: 500 14px/20px var(--font); color: #1A1A1A; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lc-cli { font: var(--t-caption); color: #5F6B82; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-pressao { font: 600 14px/20px var(--font); color: var(--petroleo); white-space: nowrap; }
+
+.lc-acoes { display: flex; gap: 4px; justify-content: flex-end; }
+.lc-acoes button,
+.lc-acoes a {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: #E9E9E9;
+  color: rgba(0, 0, 0, 0.7);
+  transition: background-color 0.15s, color 0.15s;
+}
+.lc-acoes button:hover,
+.lc-acoes a:hover { background: var(--destaque); color: #fff; }
+.lc-acoes .perigo:hover,
+.lc-acoes .danger:hover { background: #DC2626; color: #fff; }
+
+/* Selos de estado (aprovado / crítico / neutro) */
+.lc-selo { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 4px; font: 700 11.5px/1 var(--font); white-space: nowrap; }
+.lc-selo::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.lc-selo.ok { background: var(--aprovado-bg); color: var(--aprovado); }
+.lc-selo.crit { background: #FEE2E2; color: #B42318; }
+.lc-selo.off { background: #F8FAFD; color: #8C97AB; box-shadow: inset 0 0 0 1px #E3E7EF; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lc-linha, .lc-seta, .lc-busca, .lc-criar { transition: none; }
+}
+
+/* Tile do tipo de equipamento (30px) */
+.lc-ico { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; flex-shrink: 0; }
+.lc-ico.vaso { background: #E3EAFF; color: #1A3591; }
+.lc-ico.caldeira { background: #FFEDD5; color: #C2410C; }
+.lc-ico.autoclave { background: #CCFBF1; color: #0F766E; }
+.lc-ico.outro { background: #F1F1F1; color: #5F6B82; }
+
+/* Categoria NR-13 colorida (I = maior risco) */
+.lc-cat { justify-self: start; display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 4px; font: 700 11.5px/1 var(--font); letter-spacing: 0.02em; background: #F8FAFD; color: #334155; white-space: nowrap; }
+.lc-cat::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.lc-cat.c1 { background: #FEE4E2; color: #B42318; }
+.lc-cat.c2 { background: #FFEDD5; color: #C2410C; }
+.lc-cat.c3 { background: #FEF3C7; color: #A16207; }
+.lc-cat.c4 { background: #CCFBF1; color: #0F766E; }
+.lc-cat.c5 { background: #DCFCE7; color: #15803D; }
+
+/* Contador que acende em azul no destaque da linha (ex.: nº de inspeções) */
+.lc-qtd { justify-self: start; min-width: 28px; height: 24px; padding: 0 8px; display: inline-grid; place-items: center; border-radius: 999px; font: 600 13px/1 var(--font); color: #334155; transition: color 0.12s, background-color 0.12s, box-shadow 0.12s; }
+.lc-linha:hover .lc-qtd:not(.zero),
+.lc-linha:focus-visible .lc-qtd:not(.zero) { color: var(--destaque); background: var(--destaque-bg); box-shadow: inset 0 0 0 1px #C7D8EC; }
+
+/* BuscaLista (componente compartilhado) no padrão Cobalto */
+.busca-lista-campo { border: 0 !important; background: #EEEEEE !important; border-radius: 4px !important; color: #777; }
+.busca-lista-campo:hover { background: var(--destaque-bg) !important; }
+.busca-lista-campo:focus-within { background: #fff !important; box-shadow: inset 0 0 0 2px var(--destaque); outline: none !important; color: var(--destaque); }
+.busca-lista-contagem { font-size: 13px; color: #6B6B6B; }
+.busca-lista-contagem b, .busca-lista-contagem strong { color: var(--destaque); }

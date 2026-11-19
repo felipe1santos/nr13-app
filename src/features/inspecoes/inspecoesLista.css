@@ -157,3 +157,50 @@ button.iv4-linha:focus-visible { outline: 2px solid var(--foco); outline-offset:
   .iv4-col-qtd { justify-self: end; }
   .iv4-rot-m { display: inline; font-family: var(--font-base); }
 }
+
+/* ============================================================================
+   COBALTO (18/11/2026) — Inspeções é a REFERÊNCIA do padrão de lista.
+   Página branca de borda a borda (lista não é cartão), barra de uma linha,
+   linhas de 44px com zebra e destaque rosado (styles/listas-cobalto.css).
+   Ordem do protótipo: ícone · TAG · Inspeções · Equipamento · Cliente ·
+   Categoria · PMTA · seta.
+   ============================================================================ */
+.inspecoes-page.iv4 { padding: 0; background: #fff; min-height: 100%; }
+.iv4-painel { border: 0; border-radius: 0; background: #fff; }
+.iv4-barra { padding: 16px 16px 8px; border-bottom: 0; }
+.iv4 .busca-lista-campo { flex: 1 1 320px; height: 36px; padding: 0 14px; }
+.iv4-seg { gap: 6px; padding: 0; background: none; border-radius: 0; }
+.iv4-seg button {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #E9E9E9;
+  color: #1A1A1A;
+  font: var(--t-control);
+}
+.iv4-seg button:hover { background: #DEDEDE; color: #1A1A1A; }
+.iv4-seg button[aria-pressed='true'] { background: var(--destaque-bg); color: var(--destaque); box-shadow: inset 0 0 0 1px #C7D8EC; font-weight: 600; }
+.iv4-linha {
+  grid-template-columns: 30px 140px 84px minmax(180px, 1.2fr) minmax(180px, 1fr) 90px 120px 20px;
+  column-gap: 14px;
+  min-height: var(--row-h);
+  padding: 0 12px;
+  border-bottom: 1px solid #EDF0F5;
+  font: var(--t-body);
+}
+.iv4-linhas { margin: 0 10px; padding: 0 6px 16px; }
+button.iv4-linha:hover { background: var(--row-hover); }
+button.iv4-linha:focus-visible { outline: none; }
+.iv4-cab { margin: 0 16px; width: auto; min-height: 34px; background: #fff; font: 300 12px/16px var(--font); color: rgba(0, 0, 0, 0.87); border-top: 1px solid #DDDDDD; border-bottom: 1px solid #DDDDDD; }
+.iv4-tag { font-family: var(--font); }
+.iv4-mono { font-family: var(--font); }
+.iv4-linha > svg.lc-seta { color: #BDBDBD; }
+.iv4-col-pmta { text-align: right; }
+@media (max-width: 1100px) {
+  .iv4-linha { grid-template-columns: 30px 120px 72px minmax(0, 1.4fr) minmax(0, 1fr) 86px 104px 18px; }
+}
+@media (max-width: 640px) {
+  .iv4-linhas { margin: 0; padding: 0 0 16px; }
+  .iv4-linha { grid-template-columns: minmax(0, 1fr) 16px; }
+  .iv4-col-ico { display: none; }
+}

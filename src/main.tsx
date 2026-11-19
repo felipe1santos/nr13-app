@@ -19,6 +19,7 @@ import '@fontsource/jetbrains-mono/500.css'
 import '@fontsource/jetbrains-mono/600.css'
 import './styles/tokens.css'
 import './styles/forja.css'
+import './styles/listas-cobalto.css'
 import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(
