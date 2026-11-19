@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import { isMestre, isTrial, logout, papelAtual } from '../services/auth';
+import GuiaComecePorAqui from './GuiaComecePorAqui';
 import BarraTrial from '../components/BarraTrial';
 import BarraAssinatura from '../components/BarraAssinatura';
 import ModalAviso from '../components/ModalAviso';
@@ -489,6 +490,8 @@ export default function Layout() {
               <Outlet />
             </div>
           </main>
+          {/* Cobalto · guia "Comece por aqui" (canto inferior esquerdo). */}
+          {papelAtual() !== 'cliente' && <GuiaComecePorAqui nEquip={nEquip} />}
         </div>
       </div>
 

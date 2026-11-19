@@ -1080,3 +1080,4 @@
 
 /* lista: a tabela não é um cartão (sem sombra nem canto) */
 .cal3.bloco-dados { box-shadow: none !important; border-radius: 0 !important; border-left: 0 !important; border-right: 0 !important; border-bottom: 0 !important; }
+.cal4-tlin .cal4-st.ter { max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: inline-block; line-height: 22px; }

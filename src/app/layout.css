@@ -980,3 +980,35 @@
 @media (max-width: 560px) {
   .top-marca { display: none; }
 }
+
+/* ── Cobalto · "Comece por aqui" (guia de primeiros passos) ── */
+.guia { position: fixed; left: 240px; bottom: 0; z-index: 45; width: 320px; background: #fff; border-radius: 8px 8px 0 0; box-shadow: 0 -2px 12px rgba(0, 0, 0, .18); overflow: hidden; transition: left .2s; }
+.shell.menu-recolhido .guia { left: 72px; }
+.guia .g-h { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px 10px; width: 100%; padding: 12px 14px; border: 0; background: #E7EFF8; text-align: left; font: var(--t-body); color: #1A1A1A; cursor: pointer; }
+.guia .g-h:hover { background: #DCE7F5; }
+.guia .g-h b { font-weight: 700; }
+.guia .g-ic { display: grid; color: #D98A00; }
+.guia .g-chev { display: grid; color: #555; transition: transform .2s; }
+.guia.min .g-chev { transform: rotate(180deg); }
+.guia .g-bar { grid-column: 1 / 3; height: 5px; border-radius: 999px; background: #C7D8EC; overflow: hidden; }
+.guia .g-bar i { display: block; height: 100%; border-radius: 999px; background: var(--destaque); transition: width .3s ease; }
+.guia .g-h small { font: 700 11.5px var(--font); color: var(--destaque); }
+.guia .g-l { list-style: none; margin: 0; padding: 6px 6px 10px; max-height: 340px; overflow: auto; }
+.guia .g-l button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 6px 8px; border: 0; border-radius: var(--card-r, 4px); background: none; text-align: left; font: var(--t-body); color: #1A1A1A; cursor: pointer; }
+.guia .g-l li:not(.ok) button:hover { background: var(--row-hover, #FFF5F4); }
+.guia .g-l li:not(.ok) button:hover .icone { color: var(--row-mark, #E5484D); }
+.guia .g-t { flex: 1; }
+.guia .g-ck { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #555; display: grid; place-items: center; flex: none; color: #fff; box-sizing: border-box; }
+.guia .g-l li.ok .g-ck { border-color: var(--aprovado); background: var(--aprovado); }
+.guia .g-l li.ok .g-t { text-decoration: line-through; color: #8A8A8A; }
+.guia .g-l li.ok button { cursor: default; }
+.guia.pronto { width: 300px; }
+.guia .g-pronto { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 18px 18px 16px; }
+.guia .g-ilus { width: 132px; height: auto; margin-bottom: 6px; }
+.guia .g-pronto b { font: 600 17px/22px var(--font); color: #1A1A1A; }
+.guia .g-pronto span { font: var(--t-caption); color: #555; margin-bottom: 10px; }
+.guia .g-ok { height: 36px; padding: 0 20px; border: 0; border-radius: 4px; background: var(--destaque); color: #fff; font: 600 13.5px/1 var(--font); letter-spacing: .04em; cursor: pointer; }
+@media (max-width: 900px) {
+  .guia, .shell.menu-recolhido .guia { left: 8px; width: min(320px, calc(100vw - 16px)); }
+}
+@media print { .guia { display: none !important; } }
