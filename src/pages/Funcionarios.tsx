@@ -359,16 +359,19 @@ export default function Funcionarios() {
   }
 
   return (
-    <div className="cad-page">
-      <div className="cad-page-header">
+    <div className="cad-page cad2">
+      {/* Cobalto: padrão de cadastro do SimplesDental — UM cartão com o título,
+          a contagem e o botão de criar, e a lista em linhas. */}
+      <section className="cad2-cartao">
+      <div className="cad-page-header cad2-cab">
         <div>
-          <h2 className="cad-page-titulo">Funcionários</h2>
+          <h2 className="cad-page-titulo">Equipe</h2>
           <p className="cad-page-sub">
             {funcionarios.length} profissional{funcionarios.length !== 1 ? 'is' : ''} cadastrado{funcionarios.length !== 1 ? 's' : ''} — assinam a documentação gerada
           </p>
         </div>
         <button type="button" className="btn-primario" onClick={novoFuncionario}>
-          + Novo Profissional
+          Novo profissional
         </button>
       </div>
 
@@ -379,9 +382,16 @@ export default function Funcionarios() {
           <div className="cad-vazio-sub">Cadastre engenheiros e inspetores para selecionar a assinatura nos relatórios (ULTRASSOM, Teste Hidrostático).</div>
         </div>
       ) : (
-        <div className="cad-lista">
+        <div className="cad-lista cad2-lista">
+          <div className="cad2-linha cad2-cabcol" aria-hidden="true">
+            <span>Nome</span>
+            <span>Função</span>
+            <span>Registro</span>
+            <span>Assinatura</span>
+            <span />
+          </div>
           {funcionarios.map((f) => (
-            <div key={f.id} className="cad-item-card">
+            <div key={f.id} className="cad-item-card cad2-linha">
               {/* AVATAR antes do nome. Sem foto no cadastro: iniciais, com cor
                   derivada do próprio nome — é o que faz achar alguém numa
                   lista. Ver `AvatarPessoa`. */}
@@ -389,13 +399,11 @@ export default function Funcionarios() {
               <AvatarPessoa nome={f.nome} />
               <div className="cad-item-info">
                 <div className="cad-item-nome">{f.nome}</div>
-                <div className="cad-item-meta">
-                  <span>{f.tipo}</span>
-                  {f.crea && <span>{f.crea}</span>}
-                  <span>{f.assinatura ? 'Assinatura cadastrada' : 'Sem assinatura'}</span>
-                </div>
               </div>
               </div>
+              <span className={`cad2-fun f-${(f.tipo || '').toLowerCase().normalize('NFD').replace(/[^a-z]/g, '')}`}>{f.tipo || '—'}</span>
+              <span className="cad2-reg">{f.crea || '—'}</span>
+              <span className={`lc-selo ${f.assinatura ? 'ok' : 'off'}`}>{f.assinatura ? 'Cadastrada' : 'Sem assinatura'}</span>
               <div className="cad-item-acoes">
                 {/* VER antes de EDITAR, e à esquerda do lápis: conferir é o gesto
                     mais frequente, e fazê-lo pelo formulário significa abrir uma
@@ -426,6 +434,7 @@ export default function Funcionarios() {
           ))}
         </div>
       )}
+      </section>
 
       {vendo && (
         <ModalVerFuncionario

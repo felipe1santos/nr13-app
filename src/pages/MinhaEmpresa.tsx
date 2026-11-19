@@ -5,9 +5,12 @@ import type { MinhaEmpresaDados } from '../features/cadastros/tipos';
 import { comprimirImagemComBlob } from '../services/imagem';
 import { paraGravar, ESCOPO_LOGO } from '../services/identidadeVisual';
 import SeletorModeloRelatorio from '../features/relatorios/SeletorModeloRelatorio';
+import ModalTrocarSenha from '../components/ModalTrocarSenha';
+import { usuarioLogado } from '../services/auth';
 import './cadastros.css';
 
 export default function MinhaEmpresa() {
+  const [trocandoSenha, setTrocandoSenha] = useState(false);
   const [editando, setEditando] = useState(false);
   const [dados, setDados] = useState<MinhaEmpresaDados>(() => carregarMinhaEmpresa());
   const [rascunho, setRascunho] = useState<MinhaEmpresaDados>({});
@@ -165,90 +168,107 @@ export default function MinhaEmpresa() {
     );
   }
 
+  const email = usuarioLogado();
+  const nomeExibido = dados.fantasia || dados.razao || 'Sua empresa';
+  const cidadeUf = [dados.cidade, dados.estado].filter(Boolean).join(' · ');
+
   return (
-    <div className="cad-page">
-      <div className="cad-page-header">
-        <div>
-          <h2 className="cad-page-titulo">Minha Empresa</h2>
-          <p className="cad-page-sub">Dados injetados automaticamente em toda documentação gerada</p>
-        </div>
-        <button type="button" className="btn-editar-pencil" onClick={iniciarEdicao} title="Editar">
-          <Icone nome="pencil" tam={14} />
-        </button>
-      </div>
-
+    <div className="cad-page md2">
       {vazio ? (
-        <div className="cad-vazio">
-          <div>Nenhum dado cadastrado ainda.</div>
-          <div className="cad-vazio-sub">Clique no lápis para preencher os dados da sua empresa.</div>
-          <button type="button" className="btn-primario" style={{ marginTop: 16 }} onClick={iniciarEdicao}>
-            Preencher Dados
+        <section className="md2-card md2-vazio">
+          <b>Nenhum dado cadastrado ainda.</b>
+          <span>Os dados e a logo da sua empresa saem no cabeçalho de relatórios, prontuários e certificados.</span>
+          <button type="button" className="btn-primario md2-editar" onClick={iniciarEdicao}>
+            PREENCHER DADOS
           </button>
-        </div>
+        </section>
       ) : (
-        <div className="cad-card">
-          {dados.logo && (
-            <div style={{ marginBottom: 20 }}>
-              <img src={dados.logo} alt="Logo" className="cad-logo-preview" />
+        <>
+          {/* Topo (protótipo Cobalto): logo, nome em destaque, razão e CNPJ. */}
+          <section className="md2-card md2-topo">
+            <div className="md2-logo">
+              {dados.logo ? <img src={dados.logo} alt="Logo da empresa" /> : <span>Sem logo</span>}
             </div>
-          )}
+            <div className="md2-id">
+              <h1>{nomeExibido}</h1>
+              <p>
+                {dados.razao || '—'}
+                {dados.cnpj ? ` · CNPJ ${dados.cnpj}` : ''}
+              </p>
+              <p className="md2-info">
+                <Icone nome="info" tam={14} /> Estes dados e a logo saem no cabeçalho de relatórios, prontuários e
+                certificados. Documentos já emitidos guardam a versão da época.
+              </p>
+            </div>
+            <button type="button" className="btn-primario md2-editar" onClick={iniciarEdicao}>
+              EDITAR DADOS
+            </button>
+          </section>
 
-          <div className="cad-secao-titulo">Identificação</div>
-          <div className="dash-grid-4" style={{ marginBottom: 20 }}>
-            <div className="resultado-item span-2">
-              <span className="lbl-view">Razão Social</span>
-              <span className="val-view">{dados.razao || '—'}</span>
-            </div>
-            <div className="resultado-item">
-              <span className="lbl-view">Nome Fantasia</span>
-              <span className="val-view">{dados.fantasia || '—'}</span>
-            </div>
-            <div className="resultado-item">
-              <span className="lbl-view">CNPJ</span>
-              <span className="val-view">{dados.cnpj || '—'}</span>
-            </div>
+          <div className="md2-cols">
+            <section className="md2-card">
+              <h2>Dados da empresa</h2>
+              <dl className="md2-dl">
+                <div className="s2"><dt>Razão social</dt><dd>{dados.razao || '—'}</dd></div>
+                <div><dt>Nome fantasia</dt><dd>{dados.fantasia || '—'}</dd></div>
+                <div><dt>CNPJ</dt><dd>{dados.cnpj || '—'}</dd></div>
+              </dl>
+            </section>
+            <section className="md2-card">
+              <h2>Endereço e contato</h2>
+              <dl className="md2-dl">
+                <div className="s2"><dt>Endereço</dt><dd>{dados.endereco || '—'}</dd></div>
+                <div><dt>Bairro</dt><dd>{dados.bairro || '—'}</dd></div>
+                <div><dt>CEP</dt><dd>{dados.cep || '—'}</dd></div>
+                <div><dt>Cidade</dt><dd>{cidadeUf || '—'}</dd></div>
+                <div><dt>Telefone</dt><dd>{dados.telefone || '—'}</dd></div>
+                <div className="s2"><dt>E-mail</dt><dd>{dados.email || '—'}</dd></div>
+              </dl>
+            </section>
           </div>
 
-          <div className="cad-secao-titulo">Contato</div>
-          <div className="dash-grid-4" style={{ marginBottom: 20 }}>
-            <div className="resultado-item">
-              <span className="lbl-view">Telefone</span>
-              <span className="val-view">{dados.telefone || '—'}</span>
+          {/* Seu acesso: a troca de senha também mora aqui (pedido do dono). */}
+          <section className="md2-card">
+            <h2>Seu acesso</h2>
+            <div className="md2-acesso">
+              <span className="md2-av">{(email ?? '?').slice(0, 2).toUpperCase()}</span>
+              <dl className="md2-dl md2-dl-4">
+                <div><dt>Usuário</dt><dd>{email ? email.split('@')[0] : '—'}</dd></div>
+                <div className="s2"><dt>E-mail de login</dt><dd>{email ?? '—'}</dd></div>
+              </dl>
+              <button type="button" className="btn-secundario md2-senha" onClick={() => setTrocandoSenha(true)}>
+                <Icone nome="key" tam={15} /> Trocar senha
+              </button>
             </div>
-            <div className="resultado-item">
-              <span className="lbl-view">E-mail</span>
-              <span className="val-view">{dados.email || '—'}</span>
-            </div>
-          </div>
+          </section>
 
-          <div className="cad-secao-titulo">Endereço</div>
-          <div className="dash-grid-4">
-            <div className="resultado-item span-2">
-              <span className="lbl-view">Endereço</span>
-              <span className="val-view">{dados.endereco || '—'}</span>
+          {/* Prévia do cabeçalho dos documentos. */}
+          <section className="md2-card">
+            <h2>Como aparece nos documentos</h2>
+            <div className="md2-prev">
+              <div className="md2-folha">
+                <div className="md2-cab">
+                  <div className="md2-logo mini">{dados.logo ? <img src={dados.logo} alt="" /> : <span>Logo</span>}</div>
+                  <div>
+                    <b>{dados.razao || nomeExibido}</b>
+                    <small>
+                      {[dados.cnpj && `CNPJ ${dados.cnpj}`, cidadeUf, dados.telefone].filter(Boolean).join(' · ')}
+                    </small>
+                  </div>
+                </div>
+                <div className="ln" />
+                <div className="ln" style={{ width: '80%' }} />
+                <div className="ln" style={{ width: '65%' }} />
+              </div>
             </div>
-            <div className="resultado-item">
-              <span className="lbl-view">Bairro</span>
-              <span className="val-view">{dados.bairro || '—'}</span>
-            </div>
-            <div className="resultado-item">
-              <span className="lbl-view">CEP</span>
-              <span className="val-view">{dados.cep || '—'}</span>
-            </div>
-            <div className="resultado-item">
-              <span className="lbl-view">Cidade</span>
-              <span className="val-view">{dados.cidade || '—'}</span>
-            </div>
-            <div className="resultado-item">
-              <span className="lbl-view">Estado</span>
-              <span className="val-view">{dados.estado || '—'}</span>
-            </div>
-          </div>
-        </div>
+          </section>
+        </>
       )}
 
       {/* Configuração da ORGANIZAÇÃO, fora do formulário de cadastro — grava sozinha. */}
       <SeletorModeloRelatorio />
+
+      {trocandoSenha && email && <ModalTrocarSenha email={email} onClose={() => setTrocandoSenha(false)} />}
     </div>
   );
 }

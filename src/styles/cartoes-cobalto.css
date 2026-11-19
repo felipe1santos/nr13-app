@@ -166,3 +166,76 @@
 .cli-tabela td.cli-nome { max-width: 0; width: 42%; }
 .cli-tabela .cli-nome-btn { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 .cli-tabela .cli-nome > :not(.cli-nome-btn) { flex-shrink: 0; }
+
+/* ── Cadastros no padrão SimplesDental (Equipe): um cartão, título + criar,
+      linhas com colunas, zebra e destaque ── */
+.cad-page.cad2 { max-width: none; padding: 24px; }
+.cad2-cartao { max-width: 1240px; margin: 0 auto; background: #fff; border-radius: var(--card-r); box-shadow: var(--card-sh); overflow: hidden; }
+.cad2-cab { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0; padding: 18px 20px; border-bottom: 1px solid #EDEDED; }
+.cad2-cab .cad-page-titulo { margin: 0; font: 400 20px/26px var(--font); color: #1A1A1A; }
+.cad2-cab .cad-page-sub { margin: 2px 0 0; font: var(--t-caption); color: #6B6B6B; }
+.cad2-lista { box-shadow: none; border-radius: 0; }
+.cad2-linha { display: grid; grid-template-columns: minmax(220px, 1.4fr) 120px minmax(150px, 1fr) 150px 210px; align-items: center; column-gap: 14px; padding: 0 20px; }
+.cad2-cabcol { min-height: 34px; background: #fff; border-bottom: 1px solid #DDDDDD; font: 300 12px/16px var(--font); color: rgba(0, 0, 0, 0.87); }
+.cad2-lista > .cad2-linha.cad-item-card { display: grid; min-height: 56px; padding: 6px 20px; }
+.cad2-lista > .cad-item-card:nth-child(even) { background: #fff; }
+.cad2-lista > .cad-item-card:nth-child(odd) { background: var(--row-zebra); } /* 1º filho é o cabeçalho */
+.cad2-reg { font: var(--t-body); color: #334155; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cad2-fun { justify-self: start; display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 4px; font: 700 11.5px/1 var(--font); background: #F1F1F1; color: #334155; }
+.cad2-fun.f-engenheiro { background: #E3EAFF; color: #1A3591; }
+.cad2-fun.f-inspetor { background: #CCFBF1; color: #0F766E; }
+.cad2-fun.f-tecnico { background: #FFEDD5; color: #C2410C; }
+.cad2 .cad-item-acoes { justify-content: flex-end; }
+.cad2 .lc-selo { justify-self: start; }
+@media (max-width: 860px) {
+  .cad-page.cad2 { padding: 0; }
+  .cad2-cartao { border-radius: 0; box-shadow: none; }
+  .cad2-cabcol { display: none; }
+  .cad2-lista > .cad2-linha.cad-item-card { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; padding: 10px 14px; }
+  .cad2-linha > .cad2-reg, .cad2-linha > .lc-selo { display: none; }
+  .cad2-linha > .cad-item-acoes { grid-column: 1 / -1; justify-content: flex-start; }
+}
+
+/* ── Meus dados (protótipo Cobalto): topo com logo, cartões de dados,
+      Seu acesso e a prévia do cabeçalho dos documentos ── */
+.cad-page.md2 { max-width: 1240px; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.md2-card { background: #fff; border-radius: var(--card-r); box-shadow: var(--card-sh); padding: 18px 20px 20px; }
+.md2-card > h2 { margin: 0 0 14px; font: 400 20px/26px var(--font); color: #1A1A1A; }
+.md2-topo { display: flex; align-items: center; gap: 20px; }
+.md2-logo { width: 96px; height: 96px; flex-shrink: 0; display: grid; place-items: center; border-radius: var(--card-r); background: linear-gradient(135deg, #0C4F9B, #22307F); color: #fff; font: 600 13px/1 var(--font); overflow: hidden; }
+.md2-logo img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.md2-logo.mini { width: 44px; height: 44px; font-size: 10px; }
+.md2-id { flex: 1; min-width: 0; }
+.md2-id h1 { margin: 0; font: 400 24px/30px var(--font); color: var(--destaque); }
+.md2-id p { margin: 2px 0 0; font: var(--t-body); color: #555; }
+.md2-id .md2-info { display: flex; align-items: center; gap: 6px; margin-top: 8px; font: var(--t-caption); color: #6B6B6B; }
+.md2-id .md2-info svg { color: var(--destaque); flex-shrink: 0; }
+.md2-editar.btn-primario { height: 36px; padding: 0 18px; border: 0; border-radius: var(--card-r); background: var(--criar); color: #fff; font: var(--t-control); letter-spacing: 0.04em; flex-shrink: 0; }
+.md2-editar.btn-primario:hover { background: var(--criar-hover); }
+.md2-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.md2-dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin: 0; }
+.md2-dl .s2 { grid-column: span 2; }
+.md2-dl dt { font: var(--t-caption); color: #6B6B6B; }
+.md2-dl dd { margin: 2px 0 0; font: 500 14px/20px var(--font); color: #1A1A1A; overflow-wrap: anywhere; }
+.md2-acesso { display: flex; align-items: center; gap: 20px; }
+.md2-av { width: 52px; height: 52px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: #E6EEF8; color: var(--destaque); font: 700 17px/1 var(--font); }
+.md2-dl-4 { flex: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.md2-senha { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.md2-prev { padding: 16px; border-radius: var(--card-r); background: #F1F1F1; }
+.md2-folha { max-width: 560px; margin: 0 auto; padding: 18px 22px; background: #fff; box-shadow: var(--card-sh); }
+.md2-cab { display: flex; align-items: center; gap: 12px; padding-bottom: 10px; border-bottom: 2px solid var(--destaque); }
+.md2-cab b { display: block; font: 600 13px/18px var(--font); color: #1A1A1A; }
+.md2-cab small { font: var(--t-caption); color: #6B6B6B; }
+.md2-folha .ln { height: 7px; margin-top: 10px; border-radius: 4px; background: #EDEDED; }
+.md2-vazio { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 36px 20px; }
+.md2-vazio b { font: 500 18px/24px var(--font); }
+.md2-vazio span { font: var(--t-body); color: #555; }
+@media (max-width: 860px) {
+  .cad-page.md2 { padding: 12px; }
+  .md2-topo, .md2-acesso { flex-wrap: wrap; }
+  .md2-cols { grid-template-columns: 1fr; }
+  .md2-dl-4 { grid-template-columns: 1fr; flex-basis: 100%; }
+}
+
+/* Acessos: mesma largura e respiro das outras telas de cadastro */
+.cad-page.acesso-page-larga { max-width: 1240px; margin: 0 auto; padding: 24px; }
