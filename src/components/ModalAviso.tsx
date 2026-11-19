@@ -86,7 +86,7 @@ export default function ModalAviso() {
             </button>
           )}
           <button type="button" className="modal-aviso-btn" onClick={fechar}>
-            Fechar
+            {aviso.rotuloFechar ?? 'Fechar'}
           </button>
         </div>
       </div>

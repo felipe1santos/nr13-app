@@ -21,6 +21,8 @@ export interface Aviso {
   titulo: string;
   texto: string;
   acao?: { rotulo: string; aoClicar: () => void };
+  /** Texto do botão de fechar (padrão: "Fechar"). */
+  rotuloFechar?: string;
   // Chamado quando o usuário efetivamente FECHA este aviso (clique em "Fechar", clique fora
   // ou Esc) — não quando ele é apenas emitido. Existe para consumir "flags de já mostrado"
   // (ex.: sucessoPendente da assinatura) só depois que o usuário teve chance de ler, em vez

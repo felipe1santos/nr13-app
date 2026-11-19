@@ -20,6 +20,10 @@
       Agenda) não forem necessárias, o Dashboard fica com tudo no corpo, sem abas.
 - [ ] **Lotes de calibração: melhorar a experiência** de calibrar por lote (criar o lote,
       escolher os acessórios, calibrar um a um, ver o progresso, concluir).
+- [ ] **Certificados EXATAMENTE como o protótipo.** A 1ª passada (19/11) trouxe a faixa do
+      topo, a cor por tipo, os 6 dados, o selo de validade, a linha do PDF e o interruptor.
+      Conferir lado a lado com o protótipo e fechar o que ainda difere (ex.: "Versões
+      anteriores (N)" com o histórico, espaçamentos, tipografia).
 - [ ] **Calibrações demora para abrir pelo menu.** Analisar se é erro, atraso de rota ou
       peso da tela (catálogo do servidor + agregado de vencimentos + bundle da página) e dizer
       ao dono o que causa e o que dá para fazer — só depois de terminar o redesign.
