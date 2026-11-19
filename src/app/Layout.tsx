@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
-import { isMestre, isTrial, logout, papelAtual, usuarioLogado } from '../services/auth';
+import { isMestre, isTrial, logout, papelAtual } from '../services/auth';
 import BarraTrial from '../components/BarraTrial';
 import BarraAssinatura from '../components/BarraAssinatura';
 import ModalAviso from '../components/ModalAviso';
@@ -33,6 +33,7 @@ import SyncStatus from './SyncStatus';
 import ModalTrocarSenha from '../components/ModalTrocarSenha';
 import ModalTermos from '../components/ModalTermos';
 import './layout.css';
+import { useEmailDaSessao } from '../services/emailSessao';
 
 const ROTULO_PAPEL: Record<string, string> = {
   mestre: 'Administrador',
@@ -132,7 +133,7 @@ export default function Layout() {
   const [modalSenha, setModalSenha] = useState(false);
   const [recolhida, setRecolhida] = useState(() => lerPreferencia(CHAVE_MENU_RECOLHIDO) === '1');
   const [gruposFechados, setGruposFechados] = useState<string[]>(gruposFechadosIniciais);
-  const email = usuarioLogado();
+  const email = useEmailDaSessao();
   const papel = ROTULO_PAPEL[papelAtual()] ?? 'Administrador';
   // Contagem do selo do menu. Nasce da contagem local (instantânea, e correta
   // no caminho de sempre) e é substituída pelo total do painel assim que ele

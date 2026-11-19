@@ -239,3 +239,52 @@
 
 /* Acessos: mesma largura e respiro das outras telas de cadastro */
 .cad-page.acesso-page-larga { max-width: 1240px; margin: 0 auto; padding: 24px; }
+
+/* ── Ficha do equipamento (protótipo Cobalto): foto à ESQUERDA e menor,
+      TAG grande em azul, resumo sem caixa cinza, seções com título 20px ── */
+.equipamento-page .equipamento-header-card { display: flex; flex-wrap: nowrap; align-items: flex-start; gap: 22px; padding: 20px; }
+.equipamento-page .equipamento-foto-principal { order: -1; flex: 0 0 220px; max-width: 220px; max-height: 170px; border-radius: var(--card-r); overflow: hidden; }
+.equipamento-page .equipamento-foto-principal img { width: 100%; height: 170px; object-fit: cover; }
+.equipamento-page .equipamento-header-info { flex: 1; min-width: 0; }
+.equipamento-page .equipamento-tag-titulo { font: 400 26px/32px var(--font); color: var(--destaque); letter-spacing: 0; }
+.equipamento-page .equipamento-tag-titulo > span:first-child:not(:only-child) { font: var(--t-caption); color: #6B6B6B; }
+.equipamento-page .ficha-descricao { font: var(--t-body); color: #555; }
+.equipamento-page .ficha-resumo { padding: 0; background: none; border: 0; gap: 12px 24px; }
+.equipamento-page .ficha-resumo dt { font: var(--t-caption); color: #6B6B6B; text-transform: none; letter-spacing: 0; }
+.equipamento-page .ficha-resumo dd { font: 500 15px/22px var(--font); color: #1A1A1A; }
+.equipamento-page .ficha-resumo-pmta dd { color: var(--petroleo); font-weight: 600; }
+.equipamento-page .ficha-chip { border-radius: var(--card-r); }
+.equipamento-page .bloco-header-acoes h3,
+.equipamento-page .bloco-dados > h3 { font: 400 20px/26px var(--font); color: #1A1A1A; letter-spacing: 0; text-transform: none; border: 0; }
+.equipamento-page .bloco-header-acoes { border-bottom: 0; }
+.equipamento-page .resultado-item { padding: 0; border: 0; background: none; }
+.equipamento-page .lbl-view { font: var(--t-caption); color: #6B6B6B; text-transform: none; letter-spacing: 0; }
+.equipamento-page .val-view { font: 500 14px/20px var(--font); color: #1A1A1A; }
+.equipamento-page .ficha-pressoes .val-view { color: var(--petroleo); font-weight: 600; }
+@media (max-width: 860px) {
+  .equipamento-page .equipamento-header-card { flex-wrap: wrap; }
+  .equipamento-page .equipamento-foto-principal { flex-basis: 100%; max-width: none; }
+}
+
+/* ── Memorial de cálculo: a paleta própria (violeta, Inter) passa para o
+      Cobalto — destaque azul, Figtree, cartão padrão ouro, aprovado verde ── */
+.memorial-page {
+  --pm-bg: #EBEBEB;
+  --pm-violet: #0C4F9B;
+  --pm-violet-ink: #0A3F7C;
+  --pm-violet-tint: #E7EFF8;
+  --pm-green: #009A3D;
+  --pm-green-tint: #DEFFE8;
+  --pm-green-ink: #00702C;
+  --pm-blue: #0B5F73;
+  --pm-blue-bg: #E3F3F6;
+  --pm-cta: #0C4F9B;
+  --pm-cta-hover: #0A3F7C;
+  --pm-radius: 4px;
+  --pm-radius-sm: 4px;
+  --pm-shadow: 0 2px 1px -1px rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.14), 0 1px 3px 0 rgba(0, 0, 0, 0.12);
+  --pm-sans: 'Figtree Variable', 'Figtree', system-ui, sans-serif;
+  --pm-mono: 'Figtree Variable', 'Figtree', system-ui, sans-serif;
+}
+.memorial-page-header h1,
+.memorial-page h1 { font: 400 22px/28px var(--font); letter-spacing: 0; }

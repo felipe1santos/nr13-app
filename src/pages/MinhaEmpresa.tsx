@@ -6,10 +6,12 @@ import { comprimirImagemComBlob } from '../services/imagem';
 import { paraGravar, ESCOPO_LOGO } from '../services/identidadeVisual';
 import SeletorModeloRelatorio from '../features/relatorios/SeletorModeloRelatorio';
 import ModalTrocarSenha from '../components/ModalTrocarSenha';
-import { usuarioLogado } from '../services/auth';
 import './cadastros.css';
+import { useEmailDaSessao } from '../services/emailSessao';
 
 export default function MinhaEmpresa() {
+  // Hook no TOPO: a tela tem um `return` antecipado (modo edição).
+  const email = useEmailDaSessao();
   const [trocandoSenha, setTrocandoSenha] = useState(false);
   const [editando, setEditando] = useState(false);
   const [dados, setDados] = useState<MinhaEmpresaDados>(() => carregarMinhaEmpresa());
@@ -168,7 +170,6 @@ export default function MinhaEmpresa() {
     );
   }
 
-  const email = usuarioLogado();
   const nomeExibido = dados.fantasia || dados.razao || 'Sua empresa';
   const cidadeUf = [dados.cidade, dados.estado].filter(Boolean).join(' · ');
 
