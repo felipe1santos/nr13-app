@@ -45,8 +45,9 @@ import ModalRenomearContainer from './ModalRenomearContainer';
 import AjudaContainers from './AjudaContainers';
 import { abrirEquipamentoParaInspecao } from './catalogoInspecoes';
 import { criarContainer, listarContainers, removerContainer } from './inspecaoService';
+import FotoLista from '../../components/FotoLista';
 import { Icone } from '../../components/Icone';
-import { classeCategoria, iconeDoTipo } from '../../components/listaCobalto';
+import { classeCategoria } from '../../components/listaCobalto';
 import type { ContainerInspecao, TipoEnsaio } from './tipos';
 import './visualizador.css';
 import '../../pages/relatorios.css';
@@ -93,6 +94,16 @@ export default function InspecoesV9() {
    * três (medido em produção, Fase 2).
    */
   const [carregadoPara, setCarregadoPara] = useState<string | null>(null);
+  /**
+   * A TAG cujos containers JÁ estão na tela — do cache do aparelho ou do
+   * servidor (21/11/2026). A abertura baixa TODAS as chaves da TAG (relatórios
+   * salvos, calibrações, fotos: até ~260 KB em produção) em duas idas
+   * sequenciais, e a tela esperava isso inteiro para mostrar uma lista que o
+   * aparelho muitas vezes já tinha. Agora: o que está no cache aparece na hora
+   * e a semeadura atualiza por trás. Cache VAZIO continua esperando o servidor
+   * — "nenhum container" só é afirmado depois que ele respondeu.
+   */
+  const [mostrandoPara, setMostrandoPara] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
   // Cobalto: "Criar nova inspeção" na LISTA — escolhe o equipamento e abre o
   // MESMO modal de sempre na tela do equipamento (?tag=X&nova=1).
@@ -127,7 +138,9 @@ export default function InspecoesV9() {
     setCarregando(true);
     setErro(null);
     try {
-      const pagina = await buscaIndex.listarPagina(filtros, null, ctrl.signal);
+      // Mais inspecionados no topo (21/11/2026). O cursor devolvido carrega a
+      // ordem, então "carregar mais" continua nela sem precisar repeti-la.
+      const pagina = await buscaIndex.listarPagina(filtros, null, ctrl.signal, 'inspecoes');
       if (minha !== geracao.current) return;
 
       void catalogo.guardar(pagina.itens);
@@ -190,10 +203,17 @@ export default function InspecoesV9() {
       return;
     }
     let vivo = true;
+    const doCache = listarContainers(tag);
+    if (doCache.length) {
+      setContainers(doCache);
+      setMostrandoPara(tag);
+    }
     setAbrindo(true);
     void abrirEquipamentoParaInspecao(tag)
       .then((lista) => {
-        if (vivo) setContainers(lista);
+        if (!vivo) return;
+        setContainers(lista);
+        setMostrandoPara(tag);
       })
       .finally(() => {
         if (vivo) {
@@ -293,7 +313,10 @@ export default function InspecoesV9() {
             </button>
           </div>
 
-          {abrindo || carregadoPara !== tag ? (
+          {abrindo && mostrandoPara === tag && (
+            <p className="iv4-atualizando" role="status">Atualizando…</p>
+          )}
+          {mostrandoPara !== tag ? (
             <p className="dashboard-vazio">Carregando as inspeções deste equipamento…</p>
           ) : containers.length === 0 ? (
             <p className="dashboard-vazio">Nenhum container de inspeção criado ainda para este equipamento.</p>
@@ -421,8 +444,8 @@ export default function InspecoesV9() {
                     className={`iv4-linha lc-linha${(indice.get(item.tag) ?? 0) % 2 ? ' z' : ''}`}
                     onClick={() => trocarParam('tag', item.tag)}
                   >
-                    <span className={`lc-ico iv4-col-ico ${item.tipo ?? 'outro'}`} aria-hidden="true">
-                      <Icone nome={iconeDoTipo(item.tipo)} tam={18} />
+                    <span className="iv4-col-ico">
+                      <FotoLista tipo={item.tipo} fotoRef={item.fotoRef} />
                     </span>
                     <span className="iv4-tag lc-tag">{item.tag}</span>
                     <span className="iv4-col-qtd" title={rotuloInspecoes(item.inspecoes) ?? undefined}>
@@ -495,9 +518,7 @@ export default function InspecoesV9() {
                   )
                   .map((i) => (
                     <button key={i.tag} type="button" className="iv4-escolha-item" onClick={() => escolherParaNova(i.tag)}>
-                      <span className={`lc-ico ${i.tipo ?? 'outro'}`} aria-hidden="true">
-                        <Icone nome={iconeDoTipo(i.tipo)} tam={18} />
-                      </span>
+                      <FotoLista tipo={i.tipo} fotoRef={i.fotoRef} />
                       <span className="t">
                         <b>{i.tag}</b>
                         <small>

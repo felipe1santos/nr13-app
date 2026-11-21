@@ -32,8 +32,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import BuscaLista from '../../components/BuscaLista';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
+import { FotoListaPorTag } from '../../components/FotoLista';
 import { Icone } from '../../components/Icone';
-import { iconeDoTipo } from '../../components/listaCobalto';
 import {
   filtrarDocumentos,
   listarDocumentos,
@@ -252,8 +252,8 @@ function LinhaGrupo({
   const situacao = vigente ? 'emitido' : 'rascunho';
   return (
     <div className={`pront-linha pront-linha-${situacao}`} role="row" data-teste="linha-prontuario" data-z={zebra || undefined}>
-      <span className={`pront-linha-icone lc-ico ${principal.tipo ?? 'outro'}`} aria-hidden>
-        <Icone nome={iconeDoTipo(principal.tipo)} tam={18} />
+      <span className="pront-linha-icone">
+        <FotoListaPorTag tag={tag} tipo={principal.tipo} />
       </span>
       <span className="pront-linha-nome" title={nome}>
         <strong>{nome}</strong>

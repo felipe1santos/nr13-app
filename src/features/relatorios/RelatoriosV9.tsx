@@ -25,6 +25,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import BuscaLista from '../../components/BuscaLista';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
+import FotoLista from '../../components/FotoLista';
+import { useFotoDaTag } from '../../services/fotosEquipamentos';
 import { Icone } from '../../components/Icone';
 import {
   ErroBuscaRelatorios,
@@ -1061,10 +1063,13 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                 const r = linha.rascunho;
                 return (
                   <div className="rel-linha rel-linha-rascunho" role="row" data-z={(posicao.get(linha.chave) ?? 0) % 2 || undefined}>
-                    <span role="cell" className="rel-cel-icone">
-                      <span className="rel-marca rel-marca-rascunho" title="Relatório em edição — ainda não finalizado">
-                        <Icone nome="pencil" tam={15} />
-                      </span>
+                    <span role="cell" className="rel-cel-icone" title="Relatório em edição — ainda não finalizado">
+                      {/* 21/11/2026: a foto do equipamento; sem foto, a marca de sempre. */}
+                      <FotoOuMarca tag={r.tag}>
+                        <span className="rel-marca rel-marca-rascunho">
+                          <Icone nome="pencil" tam={15} />
+                        </span>
+                      </FotoOuMarca>
                     </span>
                     <span role="cell" className="rel-cel-nome" title={r.nome}>
                       <b className="rel-nome-forte">{r.nome || r.codigo}</b>
@@ -1151,13 +1156,16 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                       dar a tarja de PDF a quem não tem arquivo prometeria um
                       documento que não está lá. Listar continua sem tocar
                       arquivo nenhum. */}
-                  <span role="cell" className="rel-cel-icone">
-                    <span
-                      className={`rel-marca${r.pdfRef ? ' rel-marca-pdf' : ''}`}
-                      title={r.pdfRef ? 'Relatório finalizado (PDF arquivado)' : 'Relatório sem PDF arquivado (anterior ao arquivamento)'}
-                    >
-                      <Icone nome={r.pdfRef ? 'pdf' : 'filetext'} tam={r.pdfRef ? 17 : 15} />
-                    </span>
+                  <span
+                    role="cell"
+                    className="rel-cel-icone"
+                    title={r.pdfRef ? 'Relatório finalizado (PDF arquivado)' : 'Relatório sem PDF arquivado (anterior ao arquivamento)'}
+                  >
+                    <FotoOuMarca tag={r.tag}>
+                      <span className={`rel-marca${r.pdfRef ? ' rel-marca-pdf' : ''}`}>
+                        <Icone nome={r.pdfRef ? 'pdf' : 'filetext'} tam={r.pdfRef ? 17 : 15} />
+                      </span>
+                    </FotoOuMarca>
                   </span>
                   <span role="cell" className="rel-cel-nome" title={r.nome ?? r.codigo ?? ''}>
                     <b className="rel-nome-forte">{ou(r.nome ?? r.codigo)}</b>
@@ -1270,4 +1278,14 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
       )}
     </div>
   );
+}
+
+/**
+ * A foto do equipamento na linha do relatório (21/11/2026), com zoom no hover.
+ * Sem foto (ou servidor sem `fotos_equipamentos`), a marca de situação de
+ * sempre — rascunho (lápis) ou PDF arquivado.
+ */
+function FotoOuMarca({ tag, children }: { tag: string | null | undefined; children: React.ReactNode }) {
+  const f = useFotoDaTag(tag);
+  return f?.fotoRef ? <FotoLista tipo={f.tipo} fotoRef={f.fotoRef} /> : <>{children}</>;
 }

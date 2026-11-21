@@ -174,8 +174,12 @@ describe('a tela nova não pode voltar a varrer a organização', () => {
     // excluir e, desde 10/09/2026, renomear —, onde a TAG já está escolhida e o
     // cache já foi semeado. Se esse número crescer sem um handler novo, alguém
     // pôs a leitura de volta na lista de equipamentos.
+    // 21/11/2026: +1 — a ABERTURA da TAG mostra primeiro o que o cache já tem
+    // (`const doCache = listarContainers(tag)`) e a semeadura atualiza depois.
+    // É leitura de UMA TAG já escolhida, nunca a varredura da organização.
     const usos = fonte.match(/listarContainers\(/g) ?? [];
-    expect(usos).toHaveLength(3);
+    expect(usos).toHaveLength(4);
+    expect(fonte).toContain('const doCache = listarContainers(tag);');
     expect(fonte).toMatch(/abrirEquipamentoParaInspecao\(tag\)/);
   });
 });

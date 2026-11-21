@@ -38,9 +38,8 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BuscaLista from '../../components/BuscaLista';
-import { iconeDoTipo } from '../../components/listaCobalto';
 import { Icone, type NomeIcone } from '../../components/Icone';
-import FotoImg from '../../components/FotoImg';
+import FotoLista from '../../components/FotoLista';
 import { buscarAcessoriosPorTag, contagemDeAcessorios, type AcessoriosPorTag } from './acessoriosServidor';
 import { usePainelVencimentos } from '../../services/vencimentosServidor';
 import type { ItemVencimento } from '../../services/vencimentos';
@@ -457,13 +456,7 @@ export default function CatalogoCalibracoesV9({
                   {/* A FOTO do equipamento, pela referência da projeção e na
                       miniatura de 400px (a mesma da lista de Equipamentos).
                       Sem foto, o ícone do tipo. */}
-                  <span className={`lc-ico cal3-foto ${item.tipo ?? 'outro'}`} aria-hidden>
-                    {item.fotoRef ? (
-                      <FotoImg foto={{ ref: item.fotoRef }} alt="" placeholder="" variante="thumb" className="cal3-foto-img" />
-                    ) : (
-                      <Icone nome={iconeDoTipo(item.tipo)} tam={18} />
-                    )}
-                  </span>
+                  <FotoLista tipo={item.tipo} fotoRef={item.fotoRef} />
                   <span className="cal3-tag">{item.tag}</span>
                   <span className="cal3-eq">{item.descricao?.trim() || (item.tipo ? (ROTULO_TIPO[item.tipo] ?? item.tipo) : '—')}</span>
                   {/* `null` = a projeção ainda não contou: "—", nunca 0.

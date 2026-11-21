@@ -33,8 +33,9 @@ import {
   precisaVarrerTudo,
 } from '../../services/recorteCatalogo';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
-import { classeCategoria, iconeDoTipo } from '../../components/listaCobalto';
+import { classeCategoria } from '../../components/listaCobalto';
 import { vidaDaBarra } from './barraVida';
+import FotoLista from '../../components/FotoLista';
 import { Icone } from '../../components/Icone';
 import * as buscaIndex from '../../services/buscaIndex';
 import type { Contagem, FiltrosBusca, ItemCatalogo, OrdemCatalogo } from '../../services/buscaIndex';
@@ -505,9 +506,7 @@ function LinhaCatalogo({ item, zebra, aoAbrir }: { item: ItemCatalogo; zebra?: b
   const tipo = item.tipo ?? 'outro';
   return (
     <button type="button" className="eq2-linha lc-linha" onClick={aoAbrir} data-z={zebra || undefined}>
-      <span className={`lc-ico ${tipo}`} aria-hidden="true">
-        <Icone nome={iconeDoTipo(item.tipo)} tam={18} />
-      </span>
+      <FotoLista tipo={tipo} fotoRef={item.fotoRef} />
       <span className="lc-tag">{item.tag}</span>
       <span className="lc-nome">{item.descricao?.trim() || (ROTULO_TIPO[item.tipo ?? ''] ?? item.tipo ?? '—')}</span>
       <span className="lc-cli">{buscaIndex.textoCliente(item) || '—'}</span>

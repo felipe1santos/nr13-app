@@ -14,9 +14,8 @@
  * por tecla, nada de efeito sobre objeto montado no render.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import FotoImg from '../../components/FotoImg';
+import FotoLista from '../../components/FotoLista';
 import { Icone } from '../../components/Icone';
-import { iconeDoTipo } from '../../components/listaCobalto';
 import type { ItemCatalogo } from '../../services/buscaIndex';
 import { ErroEscolha, paginaParaRegistro } from './escolhaEquipamento';
 import './escolhaEquipamento.css';
@@ -155,20 +154,7 @@ export default function ModalEscolhaEquipamento({
                   className="iv4-escolha-item"
                   onClick={() => aoEscolher(i.tag)}
                 >
-                  {i.fotoRef ? (
-                    <span className="reg-escolha-foto">
-                      <FotoImg
-                        foto={{ ref: i.fotoRef }}
-                        alt={`Foto do equipamento ${i.tag}`}
-                        variante="thumb"
-                        placeholder=""
-                      />
-                    </span>
-                  ) : (
-                    <span className={`lc-ico ${i.tipo ?? 'outro'}`} aria-hidden="true">
-                      <Icone nome={iconeDoTipo(i.tipo)} tam={18} />
-                    </span>
-                  )}
+                  <FotoLista tipo={i.tipo} fotoRef={i.fotoRef} />
                   <span className="t">
                     <b>{i.tag}</b>
                     <small>{i.descricao || '—'}</small>

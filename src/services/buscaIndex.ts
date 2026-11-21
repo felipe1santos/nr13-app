@@ -232,8 +232,11 @@ export interface FiltrosBusca {
  *               Prontuários e Relatórios continuam nela.
  *   `criacao` · mais NOVOS no topo (`/equipamentos`). Exige o SQL
  *               `equipamentos_ordem_criacao.sql`; sem ele, cai em `tag`.
+ *   `inspecoes` · MAIS INSPECIONADOS no topo (`/inspecoes`, 21/11/2026). Exige
+ *               `listas_inspecoes_fotos.sql`; sem ele, cai em `tag`. Contagem
+ *               desconhecida (null) vai para o fim, nunca vira zero.
  */
-export type OrdemCatalogo = 'tag' | 'criacao';
+export type OrdemCatalogo = 'tag' | 'criacao' | 'inspecoes';
 
 export interface PaginaCatalogo {
   itens: ItemCatalogo[];
@@ -425,6 +428,36 @@ export function lerCursorCriacao(cursor: string | null): CursorCriacao | null {
   }
 }
 
+/** Cursor da ordem por nº de inspeções: (qtd, TAG) da última linha. */
+interface CursorInspecoes {
+  o: 'inspecoes';
+  /** `coalesce(inspecoes, -1)` — o mesmo valor que o SQL ordena. */
+  q: number;
+  t: string;
+}
+
+/** Codifica o cursor da ordem por inspeções. Exportado para teste. */
+export function cursorInspecoes(inspecoes: number | null, tag: string): string {
+  const c: CursorInspecoes = { o: 'inspecoes', q: inspecoes ?? -1, t: tag };
+  return JSON.stringify(c);
+}
+
+/** Lê um cursor da ordem por inspeções — `null` para qualquer outro. */
+export function lerCursorInspecoes(cursor: string | null): CursorInspecoes | null {
+  if (!cursor || cursor[0] !== '{') return null;
+  try {
+    const c = JSON.parse(cursor) as Partial<CursorInspecoes> | null;
+    return c && c.o === 'inspecoes' && typeof c.q === 'number' && typeof c.t === 'string'
+      ? { o: 'inspecoes', q: c.q, t: c.t }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Mesma regra de `recentesAusente`, para `buscar_equipamentos_por_inspecoes`. */
+let porInspecoesAusente = false;
+
 /**
  * O servidor ainda não tem `buscar_equipamentos_recentes` (o front pode ir ao
  * ar antes do SQL). Lembrado por SESSÃO: perguntar de novo a cada busca seria
@@ -436,6 +469,7 @@ let recentesAusente = false;
 /** Só para teste: esquece que a função nova faltou. */
 export function __reiniciarDeteccaoOrdem(): void {
   recentesAusente = false;
+  porInspecoesAusente = false;
 }
 
 /**
@@ -451,7 +485,7 @@ export function ehFuncaoAusente(erro: unknown): boolean {
   const e = erro as { code?: unknown; message?: unknown };
   if (e.code === 'PGRST202' || e.code === '42883') return true;
   const msg = typeof e.message === 'string' ? e.message : '';
-  return /could not find the function/i.test(msg) && /buscar_equipamentos_recentes/.test(msg);
+  return /could not find the function/i.test(msg) && /buscar_equipamentos_(recentes|por_inspecoes)/.test(msg);
 }
 
 function montarPagina(data: unknown, ordem: OrdemCatalogo): PaginaCatalogo {
@@ -462,7 +496,11 @@ function montarPagina(data: unknown, ordem: OrdemCatalogo): PaginaCatalogo {
   let proximoCursor: string | null = null;
   if (ultimo) {
     proximoCursor =
-      ordem === 'criacao' && ultimo.criadoEm ? cursorCriacao(ultimo.criadoEm, ultimo.tag) : ultimo.tag;
+      ordem === 'criacao' && ultimo.criadoEm
+        ? cursorCriacao(ultimo.criadoEm, ultimo.tag)
+        : ordem === 'inspecoes'
+          ? cursorInspecoes(ultimo.inspecoes, ultimo.tag)
+          : ultimo.tag;
   }
   return { itens, proximoCursor, temMais, ordem };
 }
@@ -504,6 +542,10 @@ export async function listarPagina(
   sinal?: AbortSignal,
   ordem: OrdemCatalogo = 'tag',
 ): Promise<PaginaCatalogo> {
+  const ci = lerCursorInspecoes(cursor);
+  if (ci !== null || (ordem === 'inspecoes' && cursor === null && !porInspecoesAusente)) {
+    return paginaPorInspecoes(filtros, ci, sinal);
+  }
   const cc = lerCursorCriacao(cursor);
   const porCriacao = cc !== null || (ordem === 'criacao' && cursor === null && !recentesAusente);
   if (!porCriacao) return paginaPorTag(filtros, cursor, sinal);
@@ -529,6 +571,33 @@ export async function listarPagina(
     throw new ErroBusca('Não foi possível consultar os equipamentos.', error);
   }
   return montarPagina(data, 'criacao');
+}
+
+/** Ordem por nº de inspeções, com a mesma volta para TAG da ordem por criação. */
+async function paginaPorInspecoes(
+  filtros: FiltrosBusca,
+  ci: CursorInspecoes | null,
+  sinal?: AbortSignal,
+): Promise<PaginaCatalogo> {
+  const { data, error } = await supabase
+    .rpc('buscar_equipamentos_por_inspecoes', {
+      p_termo: filtros.termo?.trim() ?? '',
+      p_tipo: filtros.tipo || null,
+      p_categoria: filtros.categoria || null,
+      p_cursor_qtd: ci?.q ?? null,
+      p_cursor_tag: ci?.t ?? null,
+      p_limite: TAMANHO_PAGINA + 1,
+    })
+    .abortSignal(sinal as AbortSignal);
+
+  if (error) {
+    if (ci === null && ehFuncaoAusente(error)) {
+      porInspecoesAusente = true;
+      return paginaPorTag(filtros, null, sinal);
+    }
+    throw new ErroBusca('Não foi possível consultar os equipamentos.', error);
+  }
+  return montarPagina(data, 'inspecoes');
 }
 
 /**
@@ -587,7 +656,10 @@ export function fundirLocais(
   ordem: OrdemCatalogo = 'tag',
 ): ItemCatalogo[] {
   if (!locais.length) return doServidor;
-  if (ordem === 'criacao') return fundirPorCriacao(doServidor, locais, cursor);
+  // Ordem por inspeções: o equipamento local recém-criado (0 inspeção) não tem
+  // posição certa calculável aqui; vai para o topo da 1ª página, como na ordem
+  // por criação — o usuário acabou de criá-lo e precisa vê-lo.
+  if (ordem === 'criacao' || ordem === 'inspecoes') return fundirPorCriacao(doServidor, locais, cursor);
 
   const porTag = new Map<string, ItemCatalogo>();
   for (const item of doServidor) porTag.set(item.tag, item);

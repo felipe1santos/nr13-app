@@ -178,10 +178,12 @@ describe('a tela usa a fonte certa — e mostra a foto', () => {
   });
 
   it('com foto, a miniatura; sem foto, o ícone do tipo', () => {
-    expect(modal).toContain('i.fotoRef ? (');
-    expect(modal).toContain('<FotoImg');
-    expect(modal).toContain('variante="thumb"');
-    expect(modal).toContain('iconeDoTipo(i.tipo)');
+    // 21/11/2026: o componente ÚNICO das listas (FotoLista) decide foto ×
+    // ícone e amplia no hover; a miniatura e o ícone moram nele.
+    expect(modal).toContain('<FotoLista tipo={i.tipo} fotoRef={i.fotoRef} />');
+    const comp = readFileSync('src/components/FotoLista.tsx', 'utf8');
+    expect(comp).toContain('variante="thumb"');
+    expect(comp).toContain('iconeDoTipo(tipo)');
   });
 
   it('a busca espera o usuário parar de digitar (não é uma consulta por tecla)', () => {

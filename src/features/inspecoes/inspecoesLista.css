@@ -204,3 +204,7 @@ button.iv4-linha:focus-visible { outline: none; }
   .iv4-linha { grid-template-columns: minmax(0, 1fr) 16px; }
   .iv4-col-ico { display: none; }
 }
+
+/* 21/11/2026: os containers aparecem do cache na hora; isto avisa que a
+   versão do servidor ainda está chegando — sem tapar a lista. */
+.iv4-atualizando { margin: 0 0 8px; font: var(--t-caption); color: var(--texto-3, #6B6B6B); }
