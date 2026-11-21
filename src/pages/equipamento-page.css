@@ -1130,3 +1130,427 @@
 /* Edição: contorno no tom do foco, não azul. */
 .equipamento-page .ficha-editando { border-color: var(--foco); box-shadow: 0 0 0 3px var(--amber-bg); }
 .equipamento-page .ficha-editando-sub { outline-color: var(--foco); }
+
+/* ============================================================================
+   FICHA · REVISÃO DE UI (21/11/2026) — só visual (§3-quater)
+   ----------------------------------------------------------------------------
+   Continua dentro do escopo da ficha (o teste da Fase 4 exige). Várias regras
+   do `cartoes-cobalto.css` são carregadas DEPOIS deste arquivo e usam
+   `!important`; por isso os seletores daqui sobem a especificidade (um nível
+   a mais de classe ou o elemento) em vez de editar aquele arquivo.
+   ============================================================================ */
+
+/* ── Voltar: amarelo no hover e ao clicar ─────────────────────────────────── */
+.equipamento-page .fx-bar a.fx-voltar {
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.equipamento-page .fx-bar a.fx-voltar:hover,
+.equipamento-page .fx-bar a.fx-voltar:active {
+  background: #FACC15;
+  color: #1A1A1A;
+}
+.equipamento-page .fx-bar a.fx-voltar:focus-visible {
+  outline: 2px solid #1A1A1A;
+  outline-offset: 2px;
+}
+.equipamento-page .fx-trilha a:focus-visible {
+  outline: 2px solid var(--destaque);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── Lápis: verde de seleção sólido no hover, ícone branco ────────────────── */
+.equipamento-page .bloco-header-acoes button.btn-editar-pencil,
+.equipamento-page button.btn-editar-pencil {
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.equipamento-page .bloco-header-acoes button.btn-editar-pencil:hover,
+.equipamento-page button.btn-editar-pencil:hover {
+  background: var(--sel);
+  border-color: var(--sel);
+  color: #fff;
+}
+.equipamento-page .bloco-header-acoes button.btn-editar-pencil:active,
+.equipamento-page button.btn-editar-pencil:active {
+  background: var(--sel-hover);
+  color: #fff;
+}
+.equipamento-page .bloco-header-acoes button.btn-editar-pencil:focus-visible,
+.equipamento-page button.btn-editar-pencil:focus-visible {
+  outline: 2px solid var(--sel);
+  outline-offset: 2px;
+}
+
+/* ── Excluir: ação destrutiva com alvo de verdade ─────────────────────────────
+   No topo era texto vermelho de 15px de altura, sublinhado no hover. Agora um
+   botão discreto (vermelho claro no hover); no diálogo de confirmação, o botão
+   que APAGA é vermelho sólido — o mesmo texto, a mesma função. */
+.equipamento-page .equipamento-header-topo .btn-excluir-equip {
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: #B42318;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.equipamento-page .equipamento-header-topo .btn-excluir-equip:hover:not(:disabled) {
+  background: #FEE2E2;
+  color: #B42318;
+  text-decoration: none;
+}
+.equipamento-page .btn-excluir-equip:focus-visible {
+  outline: 2px solid #DC2626;
+  outline-offset: 2px;
+}
+.equipamento-page .btn-excluir-equip.ficha-excluir-confirmar {
+  min-height: 36px;
+  margin: 0;
+  padding: 0 14px;
+  border-radius: 6px;
+  background: #DC2626;
+  color: #fff;
+  font-size: 14px;
+}
+.equipamento-page .btn-excluir-equip.ficha-excluir-confirmar:hover:not(:disabled) {
+  background: #B42318;
+  text-decoration: none;
+}
+
+/* ── Ações de edição: a principal sempre primeiro ─────────────────────────────
+   Pressões e Vida punham um secundário ANTES do Salvar; Dados e Categoria, o
+   Salvar primeiro. Mesma ordem em todas as seções (no celular já era assim). */
+.equipamento-page .ficha-acoes-edicao .btn-primario {
+  order: -1;
+}
+.equipamento-page .ficha-acoes-edicao .btn-primario,
+.equipamento-page .ficha-acoes-edicao .btn-secundario {
+  min-height: 40px;
+}
+
+/* ── Categoria: campos e botão na MESMA linha ─────────────────────────────── */
+.equipamento-page .ficha-categoria-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+.equipamento-page .ficha-categoria-linha .ficha-categoria-campos {
+  flex: 1 1 520px;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr);
+}
+.equipamento-page .ficha-categoria-linha .memorial-campo input,
+.equipamento-page .ficha-categoria-linha .memorial-campo select {
+  box-sizing: border-box;
+  height: 40px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.equipamento-page .ficha-categoria-linha .ficha-acoes-edicao.ficha-categoria-acoes {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+/* Rodapé do cartão: a categoria (que não é `.bloco-dados`) não ganhava o
+   respiro de baixo que as outras seções têm. */
+.equipamento-page .bloco-categoria > :last-child:not(.bloco-header-acoes) {
+  margin-bottom: 16px !important;
+}
+
+/* ── Foto principal vazia: ícone + texto, não só "Sem Foto" ───────────────── */
+.equipamento-page .equipamento-foto-principal .equipamento-foto-vazia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* ── Foto de identificação: slot no padrão do prontuário ──────────────────────
+   ícone/miniatura · título e detalhe · ação. Sem foto: borda tracejada, seta
+   de upload e "Enviar foto". Com foto: a miniatura é o botão de trocar, com o
+   selo de "trocar" sempre visível no canto (não só no hover). */
+.equipamento-page .ficha-topo-rodape > .ficha-foto-id {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.equipamento-page .ficha-topo-rodape > .ficha-foto-id.sem-foto {
+  border-style: dashed !important;
+  border-color: #C5CEDD !important;
+  background: #FBFCFE !important;
+}
+.ficha-foto-id-icone {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--destaque-bg);
+  color: var(--destaque);
+}
+.ficha-foto-id-corpo {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.ficha-foto-id-corpo strong {
+  font: 600 14px/20px var(--font);
+  color: #0E1630;
+  white-space: nowrap;
+}
+.ficha-foto-id-detalhe {
+  font: var(--t-caption);
+  color: #5F6B82;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ficha-foto-id-acoes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ficha-foto-id-thumb {
+  position: relative;
+  width: 56px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #E3E7EF;
+  cursor: pointer;
+}
+.ficha-foto-id-trocar {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(14, 22, 48, 0.72);
+  color: #fff;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+.ficha-foto-id-thumb:hover .ficha-foto-id-trocar,
+.ficha-foto-id-thumb:focus-visible .ficha-foto-id-trocar {
+  background: var(--destaque);
+  transform: scale(1.1);
+}
+.ficha-foto-id-thumb:focus-visible,
+.ficha-foto-id-btn:focus-visible,
+.ficha-foto-id-enviar:focus-visible {
+  outline: 2px solid var(--destaque);
+  outline-offset: 2px;
+}
+.ficha-foto-id-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #5F6B82;
+  cursor: pointer;
+}
+.ficha-foto-id-btn.ficha-foto-id-remover:hover:not(:disabled) {
+  background: #FEE2E2;
+  color: #B42318;
+}
+.ficha-foto-id-enviar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--destaque);
+  color: #fff;
+  font: 600 13px/1 var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.ficha-foto-id-enviar:hover:not(:disabled) {
+  background: #0A3F7C;
+}
+.ficha-foto-id-thumb:disabled,
+.ficha-foto-id-btn:disabled,
+.ficha-foto-id-enviar:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.ficha-foto-id-erro {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  color: #B42318;
+}
+
+/* ── Seletor de empresa com a logo do cliente ─────────────────────────────── */
+.equipamento-page .emp-cliente-selector-rotulo {
+  display: block;
+  margin-bottom: 6px;
+  font: 500 12px/16px var(--font);
+  color: #1A1A1A;
+}
+.ficha-emp-sel {
+  position: relative;
+}
+.ficha-emp-sel-botao {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 6px 8px;
+  border: 1px solid var(--fio-campo, #D0D5DD);
+  border-radius: 6px;
+  background: #fff;
+  color: #1A1A1A;
+  font: 500 14px/20px var(--font);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.ficha-emp-sel-botao:hover {
+  border-color: #98A2B3;
+}
+.ficha-emp-sel-botao.aberto {
+  border-color: var(--destaque);
+}
+.ficha-emp-sel-botao:focus-visible {
+  outline: 2px solid var(--destaque);
+  outline-offset: 1px;
+}
+.ficha-emp-sel-texto {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ficha-emp-sel-seta {
+  flex: none;
+  color: #5F6B82;
+  transition: transform 0.15s ease;
+}
+.ficha-emp-sel-botao.aberto .ficha-emp-sel-seta {
+  transform: rotate(180deg);
+}
+.ficha-emp-sel-lista {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid #E3E7EF;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(14, 22, 48, 0.16);
+}
+.ficha-emp-sel-lista:focus {
+  outline: none;
+}
+.ficha-emp-sel-lista:focus-visible {
+  outline: 2px solid var(--destaque);
+  outline-offset: 1px;
+}
+.ficha-emp-sel-opcao {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font: 400 14px/20px var(--font);
+  color: #1A1A1A;
+  cursor: pointer;
+}
+.ficha-emp-sel-opcao.ativa {
+  background: #F1F4F9;
+}
+.ficha-emp-sel-opcao.marcada {
+  font-weight: 600;
+  color: var(--destaque);
+}
+.ficha-emp-sel-check {
+  flex: none;
+  color: var(--destaque);
+}
+.ficha-emp-logo {
+  flex: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #EEF1F6;
+  box-shadow: inset 0 0 0 1px #E3E7EF;
+  color: #5F6B82;
+  font: 600 12px/1 var(--font);
+}
+.ficha-emp-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 3px;
+  box-sizing: border-box;
+  background: #fff;
+}
+.ficha-emp-logo-manual {
+  width: 28px;
+  height: 28px;
+}
+
+@media (max-width: 600px) {
+  .equipamento-page .ficha-categoria-linha .ficha-categoria-campos {
+    flex-basis: 100%;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .equipamento-page .ficha-categoria-linha .ficha-categoria-campos > :last-child {
+    grid-column: 1 / -1;
+  }
+  .equipamento-page .ficha-categoria-linha .ficha-acoes-edicao.ficha-categoria-acoes {
+    flex: 1 1 100%;
+  }
+  .equipamento-page .ficha-categoria-linha .ficha-acoes-edicao.ficha-categoria-acoes .btn-primario {
+    flex: 1 1 0;
+  }
+  .ficha-foto-id-enviar,
+  .ficha-foto-id-btn {
+    min-height: 44px;
+  }
+  .ficha-foto-id-btn {
+    width: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .equipamento-page .fx-bar a.fx-voltar,
+  .equipamento-page button.btn-editar-pencil,
+  .ficha-foto-id-trocar,
+  .ficha-emp-sel-seta,
+  .ficha-foto-id-enviar {
+    transition: none;
+  }
+}

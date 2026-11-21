@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import { Icone } from '../../components/Icone';
 import FotoImg from '../../components/FotoImg';
-import { ler, salvar } from '../../services/storage';
+import { ler } from '../../services/storage';
 import { salvarFoto } from '../../services/fotos';
 import type { FotoEquipamento } from './tipos';
+import { gravarFotosDaFicha } from './gravarFotosDaFicha';
 import { comNovaIdentificacao, identificacaoDe, semIdentificacao } from './identificacaoEquipamento';
 import './equipamento.css';
 
@@ -48,7 +49,9 @@ export default function FotoIdentificacao({ tag }: { tag: string }) {
 
   async function persistir(novas: FotoEquipamento[]) {
     setFotos(novas);
-    await salvar(`nr13_fotos_${tag}`, novas);
+    // Grava E avisa a ficha: sem o aviso, a foto grande do topo (outro
+    // componente) só mostrava a nova depois do F5 — ver `gravarFotosDaFicha`.
+    await gravarFotosDaFicha(tag, novas);
   }
 
   async function anexar(e: React.ChangeEvent<HTMLInputElement>) {
@@ -85,42 +88,77 @@ export default function FotoIdentificacao({ tag }: { tag: string }) {
     await persistir(semIdentificacao(fotos));
   }
 
+  // Botões de verdade (não `label` com input escondido): o input `display:none`
+  // não recebia foco, e quem navega por teclado não conseguia enviar a foto.
+  const escolher = () => inputRef.current?.click();
+
   return (
-    <div className="galeria-fotos-row">
-      {identificacao && (
-        <div className="galeria-foto-item capa" title="Foto de identificação do equipamento">
+    <div className={`ficha-foto-id${identificacao ? ' com-foto' : ' sem-foto'}`} aria-busy={enviando}>
+      {identificacao ? (
+        <button
+          type="button"
+          className="ficha-foto-id-thumb"
+          onClick={escolher}
+          disabled={enviando}
+          title="Trocar a foto de identificação"
+          aria-label="Trocar a foto de identificação"
+        >
           <FotoImg
             foto={{ ref: identificacao.ref, base64: identificacao.src }}
             alt={`Foto de identificação de ${tag}`}
             variante="thumb"
           />
+          <span className="ficha-foto-id-trocar" aria-hidden="true">
+            <Icone nome="refresh" tam={14} />
+          </span>
+        </button>
+      ) : (
+        <span className="ficha-foto-id-icone" aria-hidden="true">
+          <Icone nome="upload" tam={18} />
+        </span>
+      )}
+
+      <span className="ficha-foto-id-corpo">
+        <strong>Foto de identificação</strong>
+        <span className="ficha-foto-id-detalhe" aria-live="polite">
+          {enviando ? 'Enviando…' : identificacao ? 'Clique na foto para trocar' : 'JPG ou PNG, tirada na hora ou da galeria'}
+        </span>
+      </span>
+
+      <span className="ficha-foto-id-acoes">
+        {identificacao ? (
           <button
             type="button"
-            className="btn-remover-foto"
-            title="Remover a foto de identificação (o arquivo não é apagado)"
+            className="ficha-foto-id-btn ficha-foto-id-remover"
             onClick={remover}
+            disabled={enviando}
+            title="Remover a foto de identificação (o arquivo não é apagado)"
+            aria-label="Remover foto de identificação"
           >
-            ×
+            <Icone nome="x" tam={15} />
           </button>
-        </div>
+        ) : (
+          <button type="button" className="ficha-foto-id-enviar" onClick={escolher} disabled={enviando}>
+            <Icone nome="upload" tam={14} /> {enviando ? 'Enviando…' : 'Enviar foto'}
+          </button>
+        )}
+      </span>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        disabled={enviando}
+        onChange={anexar}
+        hidden
+        tabIndex={-1}
+        aria-hidden="true"
+      />
+      {erro && (
+        <p className="ficha-foto-id-erro" role="alert">
+          {erro}
+        </p>
       )}
-      <label className="gallery-add-dropzone">
-        <span className="gallery-add-icone">
-          <Icone nome="camera" tam={20} />
-        </span>
-        <span>
-          {enviando ? 'Enviando…' : identificacao ? 'Trocar Foto' : 'Foto de Identificação'}
-        </span>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          disabled={enviando}
-          onChange={anexar}
-          style={{ display: 'none' }}
-        />
-      </label>
-      {erro && <p style={{ color: 'var(--erro, #c00)', fontSize: 12, width: '100%' }}>{erro}</p>}
     </div>
   );
 }

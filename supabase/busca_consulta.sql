@@ -216,6 +216,10 @@ $$;
 --
 --   `buscaRls.test.ts` prova org A × org B, `anon`, papel `cliente` e ausência
 --   de perfil POR ESTA FUNÇÃO. Se alguém remover uma das guardas, quebra.
+--
+-- IRMÃ (21/11/2026): `buscar_equipamentos_recentes`, em
+-- `equipamentos_ordem_criacao.sql`, é esta mesma consulta ordenada por data de
+-- criação (é a que `/equipamentos` usa). Coluna nova aqui = coluna nova lá.
 create or replace function public.buscar_equipamentos(
   p_termo      text default '',
   p_tipo       text default null,

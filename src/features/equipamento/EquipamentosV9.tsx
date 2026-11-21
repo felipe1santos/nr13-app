@@ -18,10 +18,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import CardCatalogo from './CardCatalogo';
 import ModalCriarEquipamento from './ModalCriarEquipamento';
-import ModalImportarPlanilha from './ModalImportarPlanilha';
-import { extensaoAceita } from './importarPlanilhaService';
 import { equipamentosPendentesLocais } from './equipamentoService';
 import BuscaLista from '../../components/BuscaLista';
+import SeletorTipo from '../../components/SeletorTipo';
 import ModalFiltrosEquipamentos, {
   temAlgumFiltroEquip,
   type ValoresFiltroEquip,
@@ -38,14 +37,11 @@ import { classeCategoria, iconeDoTipo } from '../../components/listaCobalto';
 import { vidaDaBarra } from './barraVida';
 import { Icone } from '../../components/Icone';
 import * as buscaIndex from '../../services/buscaIndex';
-import type { Contagem, FiltrosBusca, ItemCatalogo } from '../../services/buscaIndex';
+import type { Contagem, FiltrosBusca, ItemCatalogo, OrdemCatalogo } from '../../services/buscaIndex';
 import * as catalogo from '../../services/catalogoLocal';
-import { isTrial } from '../../services/auth';
-import { MSG_BLOQUEIO_IMPORTACAO } from '../../services/trial';
 import { formatarValor, unidadeValida } from '../../calc/unidades';
 import { rotaEquipamento } from '../../app/rotas';
 import './equipamento.css';
-import './importar.css';
 import '../../pages/dashboard.css';
 import '../../pages/relatorios.css';
 
@@ -58,6 +54,13 @@ const ROTULO_TIPO: Record<string, string> = {
 /** Altura estimada de uma linha, em px. Corrigida por medição no 1º quadro. */
 const ALT_GRADE = 430;
 const ALT_LISTA = 52; // Cobalto: linha de tabela (medida real corrige)
+
+/**
+ * Ordem da lista: MAIS NOVOS NO TOPO (pedido do dono, 21/11/2026). As outras
+ * telas do catálogo seguem por TAG. Servidor sem `buscar_equipamentos_recentes`
+ * responde por TAG e a tela segue funcionando (ver `listarPagina`).
+ */
+const ORDEM: OrdemCatalogo = 'criacao';
 
 export default function EquipamentosV9() {
   const navigate = useNavigate();
@@ -98,10 +101,6 @@ export default function EquipamentosV9() {
     }
   }, [visao]);
   const [modalAberto, setModalAberto] = useState(false);
-  const [importAberto, setImportAberto] = useState(false);
-  const [arquivoSolto, setArquivoSolto] = useState<File | null>(null);
-  const [arrastando, setArrastando] = useState(false);
-  const [erroArrasto, setErroArrasto] = useState<string | null>(null);
   const [filtroAberto, setFiltroAberto] = useState(false);
   /*
    * O filtro da barra: `tipo` e `categoria` continuam na URL (são parâmetros
@@ -154,14 +153,24 @@ export default function EquipamentosV9() {
     setCarregando(true);
     setErro(null);
     try {
-      const pagina = await buscaIndex.listarPagina(filtros, null, ctrl.signal);
+      const pagina = await buscaIndex.listarPagina(filtros, null, ctrl.signal, ORDEM);
       if (minha !== geracao.current) return; // chegou tarde: descarta
 
       // O catálogo se enche com o que já veio. Custo de rede: zero.
       void catalogo.guardar(pagina.itens);
 
       setOffline(false);
-      setItens(buscaIndex.fundirLocais(pagina.itens, pendentesQueCasam(filtros), null));
+      // A ordem que o servidor APLICOU (pode ter caído para TAG) decide onde o
+      // pendente entra: na ordem por criação, o recém-criado vai para o topo.
+      setItens(
+        buscaIndex.fundirLocais(
+          pagina.itens,
+          pendentesQueCasam(filtros),
+          null,
+          undefined,
+          pagina.ordem ?? 'tag',
+        ),
+      );
       setCursor(pagina.proximoCursor);
       setTemMais(pagina.temMais);
 
@@ -217,7 +226,7 @@ export default function EquipamentosV9() {
     try {
       const pagina = offline
         ? await catalogo.paginaLocal(filtros, cursor)
-        : await buscaIndex.listarPagina(filtros, cursor);
+        : await buscaIndex.listarPagina(filtros, cursor, undefined, ORDEM);
       if (minha !== geracao.current) return;
       if (!offline) void catalogo.guardar(pagina.itens);
       setItens((antigos) => {
@@ -292,33 +301,6 @@ export default function EquipamentosV9() {
     setRecorte({ empresa: '', fabricante: '' });
   }
 
-  function aoArrastarSobre(e: React.DragEvent) {
-    if (!e.dataTransfer.types.includes('Files')) return;
-    e.preventDefault();
-    setArrastando(true);
-  }
-  function aoSairDoArrasto(e: React.DragEvent) {
-    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
-    setArrastando(false);
-  }
-  function aoSoltar(e: React.DragEvent) {
-    e.preventDefault();
-    setArrastando(false);
-    if (isTrial()) {
-      setErroArrasto(MSG_BLOQUEIO_IMPORTACAO);
-      return;
-    }
-    const arquivo = e.dataTransfer.files?.[0];
-    if (!arquivo) return;
-    if (!extensaoAceita(arquivo.name)) {
-      setErroArrasto(`"${arquivo.name}" não é uma planilha. Use .xlsx, .xls, .ods ou .csv.`);
-      return;
-    }
-    setErroArrasto(null);
-    setArquivoSolto(arquivo);
-    setImportAberto(true);
-  }
-
   const rodape = carregandoMais
     ? 'Carregando mais…'
     : temMais
@@ -352,13 +334,9 @@ export default function EquipamentosV9() {
         compacto
         antes={
           <div className="equip-barra-esq">
-            <div className="rel-chips equip-chips" role="group" aria-label="Tipo de equipamento">
-              {([['', 'Todos'], ['vaso', 'Vasos'], ['caldeira', 'Caldeiras'], ['autoclave', 'Autoclaves']] as const).map(([v, r]) => (
-                <button key={v || 'todos'} type="button" aria-pressed={fTipo === v} onClick={() => trocarParam('tipo', v)}>
-                  {r} {porTipo[v] != null && <i>{porTipo[v]}</i>}
-                </button>
-              ))}
-            </div>
+            {/* 21/11/2026: os quatro chips viraram UM seletor com caixinha —
+                a barra inteira cabe numa linha, com o "Criar" dentro. */}
+            <SeletorTipo valor={fTipo} aoMudar={(v) => trocarParam('tipo', v)} contagens={porTipo} />
           </div>
         }
       >
@@ -391,16 +369,6 @@ export default function EquipamentosV9() {
                 <Icone nome="filetext" tam={15} />
               </button>
             </div>
-        {/* Importar planilha (protótipo): o mesmo modal de arrastar o arquivo. */}
-        <button
-          type="button"
-          className="equip-btn-importar"
-          title="Importar equipamentos de planilha"
-          aria-label="Importar equipamentos de planilha"
-          onClick={() => setImportAberto(true)}
-        >
-          <Icone nome="planilha" tam={19} />
-        </button>
         <button type="button" className="fj-btn fj-btn-primary equip-btn-criar" onClick={() => setModalAberto(true)}>
           <Icone nome="plus" tam={14} /> <span className="equip-btn-rotulo">Criar equipamento</span>
         </button>
@@ -427,16 +395,7 @@ export default function EquipamentosV9() {
         />
       )}
 
-      {erroArrasto && <p className="erro-form" style={{ marginBottom: 12 }}>{erroArrasto}</p>}
-
-      <div className="equip-dropzone" onDragOver={aoArrastarSobre} onDragEnter={aoArrastarSobre} onDragLeave={aoSairDoArrasto} onDrop={aoSoltar}>
-        {arrastando && (
-          <div className="equip-drop-overlay">
-            <Icone nome="planilha" tam={26} />
-            Solte a planilha para importar os equipamentos
-          </div>
-        )}
-
+      <div className="equip-dropzone">
         {erro ? (
           // ERRO COM REPETIR — e nunca hidratação integral como plano B.
           <div className="fj-empty">
@@ -519,20 +478,6 @@ export default function EquipamentosV9() {
           onCriado={(tag) => {
             setModalAberto(false);
             navigate(rotaEquipamento(tag));
-          }}
-        />
-      )}
-      {importAberto && (
-        <ModalImportarPlanilha
-          arquivoInicial={arquivoSolto}
-          onClose={() => {
-            setImportAberto(false);
-            setArquivoSolto(null);
-          }}
-          onImportado={async () => {
-            setImportAberto(false);
-            setArquivoSolto(null);
-            await buscar();
           }}
         />
       )}

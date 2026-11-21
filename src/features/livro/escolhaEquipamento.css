@@ -1,0 +1,46 @@
+/* ============================================================================
+   "Novo registro → Escolha o equipamento" (21/11/2026). A base (caixa, busca,
+   linha) é a `.iv4-escolha` de `styles/cartoes-cobalto.css`; aqui só o que é
+   desta tela: a miniatura da foto, os estados e o selo de não sincronizado.
+   ============================================================================ */
+.reg-escolha-foto {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--superficie-2, #f3f5f8);
+}
+.reg-escolha-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.reg-escolha .iv4-escolha-item:hover,
+.reg-escolha .iv4-escolha-item:focus-visible {
+  background: var(--sel-bg);
+  box-shadow: inset 3px 0 0 var(--sel);
+}
+.reg-escolha .iv4-escolha-item:hover .lc-seta { color: var(--sel); }
+.reg-escolha-estado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 12px;
+  color: var(--muted, #5f6b82);
+  font-size: 13px;
+  text-align: center;
+}
+.reg-escolha-aviso {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: var(--st-info-bg, #eaf2fb);
+  color: var(--st-info, #0c4f9b);
+  font-size: 12px;
+}
+.reg-escolha-pendente {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--amber-deep, #b45309);
+}
+@media (max-width: 640px) {
+  .reg-escolha .iv4-escolha-item { min-height: 56px; }
+}

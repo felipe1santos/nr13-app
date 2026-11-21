@@ -1,0 +1,345 @@
+/* ============================================================================
+   BARRA DE LISTA — padrão único de TODAS as telas com lista (21/11/2026)
+
+   Pedido do dono, a partir de /equipamentos:
+   - a barra de ferramentas tem UMA linha, com o botão de criar DENTRO dela;
+   - nada de faixa vazia acima da barra: 10px de respiro, não 40–56px;
+   - o mesmo recuo lateral (16px) de /inspecoes em todas as listas;
+   - controle SELECIONADO (chip, grade/lista, filtro ativo, tipo) com fundo
+     SÓLIDO em verde petróleo `--sel` e texto branco; botão de ação da barra
+     acende no mesmo verde no hover;
+   - ação de linha (lápis, olho…) acende no mesmo verde; excluir segue vermelho.
+
+   Importado POR ÚLTIMO em main.tsx: as camadas anteriores (Forja, Cobalto,
+   cartoes-cobalto) ficam valendo onde este arquivo não fala. Os `!important`
+   abaixo existem só onde a camada de baixo já usava `!important`.
+
+   Telas cobertas: Equipamentos, Inspeções, Relatórios, Prontuários, Registros
+   de Segurança, Calibrações, Clientes, Equipe e Acessos.
+   ============================================================================ */
+
+/* ── 1. Respiro: 10px em cima, 16px dos lados, 8px embaixo ─────────────────── */
+.dashboard-page:has(.equip-topo) { padding: 0 !important; max-width: none !important; }
+.equip-topo { padding: 0 !important; margin: 0 !important; }
+.equip-dropzone { padding: 0 16px 16px; }
+.equip-dropzone .eq2-lista { margin: 0 !important; padding: 0 0 16px !important; }
+
+.equip-topo .busca-lista,
+.iv4-barra,
+.rel-cabecalho-busca,
+.prontuarios-page .busca-lista.compacta,
+.calibracoes-page .busca-lista.compacta,
+.fj-panel > .busca-lista.compacta {
+  padding: 10px 16px 8px !important;
+  margin: 0 !important;
+}
+.iv4-barra .busca-lista,
+.rel-cabecalho-busca .busca-lista { padding: 0 !important; }
+
+/* ── 2. UMA linha ─────────────────────────────────────────────────────────── */
+@media (min-width: 761px) {
+  .busca-lista.compacta .busca-lista-linha {
+    flex-wrap: nowrap !important;
+    gap: 8px;
+  }
+  .busca-lista.compacta .busca-lista-linha > * { flex-shrink: 0; }
+  .busca-lista.compacta .busca-lista-linha > .busca-lista-campo {
+    flex: 1 1 180px !important;
+    min-width: 150px;
+    width: auto !important;
+  }
+  .busca-lista.compacta .busca-lista-campo input { min-width: 0; text-overflow: ellipsis; }
+  .busca-lista.compacta .busca-lista-info {
+    flex: 0 1 auto !important;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .busca-lista.compacta .busca-lista-linha > .rel-chips,
+  .busca-lista.compacta .busca-lista-linha > .iv4-seg { flex-wrap: nowrap; }
+}
+/* Faixa apertada (menu aberto + tela média): a contagem é a primeira a sair —
+   o leitor de tela continua ouvindo pelo `aria-live`, que segue no DOM. */
+@media (min-width: 761px) and (max-width: 1240px) {
+  .busca-lista.compacta .busca-lista-info { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .rel-btn-rotulo, .pront-btn-rotulo, .equip-btn-rotulo { display: none; }
+}
+
+/* Botões da barra na mesma altura (36px) */
+.busca-lista-linha .fj-btn,
+.busca-lista-linha .lc-criar { height: 36px; }
+
+/* ── 3. SELECIONADO = verde petróleo sólido ───────────────────────────────── */
+.rel-chips button[aria-pressed='true'],
+.iv4-seg button[aria-pressed='true'],
+.lc-seg button[aria-pressed='true'],
+.lc-seg button.ativo,
+.lc-seg button.active {
+  background: var(--sel) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  font-weight: 600;
+}
+.rel-chips button[aria-pressed='true']:hover,
+.iv4-seg button[aria-pressed='true']:hover { background: var(--sel-hover) !important; }
+.rel-chips button[aria-pressed='true'] i {
+  background: rgba(255, 255, 255, 0.22) !important;
+  color: #fff !important;
+}
+.rel-chips button:focus-visible,
+.iv4-seg button:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+
+/* Calibrações: a cor do chip carrega a SITUAÇÃO (em dia / a vencer / vencida);
+   selecionado ganha a cor cheia daquela situação, não o verde genérico. */
+.cal3-chips button.s-ok[aria-pressed='true'] { background: var(--aprovado) !important; }
+.cal3-chips button.s-warn[aria-pressed='true'] { background: var(--laranja) !important; }
+.cal3-chips button.s-crit[aria-pressed='true'] { background: #B42318 !important; }
+
+/* Grade × lista */
+.equip-visao { gap: 4px; background: none !important; padding: 0 !important; box-shadow: none !important; }
+.equip-visao-btn {
+  width: 36px !important;
+  height: 36px !important;
+  border: 0 !important;
+  border-radius: 4px !important;
+  background: #E9E9E9 !important;
+  color: rgba(0, 0, 0, 0.75) !important;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+.equip-visao-btn:hover { background: #DCDCDC !important; }
+.equip-visao-btn.ativo,
+.equip-visao-btn[aria-pressed='true'] { background: var(--sel) !important; color: #fff !important; }
+.equip-visao-btn:focus-visible { outline: 2px solid var(--sel) !important; outline-offset: 2px; }
+
+/* Botões de ação da barra (Filtrar, Período e tipo, Exportar, ícones): cinza
+   em repouso, verde sólido no hover; com filtro aplicado ficam verdes. */
+.busca-lista-linha .fj-btn-ghost,
+.cli-barra .cli-exportar,
+.acesso2-cab .acesso2-atualizar,
+.acesso2-cab .acesso2-ir {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 0 !important;
+  border-radius: 4px !important;
+  background: #E9E9E9 !important;
+  color: #1A1A1A !important;
+  font: var(--t-control);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+.busca-lista-linha .fj-btn-ghost:hover:not(:disabled),
+.busca-lista-linha .fj-btn-ghost:active:not(:disabled),
+.busca-lista-linha .fj-btn-ghost.filtro-ativo,
+.calibracoes-page .busca-lista .pront-btn-filtro.filtro-ativo,
+.cli-barra .cli-exportar:hover:not(:disabled),
+.cli-barra .cli-exportar:active:not(:disabled),
+.acesso2-cab .acesso2-atualizar:hover,
+.acesso2-cab .acesso2-ir:hover {
+  background: var(--sel) !important;
+  color: #fff !important;
+}
+.busca-lista-linha .fj-btn-ghost.filtro-ativo:hover { background: var(--sel-hover) !important; }
+.busca-lista-linha .fj-btn-ghost:focus-visible,
+.cli-barra .cli-exportar:focus-visible,
+.acesso2-cab button:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+.acesso2-cab .acesso2-atualizar { width: 36px; padding: 0; justify-content: center; }
+
+/* Ícones soltos que algumas barras têm além do criar (enviar PDF em
+   Prontuários, ajuda em Calibrações): mesmo botão cinza → verde. */
+.busca-lista-linha > button:not(.fj-btn):not(.lc-criar):not(.busca-lista-limpar):not(.stipo-botao) {
+  transition: background-color 0.15s, color 0.15s;
+}
+.busca-lista-linha > button:not(.fj-btn):not(.lc-criar):not(.busca-lista-limpar):not(.stipo-botao):hover {
+  background: var(--sel) !important;
+  color: #fff !important;
+}
+
+/* Criar: o verde de sempre, mesma pílula em todas as barras */
+.busca-lista-linha .fj-btn-primary.equip-btn-criar,
+.busca-lista-linha .fj-btn-primary.rel-btn-criar {
+  border-radius: 999px !important;
+  padding: 0 16px 0 12px;
+}
+
+/* ── 4. Ações de LINHA: verde no hover (excluir segue vermelho) ───────────── */
+.lc-acoes button:hover,
+.lc-acoes a:hover,
+.rel-page .rel-corpo-v9 .rel-cel-acoes .btn-icone:not(.cor-doc):not(.cor-doc-forte):not([title*='xcluir']):hover,
+.prontuarios-page .pront-linha-acoes .btn-icone:not(.cor-vermelho):not([title*='xcluir']):hover,
+.cli-v4 .cli-ra.edit:hover,
+.cli-v4 .cli-ra.vis:hover,
+.cad2 .cad2-ra.vis:hover,
+.cad2 .cad2-ra.edit:hover,
+.livro-timeline-acoes .btn-icone:not(.cor-vermelho):hover {
+  background: var(--sel) !important;
+  color: #fff !important;
+}
+.lc-acoes .perigo:hover,
+.lc-acoes .danger:hover,
+.livro-timeline-acoes .btn-icone.cor-vermelho:hover { background: #DC2626 !important; color: #fff !important; }
+
+/* ── 5. Cadastros (Clientes, Equipe, Acessos) no MESMO padrão das listas ─── */
+/* Página branca de borda a borda, sem cartão flutuando no cinza. */
+.main-content:has(.cli-v4, .cad-page.cad2, .acesso2) { background: #fff !important; }
+.cli-barra .cli-exportar { text-transform: none !important; letter-spacing: 0 !important; }
+.cli-v4,
+.cad-page.cad2,
+.cad-page.acesso-page-larga:has(.acesso2) {
+  padding: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  background: #fff !important;
+  min-height: 100%;
+}
+.cli-v4 .cli-painel,
+.cad2-cartao,
+.acesso2 {
+  max-width: none !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: #fff !important;
+}
+.cli-v4 .cli-barra,
+.cad2 .cad2-cab,
+.acesso2-cab {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-height: 0 !important;
+  padding: 10px 16px 8px !important;
+  border-bottom: 0 !important;
+}
+.cli-v4 .cli-busca,
+.cad2 .cad2-busca,
+.acesso2-cab .cad2-busca { flex: 1 1 180px !important; min-width: 150px; max-width: none; height: 36px; }
+.cli-v4 .cli-busca:focus-within,
+.cad2-busca:focus-within { box-shadow: inset 0 0 0 2px var(--destaque); }
+.cli-v4 .cli-esp,
+.cad2 .cad2-esp { display: none; }
+.cli-v4 .cli-barra > *:not(.cli-busca),
+.cad2 .cad2-cab > *:not(.cad2-busca),
+.acesso2-cab > *:not(.cad2-busca) { flex-shrink: 0; }
+
+/* Linhas encostam nos mesmos 16px da barra */
+.cad2-linha { padding: 0 16px !important; }
+.cli-v4 .cli-tabela th:first-child,
+.cli-v4 .cli-tabela td:first-child,
+.acesso2 .cad-tabela th:first-child,
+.acesso2 .cad-tabela td:first-child { padding-left: 16px !important; }
+.cli-v4 .cli-tabela th:last-child,
+.cli-v4 .cli-tabela td:last-child,
+.acesso2 .cad-tabela th:last-child,
+.acesso2 .cad-tabela td:last-child { padding-right: 16px !important; }
+
+/* Clientes: recorte Todos/Com portal/Sem portal em LARANJA sólido */
+.cli-v4 .cli-seg { flex-wrap: nowrap; gap: 6px; background: none; padding: 0; box-shadow: none; }
+.cli-v4 .cli-seg button { height: 32px; padding: 0 12px; border-radius: 999px; background: #E9E9E9; color: #1A1A1A; box-shadow: none; }
+.cli-v4 .cli-seg button:hover { background: #DCDCDC; }
+.cli-v4 .cli-seg button[aria-pressed='true'] { background: var(--laranja) !important; color: #fff !important; box-shadow: none !important; font-weight: 600; }
+.cli-v4 .cli-seg button[aria-pressed='true']:hover { background: var(--laranja-hover) !important; }
+.cli-v4 .cli-seg button[aria-pressed='true'] .n { color: rgba(255, 255, 255, 0.85); }
+.cli-v4 .cli-seg button:focus-visible { outline: 2px solid var(--laranja); outline-offset: 2px; }
+
+/* Acessos: lista no padrão das outras (cabeçalho leve, 44px, zebra, destaque) */
+.acesso2 { padding: 0 0 8px !important; }
+.acesso2 .cad-tabela-wrap { padding: 0; }
+.acesso2 .cad-tabela td { height: var(--row-h, 44px); vertical-align: middle; font: var(--t-body) !important; color: #1A1A1A !important; border-bottom: 1px solid #EDF0F5 !important; }
+.acesso2 .cad-tabela tbody tr:nth-child(even) td { background: var(--row-zebra, #F8F9FA); }
+.acesso2 .cad-tabela tbody tr { transition: background-color 0.12s linear; }
+.acesso2 .cad-tabela tbody tr:hover td { background: var(--row-hover, #FFF5F4) !important; }
+.acesso2 .cad-tabela tbody tr td:first-child { box-shadow: inset 3px 0 0 transparent; transition: box-shadow 0.12s linear; }
+.acesso2 .cad-tabela tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--row-mark, #E5484D); }
+.acesso2 .cad-tabela td.cel-titulo { font-weight: 600 !important; }
+.acesso2 .cad-tabela th:last-child { text-align: right; }
+.acesso2 .cad-tabela .cel-acoes { text-align: right; width: 1%; white-space: nowrap; }
+.acesso2 .lc-acoes button { border: 0; padding: 0; cursor: pointer; }
+.acesso2 .cad-tabela select { height: 30px; border-radius: 4px; border: 1px solid #D6D9DE; background: #fff; font: var(--t-body); padding: 0 6px; }
+.acesso2 .acesso2-novo { height: 36px; padding: 0 16px 0 12px !important; border-radius: 999px !important; background: var(--criar) !important; text-transform: none !important; letter-spacing: 0 !important; font: 600 14px/1 var(--font) !important; }
+.acesso2 .acesso2-novo:hover { background: var(--criar-hover) !important; }
+.acesso2-carregando { padding: 12px 16px; color: var(--texto-3); }
+.acesso2 .fj-empty { margin: 8px 16px; }
+.acesso2-nota { max-width: none !important; margin: 0 !important; padding: 8px 16px 16px; text-align: left !important; font: var(--t-caption); color: var(--texto-3); background: #fff; }
+
+/* ── 6. Registros de Segurança ────────────────────────────────────────────── */
+/* "Abrindo os registros…" SOBREPOSTO: não empurra a lista (era o "pisca"). */
+.dash-page:has(.reg-abrindo) .fj-panel { position: relative; }
+.reg-abrindo {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #0F1631;
+  color: #fff;
+  font: var(--t-control);
+  box-shadow: 0 6px 18px rgba(15, 22, 49, 0.25);
+  pointer-events: none;
+}
+.reg-abrindo-giro {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: reg-giro 0.7s linear infinite;
+}
+@keyframes reg-giro { to { transform: rotate(360deg); } }
+
+/* Dentro do livro: "← Todos os equipamentos" acende em AMARELO */
+.livro-topo .livro-voltar {
+  border: 0 !important;
+  border-radius: 4px !important;
+  background: #E9E9E9 !important;
+  color: #1A1A1A !important;
+  transition: background-color 0.15s, color 0.15s;
+}
+.livro-topo .livro-voltar:hover,
+.livro-topo .livro-voltar:active,
+.livro-topo .livro-voltar:focus-visible { background: #FACC15 !important; color: #1A1A1A !important; }
+.livro-topo .livro-voltar:focus-visible { outline: 2px solid #A16207; outline-offset: 2px; }
+
+/* "Ver livro completo" / "Exportar PDF": cinza sólido → verde sólido */
+.livro-toolbar-acoes .fj-btn-ghost {
+  border: 0 !important;
+  border-radius: 4px !important;
+  background: #E9E9E9 !important;
+  color: #1A1A1A !important;
+  transition: background-color 0.15s, color 0.15s;
+}
+.livro-toolbar-acoes .fj-btn-ghost:hover:not(:disabled),
+.livro-toolbar-acoes .fj-btn-ghost:active:not(:disabled) { background: var(--sel) !important; color: #fff !important; }
+
+/* "Ver registro": NÃO reage ao hover do item inteiro — só ao próprio botão,
+   e aí acende em verde. */
+.livro-timeline-item:hover .livro-timeline-acoes .fj-btn-ghost,
+.livro-timeline-acoes .fj-btn-ghost {
+  border: 0 !important;
+  background: #E9E9E9 !important;
+  color: #1A1A1A !important;
+  transition: background-color 0.15s, color 0.15s;
+}
+.livro-timeline-acoes .fj-btn-ghost:hover:not(:disabled),
+.livro-timeline-item:hover .livro-timeline-acoes .fj-btn-ghost:hover:not(:disabled) { background: var(--sel) !important; color: #fff !important; }
+
+/* ── 7. Contador do menu (Equipamentos 10) em LARANJA ─────────────────────── */
+.nav-count {
+  background: var(--laranja) !important;
+  border-color: var(--laranja) !important;
+  color: #fff !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reg-abrindo-giro { animation: none; }
+}

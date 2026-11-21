@@ -856,3 +856,22 @@
 .reg-lista .reg-card-ic { border-radius: 8px; background: #E3EAFF; color: #1A3591; }
 .reg-lista .reg-card-acao { color: #BDBDBD; transition: color 0.12s linear; }
 .reg-lista > li > .reg-card:hover .reg-card-acao { color: var(--row-mark); }
+
+/* ============================================================================
+   21/11/2026 · ABRIR O LIVRO a qualquer momento (`aberturaLivro.ts`).
+   O atalho ao lado de Capa e Termo, e o chamado do livro vazio. O chip usa o
+   verde de seleção (`--sel`): abrir o livro é uma ação, não um documento.
+   ============================================================================ */
+.livro-doc-ic.abrir { background: var(--sel-bg); color: var(--sel); }
+.livro-doc-card.livro-doc-abrir:hover .livro-doc-ic.abrir { background: var(--sel); color: #fff; }
+.livro-vazio-abrir {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.livro-vazio-abrir .fj-btn-primary { background: var(--sel); border-color: var(--sel); color: #fff; }
+.livro-vazio-abrir .fj-btn-primary:hover { background: var(--sel-hover); border-color: var(--sel-hover); }
+/* 44px sempre: no dedo é o mínimo, e no desktop não pesa. Fora de um bloco
+   de 640px de propósito — o último deles é o da lista única, travado em teste. */
+.livro-vazio-abrir .fj-btn { min-height: 44px; }

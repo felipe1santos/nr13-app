@@ -254,7 +254,8 @@ describe('Inspeções em tabela de 40px, abas por tipo', () => {
   it('as abas filtram pelo TIPO que o servidor já sabe recortar, com estado na URL', () => {
     expect(V9).toContain("const tipo = params.get('tipo') ?? '';");
     expect(V9).toContain('({ termo, tipo })');
-    expect(V9).toContain("onClick={() => trocarParam('tipo', a.valor)}");
+    // 21/11/2026: as abas viraram o SeletorTipo (caixinha no botão), mesma URL.
+    expect(V9).toContain("antes={<SeletorTipo valor={tipo} aoMudar={(v) => trocarParam('tipo', v)} />}");
   });
 
   it('nada de situação inventada: o catálogo não tem prazo por linha', () => {

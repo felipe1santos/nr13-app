@@ -1227,8 +1227,6 @@
 /* Equipamentos · barra do protótipo: chips de tipo · busca · filtro · visão · importar · criar */
 .equip-topo .busca-lista { padding: 16px 16px 8px !important; margin: 0 !important; }
 .equip-chips button i { font-style: normal; }
-.equip-btn-importar { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border: 0; border-radius: 4px; background: #E9E9E9; color: rgba(0, 0, 0, .75); cursor: pointer; transition: background-color .15s, color .15s; }
-.equip-btn-importar:hover { background: #0F766E; color: #fff; }
 @media (max-width: 760px) { .equip-chips { display: none; } }
 
 /* ============================================================================

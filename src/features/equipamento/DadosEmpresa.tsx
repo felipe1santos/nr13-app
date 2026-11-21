@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Icone } from '../../components/Icone';
 import { ler, salvar } from '../../services/storage';
 import type { EmpresaEquipamento } from './tipos';
 import Campo from '../memorial/Campo';
 import { listarClientes } from '../cadastros/cadastroService';
 import type { Cliente } from '../cadastros/tipos';
+import SeletorEmpresa from './SeletorEmpresa';
 import '../../pages/cadastros.css';
 
 type CampoView = { chave: keyof EmpresaEquipamento; label: string; span2?: boolean };
@@ -46,6 +47,7 @@ export default function DadosEmpresa({ tag }: { tag: string }) {
   const [empresa, setEmpresa] = useState<EmpresaEquipamento>(() => ler<EmpresaEquipamento>(`nr13_emp_${tag}`) || {});
   const [salvando, setSalvando] = useState(false);
   const [clientes] = useState<Cliente[]>(() => listarClientes());
+  const idRotuloSeletor = useId();
 
   function set(chave: keyof EmpresaEquipamento, valor: string) {
     setEmpresa((e) => ({ ...e, [chave]: valor }));
@@ -117,18 +119,17 @@ export default function DadosEmpresa({ tag }: { tag: string }) {
         <>
           {clientes.length > 0 && (
             <div className="emp-cliente-selector">
-              <label>Selecionar empresa cadastrada</label>
-              <select
-                value={empresa.clienteId || ''}
-                onChange={(e) => aplicarCliente(e.target.value)}
-              >
-                <option value="">— Preencher manualmente —</option>
-                {clientes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.razaoSocial}{c.nomeFantasia ? ` (${c.nomeFantasia})` : ''}
-                  </option>
-                ))}
-              </select>
+              {/* Com a logo de cada cliente (21/11/2026) — o select nativo não
+                  desenha imagem. Escolher chama o MESMO `aplicarCliente`. */}
+              <span className="emp-cliente-selector-rotulo" id={idRotuloSeletor}>
+                Selecionar empresa cadastrada
+              </span>
+              <SeletorEmpresa
+                clientes={clientes}
+                valor={empresa.clienteId || ''}
+                aoEscolher={aplicarCliente}
+                idRotulo={idRotuloSeletor}
+              />
             </div>
           )}
           <div className="memorial-campos-grid">

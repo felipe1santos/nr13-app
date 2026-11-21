@@ -1341,3 +1341,57 @@
 .vasos-grid .plate-card { border: 0; border-radius: var(--card-r); box-shadow: var(--card-sh); background: #fff; transition: box-shadow 0.15s linear; }
 .vasos-grid .plate-card:hover { box-shadow: var(--card-sh-hover); transform: none; }
 .dashboard-page:has(.vasos-grid) { background: var(--page-cards); }
+
+/* ============================================================================
+   CRIAR EQUIPAMENTO · UNIDADE DE MEDIDA (21/11/2026)
+   A unidade não tem volta depois de criada (CLAUDE.md §4): hover acende em
+   vermelho claro e a ESCOLHIDA fica em vermelho sólido, texto branco. O rádio
+   nativo continua por baixo (anuncia "marcado", setas trocam), escondido só
+   visualmente; o foco aparece no cartão inteiro.
+   ============================================================================ */
+.unidade-criacao { gap: 6px; }
+.unidade-criacao .unidade-criacao-opcao {
+  position: relative;
+  flex-direction: row;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--fio-campo, #D0D5DD);
+  border-radius: 6px;
+  background: #fff;
+  color: #1A1A1A;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.unidade-criacao .unidade-criacao-opcao input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.unidade-criacao .unidade-criacao-opcao:hover {
+  background: #FEE2E2;
+  border-color: #FCA5A5;
+  color: #B42318;
+}
+.unidade-criacao .unidade-criacao-opcao.marcada,
+.unidade-criacao .unidade-criacao-opcao.marcada:hover {
+  background: #DC2626;
+  border-color: #DC2626;
+  color: #fff;
+  font-weight: 600;
+}
+.unidade-criacao .unidade-criacao-opcao:has(input:focus-visible) {
+  outline: 2px solid #DC2626;
+  outline-offset: 2px;
+}
+.unidade-criacao .unidade-criacao-check { flex: none; }
+.unidade-criacao .unidade-criacao-ajuda { font-size: 12px; font-weight: 400; color: #5F6B82; line-height: 1.4; }
+.unidade-criacao .unidade-criacao-ajuda b { color: #B42318; font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .unidade-criacao .unidade-criacao-opcao { transition: none; }
+}

@@ -179,7 +179,6 @@ export const PRIMEIROS_PASSOS: EtapaJornada[] = [
       'O cliente proprietário',
       'PMTA, PMO e PTH adotadas — quando preenchidas, vencem as calculadas',
       'A foto de capa',
-      'Vários de uma vez: a tela aceita importação por planilha',
     ],
     rota: '/equipamentos',
     rotaRotulo: 'Ir para Equipamentos',
@@ -438,7 +437,7 @@ export const GUIAS: Guia[] = [
     resumo: 'A raiz de tudo: inspeção, relatório, prontuário e prazos pendem do equipamento.',
     categoria: 'operacao',
     icone: 'box',
-    chaves: ['equipamento', 'tag', 'ficha', 'vaso', 'caldeira', 'autoclave', 'fabricante', 'série', 'placa', 'planilha'],
+    chaves: ['equipamento', 'tag', 'ficha', 'vaso', 'caldeira', 'autoclave', 'fabricante', 'série', 'placa'],
     preRequisitos: ['Cliente cadastrado (opcional, mas o relatório precisa dele para o contratante)'],
     passos: [
       {
@@ -481,7 +480,6 @@ export const GUIAS: Guia[] = [
     ],
     observacoes: [
       'A unidade de medida é escolhida dentro da ficha e reflete em todo o sistema. A categoria de risco NUNCA é convertida — ela tem base própria.',
-      'Vários equipamentos de uma vez: a tela aceita importação por planilha (.xlsx, .xls, .ods ou .csv), inclusive arrastando o arquivo para cima da lista.',
       'A ficha alimenta a capa, a placa de identificação reconstruída, a caracterização de risco, o prontuário e o resumo de inspeções.',
     ],
     depois: 'O equipamento passa a aparecer em Inspeções, Relatórios, Prontuários, Calibrações e Registros de Segurança.',
@@ -1194,11 +1192,6 @@ export const FAQ: PerguntaFaq[] = [
     pergunta: 'Escrevo as mesmas recomendações em todo relatório. Dá para guardar?',
     resposta:
       'Dá. Na barra do documento, ao lado de "O que falta", o botão Predefinições guarda conjuntos de recomendações da sua empresa e os aplica com um clique em qualquer relatório.',
-  },
-  {
-    pergunta: 'Posso cadastrar vários equipamentos de uma vez?',
-    resposta:
-      'Pode: a tela de Equipamentos aceita importação por planilha (.xlsx, .xls, .ods ou .csv). Também funciona arrastando o arquivo para cima da lista.',
   },
   {
     pergunta: 'Meu cliente pode acompanhar os documentos dele?',

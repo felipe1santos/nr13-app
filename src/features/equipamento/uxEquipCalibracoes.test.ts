@@ -28,8 +28,10 @@ describe('/equipamentos: uma barra só', () => {
 
   it('contexto e visualização entram pelo `antes` da busca', () => {
     expect(equip).toContain('className="equip-barra-esq"');
-    // Cobalto: o título deu lugar aos chips de tipo com contagem (protótipo).
-    expect(equip).toContain('className="rel-chips equip-chips"');
+    // 21/11/2026: os chips de tipo viraram UM seletor com caixinha (a barra
+    // cabe numa linha, com o criar dentro).
+    expect(equip).toContain('<SeletorTipo valor={fTipo}');
+    expect(equip).not.toContain('className="rel-chips equip-chips"');
     expect(equip).toContain('className="equip-visao"');
     // A alternância grade/lista continua funcionando como antes.
     expect(equip).toContain("setVisao('grade')");
@@ -45,6 +47,10 @@ describe('/equipamentos: uma barra só', () => {
   it('"Importar planilha" saiu da barra', () => {
     const limpo = semComentarios(equip);
     expect(limpo).not.toContain('Importar planilha');
+    // 21/11/2026: a importação por planilha saiu da tela (botão, arrastar e modal).
+    expect(limpo).not.toContain('ModalImportarPlanilha');
+    expect(limpo).not.toContain('equip-btn-importar');
+    expect(limpo).not.toContain('onDrop=');
     expect(limpo).not.toContain('function abrirImportacao');
     // O texto do estado vazio também parou de oferecer a planilha.
     expect(limpo).not.toContain('arraste uma planilha aqui');

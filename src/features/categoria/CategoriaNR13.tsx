@@ -121,9 +121,12 @@ export default function CategoriaNR13({ tag, unidade }: { tag: string; unidade: 
           </button>
         )}
       </div>
+      {/* Campos e ação na MESMA linha (21/11/2026): o botão fica ao lado das
+          caixas, alinhado pela base delas — no celular a linha quebra e ele
+          desce inteiro. Mesmos campos, mesma conta, mesma gravação. */}
       {editando && (
-      <>
-      <div className="memorial-campos-grid">
+      <div className="ficha-categoria-linha">
+      <div className="memorial-campos-grid ficha-categoria-campos">
         <Campo label="Volume (m³)" value={volume} onChange={(v) => setVolume(Number(v))} />
         <Campo label={`Pressão (${FATORES_CONVERSAO[unidade].labelPressao})`} value={pressao} onChange={(v) => setPressao(Number(v))} />
         <div className="memorial-campo">
@@ -141,7 +144,7 @@ export default function CategoriaNR13({ tag, unidade }: { tag: string; unidade: 
           </select>
         </div>
       </div>
-      <div className="ficha-acoes-edicao">
+      <div className="ficha-acoes-edicao ficha-categoria-acoes">
         <button type="button" className="btn-primario" onClick={calcular}>
           Calcular Categoria
         </button>
@@ -151,7 +154,7 @@ export default function CategoriaNR13({ tag, unidade }: { tag: string; unidade: 
           </button>
         )}
       </div>
-      </>
+      </div>
       )}
 
       {salva && !editando && (

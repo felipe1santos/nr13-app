@@ -268,8 +268,9 @@ export default function Acesso() {
       {/* ── Lista (tela inicial) ── */}
       <div className="bloco-dados acesso2">
         {/* Cobalto · barra do protótipo: título, busca, recorte e criar. */}
+        {/* 21/11/2026: barra de UMA linha, igual às outras listas — sem título
+            (a topbar já diz "Acessos"), recarregar à vista e o criar dentro dela. */}
         <div className="acesso2-cab">
-          <h2>Acessos</h2>
           <label className="cad2-busca">
             <Icone nome="search" tam={15} />
             <input
@@ -289,20 +290,29 @@ export default function Acesso() {
             </button>
           </div>
           <span className="cad2-esp" />
+          <button
+            type="button"
+            className="acesso2-atualizar"
+            title="Atualizar lista"
+            aria-label="Atualizar lista"
+            onClick={() => void recarregar()}
+          >
+            <Icone nome="refresh" tam={16} />
+          </button>
           {aba === 'equipe' && !formAberto && (
-            <button type="button" className="btn-primario acesso2-novo" onClick={() => { setFormAberto(true); setAviso(null); }}>
-              Novo acesso
+            <button type="button" className="lc-criar acesso2-novo" onClick={() => { setFormAberto(true); setAviso(null); }}>
+              <Icone nome="plus" tam={18} /> Novo acesso
             </button>
           )}
           {aba === 'clientes' && (
-            <button type="button" className="btn-secundario" onClick={() => navigate('/empresas')}>
+            <button type="button" className="acesso2-ir" onClick={() => navigate('/empresas')}>
               Criar acesso em Clientes <Icone nome="arrowright" tam={12} style={{ display: 'inline-block', verticalAlign: -1 }} />
             </button>
           )}
         </div>
 
         {carregando ? (
-          <p>Carregando...</p>
+          <p className="acesso2-carregando">Carregando…</p>
         ) : aba === 'equipe' && equipe.length === 0 ? (
           <div className="fj-empty">
             <div className="fj-empty-ic"><Icone nome="key" tam={22} /></div>
@@ -323,7 +333,7 @@ export default function Acesso() {
                 próprio div cresce com a tabela e quem estoura é a página. No celular
                 a lista vira cartões (cadastros.css), com o rótulo de cada campo
                 saindo do `data-rot`. */}
-            <table className="cad-tabela" style={{ width: '100%' }}>
+            <table className="cad-tabela acesso2-tabela" style={{ width: '100%' }}>
               <thead>
                 <tr>
                   <th>E-mail</th>
@@ -392,16 +402,16 @@ export default function Acesso() {
                       {u.sessao_ativa ? <span className="fj-badge warn">Em uso</span> : <span className="fj-badge neutro">Livre</span>}
                     </td>
                     <td className="cel-acoes">
-                      <div className="acesso-acoes">
+                      <div className="acesso-acoes lc-acoes">
                         {u.papel !== 'cliente' && (
-                          <button type="button" className="btn-secundario" title="Permissões" onClick={() => abrirPermissoes(u)}>
+                          <button type="button" title="Permissões" aria-label={`Permissões de ${u.email}`} onClick={() => abrirPermissoes(u)}>
                             <Icone nome="sliders" tam={13} />
                           </button>
                         )}
                         <button
                           type="button"
-                          className="btn-secundario"
                           title="Resetar senha"
+                          aria-label={`Resetar a senha de ${u.email}`}
                           onClick={() => {
                             const nova = window.prompt(`Nova senha para ${u.email} (mín. 6):`);
                             if (nova && nova.length >= 6) void acao(() => resetarSenhaSub(u.id, nova), 'Senha atualizada.');
@@ -411,16 +421,17 @@ export default function Acesso() {
                         </button>
                         <button
                           type="button"
-                          className="btn-secundario"
                           title={u.ativo ? 'Bloquear' : 'Liberar'}
+                          aria-label={`${u.ativo ? 'Bloquear' : 'Liberar'} ${u.email}`}
                           onClick={() => acao(() => definirAtivoSub(u.id, !u.ativo), u.ativo ? 'Acesso bloqueado.' : 'Acesso liberado.')}
                         >
                           <Icone nome="shield" tam={13} />
                         </button>
                         <button
                           type="button"
-                          className="btn-secundario"
+                          className="perigo"
                           title="Excluir"
+                          aria-label={`Excluir o acesso de ${u.email}`}
                           onClick={() => {
                             if (window.confirm(`Excluir o acesso de ${u.email}? Essa ação não tem volta.`))
                               void acao(async () => {
@@ -444,9 +455,6 @@ export default function Acesso() {
             </table>
           </div>
         )}
-        <button type="button" className="btn-secundario" style={{ marginTop: 10 }} onClick={() => void recarregar()}>
-          <Icone nome="refresh" tam={12} style={{ display: 'inline-block', verticalAlign: -2 }} /> Atualizar lista
-        </button>
       </div>
       <p className="acesso2-nota">
         Crie logins para sua equipe e marque o que cada um pode acessar. Acessos de <b>cliente</b>{' '}

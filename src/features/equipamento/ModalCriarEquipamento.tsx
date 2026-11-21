@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { SubtipoAutoclave, SubtipoCaldeira, TipoEquipamento } from './tipos';
 import { criarEquipamento, tagJaExiste } from './equipamentoService';
 import { FATORES_CONVERSAO, rotuloSistemaCompleto, type SistemaUnidade } from '../../calc/unidades';
+import { Icone } from '../../components/Icone';
 import './equipamento.css';
 import { normalizarTag } from './tagNormalizada';
 
@@ -133,19 +134,30 @@ export default function ModalCriarEquipamento({ onClose, onCriado }: Props) {
             </fieldset>
           )}
 
-          <label>
-            Unidade de medida *
-            <select value={unidade} onChange={(e) => setUnidade(e.target.value as SistemaUnidade)}>
-              {(Object.keys(FATORES_CONVERSAO) as SistemaUnidade[]).map((u) => (
-                <option key={u} value={u}>
-                  {rotuloSistemaCompleto(u)}
-                </option>
-              ))}
-            </select>
-            <small className="campo-ajuda">
-              Define como as grandezas técnicas deste equipamento aparecem na ficha e na documentação.
+          {/* UNIDADE (21/11/2026): três opções em cartão, não um select. Ela não
+              se altera depois de criada (§4), então a escolhida fica em VERMELHO
+              sólido — não pode passar despercebida. Rádio nativo por baixo: o
+              leitor de tela anuncia "marcado" e as setas trocam a opção. */}
+          <fieldset className="tipo-equipamento-fieldset unidade-criacao" aria-describedby="unidade-criacao-ajuda">
+            <legend>Unidade de medida *</legend>
+            {(Object.keys(FATORES_CONVERSAO) as SistemaUnidade[]).map((u) => (
+              <label key={u} className={`radio-card unidade-criacao-opcao${unidade === u ? ' marcada' : ''}`}>
+                <input
+                  type="radio"
+                  name="unidade"
+                  value={u}
+                  checked={unidade === u}
+                  onChange={() => setUnidade(u)}
+                />
+                <span className="unidade-criacao-rotulo">{rotuloSistemaCompleto(u)}</span>
+                {unidade === u && <Icone nome="check" tam={15} className="unidade-criacao-check" />}
+              </label>
+            ))}
+            <small id="unidade-criacao-ajuda" className="campo-ajuda unidade-criacao-ajuda">
+              Define como as grandezas técnicas deste equipamento aparecem na ficha e na documentação.{' '}
+              <b>Não pode ser alterada depois de criado o equipamento.</b>
             </small>
-          </label>
+          </fieldset>
 
           {erro && <p className="erro-form">{erro}</p>}
 

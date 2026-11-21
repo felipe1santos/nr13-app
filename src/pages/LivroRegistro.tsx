@@ -11,12 +11,7 @@ import { identificacaoDe } from '../features/equipamento/identificacaoEquipament
 import FotoImg from '../components/FotoImg';
 import type { FotoArmazenada } from '../services/fotos';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
-import {
-  montarEntradaLivroDoRelatorio,
-  montarEntradaLivroManual,
-  timestampDataLivro,
-} from '../features/relatorios/relatoriosService';
-import { carregarRelatorio, listarIndice } from '../features/relatorios/historicoRelatorios';
+import { montarEntradaLivroManual, timestampDataLivro } from '../features/relatorios/relatoriosService';
 import {
   excluirRascunhoLivro,
   listarRascunhosLivro,
@@ -30,11 +25,15 @@ import ModalNovoRegistro from '../features/livro/ModalNovoRegistro';
 import PopoverAjuda from '../features/livro/PopoverAjuda';
 import { FORM_OCORRENCIA_VAZIO, type FormOcorrencia } from '../features/livro/formRegistro';
 import PreviaRegistro from '../features/livro/PreviaRegistro';
+import { termoSugerido, type DadosPrevia } from '../features/livro/termoRegistro';
+import { sugestaoDoFormulario } from '../features/livro/sugestaoTermo';
 import {
-  descricaoCombinada,
-  termoSugerido,
-  type DadosPrevia,
-} from '../features/livro/termoRegistro';
+  TIPO_ABERTURA,
+  dadosAberturaDoCache,
+  ehAbertura,
+  impedimentoDoMotivo,
+  motivoPelaDescricao,
+} from '../features/livro/aberturaLivro';
 import { verificarCadeia, verificarEntrada, type LivroEntrada as EntradaLacre } from '../features/relatorios/livroLacre';
 import { exportarPdf, exportarPdfLivroCompleto } from '../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
@@ -97,19 +96,6 @@ function dataBR(data: string | undefined): string {
   return iso ? `${iso[3]}/${iso[2]}/${iso[1]}` : bruta;
 }
 
-/**
- * O caminho de volta: `dd/mm/aaaa` → `aaaa-mm-dd`, que é o único formato que o
- * `<input type="date">` aceita. Já em ISO, devolve como está; qualquer outra
- * coisa devolve vazio — melhor o campo em branco do que uma data inventada num
- * registro de segurança.
- */
-function paraISO(data: string): string {
-  const bruta = data.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(bruta)) return bruta;
-  const br = bruta.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  return br ? `${br[3]}-${br[2]}-${br[1]}` : '';
-}
-
 // Cor do badge por tipo de entrada — mesma paleta de badges do sistema (fj-badge), só varia
 // a cor por tipo pra dar leitura rápida rolando a linha do tempo.
 const COR_TIPO: Record<string, string> = {
@@ -117,6 +103,8 @@ const COR_TIPO: Record<string, string> = {
   'Inspeção Periódica': 'info',
   'Inspeção Extraordinária': 'warn',
   'Ocorrência': 'crit',
+  // A abertura de um livro é o começo dele, não uma ocorrência de risco.
+  [TIPO_ABERTURA]: 'ok',
 };
 
 /**
@@ -380,6 +368,14 @@ export default function LivroRegistro() {
     // moram ali, e é assim que a ficha e a capa do relatório as exibem.
     return capa ? { ref: capa.ref, base64: capa.src } : null;
   }, [tagAberta]);
+  /**
+   * O que o Termo de Abertura cita (equipamento, cliente, total de folhas), do
+   * cache que a abertura já semeou — as mesmas chaves da folha TERMO-ABERTURA.
+   */
+  const dadosAbertura = useMemo(
+    () => (tagAberta ? dadosAberturaDoCache(tagAberta) : null),
+    [tagAberta],
+  );
   const [erroForm, setErroForm] = useState('');
   // ── Fase 10B.2 · registros em rascunho ─────────────────────────────────────
   /** Rascunhos do livro ABERTO. Vivem em `nr13_livro_rascunho_<TAG>`, fora da
@@ -521,6 +517,25 @@ export default function LivroRegistro() {
   }
 
   /**
+   * ABRIR O LIVRO a qualquer momento (21/11/2026) — ver `aberturaLivro.ts`.
+   *
+   * O mesmo modal, já no tipo `TIPO_ABERTURA` e com a data de hoje. O motivo
+   * nasce SEM escolha: "primeiro livro" e "livro anterior perdido" são
+   * afirmações diferentes num documento legal, e quem sabe qual é a verdade é
+   * o usuário. Vira rascunho como qualquer registro; só o trancamento o lacra
+   * no fim do livro.
+   */
+  function abrirModalAbertura() {
+    const hoje = new Date();
+    const iso = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+    setForm({ ...FORM_OCORRENCIA_VAZIO, tipoOcorrencia: TIPO_ABERTURA, data: iso, motivoAbertura: '' });
+    setAbaModal('previa');
+    setEditandoId(null);
+    setErroForm('');
+    setModalOcorrencia(true);
+  }
+
+  /**
    * Reabre um rascunho para continuar de onde parou.
    *
    * `aba` decide o que o usuário vê primeiro: o OLHO da lista abre na prévia
@@ -545,49 +560,14 @@ export default function LivroRegistro() {
       termoTexto: (r as { termoTexto?: string }).termoTexto ?? null,
       relatorioCodigo: r.relatorioCodigo || undefined,
       apto: r.apto ?? null,
+      // O motivo da abertura não é campo gravado: volta pela frase que ele pôs
+      // na descrição. Texto reescrito à mão volta sem motivo, e o salvar pede.
+      ...(ehAbertura(r.tipo) ? { motivoAbertura: motivoPelaDescricao(r.descricao) } : {}),
     });
     setAbaModal(aba);
     setEditandoId(r.id ?? null);
     setErroForm('');
     setModalOcorrencia(true);
-  }
-
-  /**
-   * PRÉ-PREENCHER a partir de um relatório finalizado.
-   *
-   * É o que restou — de propósito — do antigo acoplamento automático: os mesmos
-   * campos (tipo, data de execução, ensaios, laudo, rubrica congelada), agora
-   * como uma OFERTA. Quem decide que existe um registro é o usuário.
-   */
-  async function preencherDeRelatorio(relatorioId: string) {
-    if (!linhaAberta || !relatorioId) return;
-    setErroForm('');
-    const rel = carregarRelatorio(relatorioId, linhaAberta.tag);
-    if (!rel) {
-      // O índice tem o relatório, o registro completo ainda não chegou a este
-      // aparelho (boot leve). Dizer isso é melhor do que um clique que não faz
-      // nada — e melhor ainda do que deixar na tela o erro da escolha anterior.
-      setErroForm('Este relatório ainda não está baixado neste aparelho. Abra-o em Relatórios uma vez e tente de novo.');
-      return;
-    }
-    const entrada = await montarEntradaLivroDoRelatorio(rel);
-    if (!entrada) {
-      setErroForm('Este relatório já tem registro trancado neste livro.');
-      return;
-    }
-    setForm((f) => ({
-      ...f,
-      // `<input type="date">` só aceita `aaaa-mm-dd`. A entrada montada traz a
-      // data do relatório, que pode vir em `dd/mm/aaaa` — atribuir isso ao
-      // campo o deixa VAZIO, sem erro nenhum, e o usuário perde o único campo
-      // obrigatório que o pré-preenchimento deveria ter resolvido (medido em
-      // produção em 07/09/2026).
-      data: paraISO(String(entrada.data ?? '')) || f.data,
-      tipoOcorrencia: String(entrada.tipo ?? f.tipoOcorrencia),
-      oQueFoiFeito: String(entrada.descricao ?? f.oQueFoiFeito),
-      phId: entrada.phId ?? f.phId,
-    }));
-    setErroForm('');
   }
 
   /**
@@ -642,14 +622,11 @@ export default function LivroRegistro() {
    */
   function termoDoFormulario(): string {
     if (form.termoTexto !== null) return form.termoTexto;
-    return termoSugerido({
-      tipo: form.tipoOcorrencia,
-      data: form.data,
+    // A MESMA regra da prévia do modal — inclusive o ramo da abertura de livro.
+    return sugestaoDoFormulario(form, {
+      tag: linhaAberta?.tag ?? '',
       empresa: nomeEmpresaExecutante,
-      relatorioCodigo: form.relatorioCodigo,
-      apto: form.apto,
-      descricao: descricaoCombinada(form.oQueFoiFeito, form.descricao),
-      tipoEquipamento: tipoDaTag(linhaAberta?.tag ?? ''),
+      abertura: dadosAbertura,
     });
   }
 
@@ -658,6 +635,15 @@ export default function LivroRegistro() {
     if (!form.data || !form.tipoOcorrencia || !form.oQueFoiFeito.trim()) {
       setErroForm('Preencha a data, o tipo de ocorrência e o que foi feito.');
       return;
+    }
+    if (ehAbertura(form.tipoOcorrencia)) {
+      // "Primeiro livro" sobre um livro que já tem registro lacrado afirmaria
+      // que o histórico não existe — a recusa é aqui, antes de virar rascunho.
+      const impedimento = impedimentoDoMotivo(form.motivoAbertura, linhaAberta.entradas.length);
+      if (impedimento) {
+        setErroForm(impedimento);
+        return;
+      }
     }
     const entrada = await montarEntradaLivroManual({
       data: form.data,
@@ -750,7 +736,7 @@ export default function LivroRegistro() {
           <div className="fj-panel-head livro-topo">
             <div className="livro-topo-l1">
               <div className="meta-breadcrumb livro-topo-trilha">
-                <button type="button" className="btn-secundario" onClick={() => { setTagAberta(null); setLivroCompleto(false); }}>
+                <button type="button" className="btn-secundario livro-voltar" onClick={() => { setTagAberta(null); setLivroCompleto(false); }}>
                   ← Todos os equipamentos
                 </button>
                 <span className="breadcrumb-chevron">›</span>
@@ -844,6 +830,16 @@ export default function LivroRegistro() {
                   <span>NR-13, subitem {itemRegistroSeguranca(tipoDaTag(linhaAberta.tag))}</span>
                 </div>
               </button>
+              {/* ABRIR O LIVRO a qualquer momento — não só na inspeção inicial.
+                  Equipamento em operação que perdeu o livro original abre um
+                  novo aqui; o termo é acrescentado, nada é apagado. */}
+              <button type="button" className="livro-doc-card livro-doc-abrir" onClick={abrirModalAbertura}>
+                <span className="livro-doc-ic abrir"><Icone nome="plus" tam={15} /></span>
+                <div>
+                  <strong>Abrir livro</strong>
+                  <span>Lavrar um Termo de Abertura</span>
+                </div>
+              </button>
             </div>
 
             {/* O estado do livro em três números e um selo. O veredicto da
@@ -877,7 +873,14 @@ export default function LivroRegistro() {
 
 
           {itensDoLivro.length === 0 ? (
-            <p className="dashboard-vazio" style={{ padding: '14px 0' }}>Nenhum registro lançado ainda neste livro.</p>
+            <div className="livro-vazio-abrir">
+              <p className="dashboard-vazio" style={{ padding: '14px 0' }}>Nenhum registro lançado ainda neste livro.</p>
+              {/* O livro vazio é o caso do equipamento que nunca teve registro
+                  aqui — inclusive o que está em operação e perdeu o original. */}
+              <button type="button" className="fj-btn fj-btn-primary" onClick={abrirModalAbertura}>
+                <Icone nome="book" tam={13} /> Abrir o livro (Termo de Abertura)
+              </button>
+            </div>
           ) : (
             <ul className="livro-timeline">
               {itensDoLivro.map(({ entrada, numero, rascunho, i }) => {
@@ -1235,10 +1238,6 @@ export default function LivroRegistro() {
             modo={form.retificaDe ? 'retificar' : editandoId ? 'editar' : 'novo'}
             form={form}
             aoMudarForm={setForm}
-            relatorios={listarIndice(linhaAberta.tag).map((r) => ({
-              id: r.id,
-              rotulo: `${r.codigo || r.id} · ${r.tipo} · ${r.emissao || r.data}`,
-            }))}
             assinantes={funcionarios.map((f) => ({
               id: f.id,
               rotulo: `${f.nome}${f.crea ? ` — ${f.crea}` : ''}`,
@@ -1251,7 +1250,7 @@ export default function LivroRegistro() {
                 : undefined
             }
             erro={erroForm}
-            aoPreencherDeRelatorio={(id) => void preencherDeRelatorio(id)}
+            abertura={dadosAbertura}
             aoSalvar={() => void salvarOcorrencia()}
             aoFechar={() => setModalOcorrencia(false)}
           />
@@ -1306,9 +1305,13 @@ export default function LivroRegistro() {
         </div>
 
         {/* A semeadura da TAG é uma ida à rede, e o clique precisa responder:
-            sem isto, o usuário clica e a tela fica parada. */}
+            sem isto, o usuário clica e a tela fica parada.
+            21/11/2026: SOBREPOSTO, fora do fluxo. Era um bloco acima da lista:
+            ao clicar, a lista descia ~30px e logo a tela trocava — o "pisca"
+            com um espaço vazio aparecendo no topo. */}
         {abrindo && (
-          <div className="rel-rodape-carregando" role="status">
+          <div className="reg-abrindo" role="status" aria-live="polite">
+            <span className="reg-abrindo-giro" aria-hidden="true" />
             Abrindo os registros…
           </div>
         )}

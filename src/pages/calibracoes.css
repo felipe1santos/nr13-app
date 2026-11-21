@@ -1047,3 +1047,104 @@
 .calibracoes-page .badge-relatorios.tem { background: var(--destaque-bg); color: var(--destaque); }
 .calibracoes-page .pront-btn-criar.fj-btn-primary { height: 36px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; background: var(--criar); color: #fff; font: 600 14px/1 var(--font); box-shadow: 0 2px 6px rgba(67, 160, 71, 0.35); }
 .calibracoes-page .pront-btn-criar.fj-btn-primary:hover { background: var(--criar-hover); }
+
+/* ============================================================================
+   CALIBRAÇÕES · pedidos do dono (21/11/2026). Acrescentado por último, com o
+   prefixo `.calibracoes-page` para vencer as regras de `cartoes-cobalto.css`
+   (arquivo compartilhado, que esta rodada não edita). Toda media query de lá
+   que mexe na grade foi RE-DECLARADA aqui com o mesmo prefixo.
+   ============================================================================ */
+
+/* ── Lista: foto do equipamento + coluna "Calibrações" ───────────────────── */
+.calibracoes-page .cal3-cab,
+.calibracoes-page .cal3-linha {
+  grid-template-columns: 30px 120px minmax(170px, 1.1fr) 92px minmax(170px, 1fr) 150px 200px 130px 20px;
+}
+.calibracoes-page .cal3-cab > .c-num,
+.calibracoes-page .cal3-linha > .c-num { text-align: right; }
+.calibracoes-page .cal3-foto { overflow: hidden; }
+.calibracoes-page .cal3-foto .cal3-foto-img { width: 100%; height: 100%; }
+.calibracoes-page .cal3-ncal { font: 600 14px/20px var(--font); color: var(--destaque); font-variant-numeric: tabular-nums; }
+.calibracoes-page .cal3-ncal.vazio { color: #8A8A8A; font-weight: 400; }
+@media (max-width: 1280px) {
+  .calibracoes-page .cal3-cab,
+  .calibracoes-page .cal3-linha { grid-template-columns: 30px 110px minmax(160px, 1fr) 84px 140px 190px 120px 20px; }
+}
+@media (max-width: 760px) {
+  .calibracoes-page .cal3-linha { grid-template-columns: 30px 1fr auto; }
+  .calibracoes-page .cal3-linha > .c-num { display: none; }
+}
+
+/* ── Abas do painel: a selecionada em rosa SÓLIDO, hover discreto ────────── */
+.calibracoes-page .cal4-abas button { border-radius: var(--card-r, 4px) var(--card-r, 4px) 0 0; }
+.calibracoes-page .cal4-abas button:hover { background: #F4F4F5; color: #1A1A1A; }
+.calibracoes-page .cal4-abas button[aria-selected="true"],
+.calibracoes-page .cal4-abas button[aria-selected="true"]:hover {
+  background: var(--e-imagens, #BE185D);
+  color: #fff;
+  border-bottom-color: var(--e-imagens, #BE185D);
+}
+.calibracoes-page .cal4-abas button[aria-selected="true"] .n { background: #fff; color: var(--e-imagens, #BE185D); }
+.calibracoes-page .cal4-abas button:focus-visible { outline: 2px solid var(--e-imagens, #BE185D); outline-offset: 2px; }
+
+/* ── Cartão do acessório ─────────────────────────────────────────────────── */
+/* Tipo do instrumento: TAG de fundo sólido na cor do instrumento (`--ic` de
+   `.i-*`; todas ≥ 4,5:1 com branco: #0C4F9B 8,6 · #C2410C 5,2 · #BE185D 6,0 ·
+   #6D28D9 7,1 · #0F766E 5,5 · #0E7490 5,4), mesmo raio do botão "Calibrar". */
+.calibracoes-page .cal4-tipo {
+  display: inline-flex; align-items: center; align-self: flex-start;
+  height: 20px; margin-top: 3px; padding: 0 8px;
+  border-radius: var(--card-r, 4px);
+  background: var(--ic, #0C4F9B); color: #fff;
+  font: 600 11.5px/1 var(--font); letter-spacing: .02em; white-space: nowrap;
+}
+.calibracoes-page .cal4-ac .t { display: flex; flex-direction: column; min-width: 0; }
+.calibracoes-page .cal4-nome { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.calibracoes-page .cal4-nome b { min-width: 0; }
+
+/* Selo ao lado do nome. "Vencido" usa o MESMO amarelo do "Rascunho em aberto"
+   (`.cal4-st.rasc`: --draft-bg/--draft). */
+.calibracoes-page .cal4-selo { flex: none; display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: var(--card-r, 4px); font: 700 11px/1 var(--font); white-space: nowrap; }
+.calibracoes-page .cal4-selo.em-dia { background: var(--aprovado-bg, #DEFFE8); color: var(--aprovado, #009A3D); }
+.calibracoes-page .cal4-selo.vencido { background: var(--draft-bg, #FDE68A); color: var(--draft, #78350F); }
+.calibracoes-page .cal4-selo.reprovado { background: var(--crit-bg, #FEE4E2); color: #B42318; }
+
+/* Canto superior direito: o tempo até vencer. */
+.calibracoes-page .cal4-canto { align-self: flex-start; flex: none; font: 600 12.5px/20px var(--font); color: #3A3F47; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.calibracoes-page .cal4-canto.venc { color: var(--draft, #78350F); }
+
+/* Já calibrado: o cartão não é clicável — só os botões agem. */
+.calibracoes-page .cal4-ac.cal4-ac-cal { cursor: default; }
+.calibracoes-page .cal4-ac.cal4-ac-cal:hover { box-shadow: none; }
+.calibracoes-page .cal4-cert { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; font: 500 12.5px/18px var(--font); color: #6B6B6B; }
+.calibracoes-page .cal4-cert.emitido,
+.calibracoes-page .cal4-cert.externo { color: var(--aprovado, #009A3D); }
+.calibracoes-page .cal4-cert.anterior { color: #8A5A00; }
+
+/* "Calibrar" cinza; acende em azul só no hover/foco. */
+.calibracoes-page .cal4-ac .cal4-calibrar { background: #E9E9E9; color: rgba(0, 0, 0, .75); transition: background-color .15s, color .15s; }
+.calibracoes-page .cal4-ac .cal4-calibrar:hover,
+.calibracoes-page .cal4-ac .cal4-calibrar:focus-visible { background: var(--destaque, #0C4F9B); color: #fff; filter: none; }
+
+/* "Histórico" + contador, ao lado do lápis. */
+.calibracoes-page .cal4-hist { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 0; border-radius: var(--card-r, 4px); background: #E9E9E9; color: rgba(0, 0, 0, .75); font: 600 12.5px/1 var(--font); cursor: pointer; transition: background-color .15s, color .15s; }
+.calibracoes-page .cal4-hist .n { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; display: inline-grid; place-items: center; background: #fff; color: #3A3F47; font: 700 11px/1 var(--font); }
+.calibracoes-page .cal4-hist:hover,
+.calibracoes-page .cal4-hist:focus-visible { background: var(--destaque, #0C4F9B); color: #fff; }
+.calibracoes-page .cal4-hist:hover .n,
+.calibracoes-page .cal4-hist:focus-visible .n { color: var(--destaque, #0C4F9B); }
+.calibracoes-page .cal4-ac .cal4-ra:hover,
+.calibracoes-page .cal4-ac .cal4-ra:focus-visible { background: var(--destaque, #0C4F9B); color: #fff; }
+
+/* Nunca calibrado: o cartão inteiro é o botão "Calibrar". */
+.calibracoes-page .cal4-ac.cal4-ac-novo { width: 100%; min-height: 172px; font: inherit; text-align: left; color: inherit; }
+.calibracoes-page .cal4-ac.cal4-ac-novo:focus-visible { outline: 2px solid var(--destaque, #0C4F9B); outline-offset: 2px; }
+.calibracoes-page .cal4-ac-cab { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.calibracoes-page .cal4-ac-cab b { display: block; font: 600 14px/20px var(--font); color: #1A1A1A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.calibracoes-page .cal4-requer { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px 0 6px; color: #8A8A8A; }
+.calibracoes-page .cal4-requer strong { font: 600 14px/20px var(--font); color: #3A3F47; }
+.calibracoes-page .cal4-ac.cal4-ac-novo:hover .cal4-requer { color: var(--destaque, #0C4F9B); }
+.calibracoes-page .cal4-ac.cal4-ac-novo:hover .cal4-requer strong { color: var(--destaque, #0C4F9B); }
+
+/* Histórico do acessório: a caixa recebe o foco ao abrir. */
+.calibracoes-page .mcomp-box:focus { outline: none; }

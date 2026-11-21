@@ -183,7 +183,7 @@ describe('busca', () => {
 
   it('acha pelo TEXTO do passo, não só pelo título', () => {
     // A dúvida raramente é escrita com a palavra do título.
-    expect(buscarGuias('planilha').map((x) => x.id)).toContain('equipamentos');
+    expect(buscarGuias('foto de capa').map((x) => x.id)).toContain('equipamentos');
     expect(buscarGuias('duplicar').map((x) => x.id)).toContain('rascunho');
     // ...e pelo texto de uma OBSERVAÇÃO.
     expect(buscarGuias('renomear').map((x) => x.id)).toContain('rascunho');

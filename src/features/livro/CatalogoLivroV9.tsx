@@ -46,6 +46,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BuscaLista from '../../components/BuscaLista';
+import SeletorTipo from '../../components/SeletorTipo';
 import FotoImg from '../../components/FotoImg';
 import { Icone } from '../../components/Icone';
 import type { RefFoto } from '../../services/fotos';
@@ -54,6 +55,7 @@ import type { ItemLivro } from './buscaLivro';
 import { metricaRegistros, rotuloRegistros } from './catalogoLivro';
 import './listaRegistros.css';
 import { Ilustracao } from '../../components/Ilustracao';
+import ModalEscolhaEquipamento from './ModalEscolhaEquipamento';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -87,7 +89,6 @@ export default function CatalogoLivroV9({
   // "Novo registro".
   const [tipoSel, setTipoSel] = useState('');
   const [escolhendo, setEscolhendo] = useState(false);
-  const [filtroEscolha, setFiltroEscolha] = useState('');
   const [itens, setItens] = useState<ItemLivro[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [temMais, setTemMais] = useState(false);
@@ -202,16 +203,18 @@ export default function CatalogoLivroV9({
         offline={false}
         compacto
         antes={
-          <div className="rel-chips" role="group" aria-label="Tipo de equipamento">
-            {([['', 'Todos'], ['vaso', 'Vasos'], ['caldeira', 'Caldeiras'], ['autoclave', 'Autoclaves']] as const).map(([v, r]) => (
-              <button key={v || 'todos'} type="button" aria-pressed={tipoSel === v} onClick={() => setTipoSel(v)}>
-                {r}
-                {/* Contagem só quando a lista está inteira: com mais páginas, o
-                    número seria parcial. */}
-                {!temMais && <i>{v ? itens.filter((i) => i.tipo === v).length : itens.length}</i>}
-              </button>
-            ))}
-          </div>
+          <SeletorTipo
+            valor={tipoSel}
+            aoMudar={setTipoSel}
+            // Contagem só quando a lista está inteira: com mais páginas, o
+            // número seria parcial.
+            contagens={temMais ? undefined : {
+              '': itens.length,
+              vaso: itens.filter((i) => i.tipo === 'vaso').length,
+              caldeira: itens.filter((i) => i.tipo === 'caldeira').length,
+              autoclave: itens.filter((i) => i.tipo === 'autoclave').length,
+            }}
+          />
         }
       >
         {aoNovoRegistro && (
@@ -346,63 +349,18 @@ export default function CatalogoLivroV9({
           )}
         </div>
       )}
+      {/* A escolha lista TODOS os equipamentos da organização — não os
+          `itens` desta lista, que são só os que já têm livro (`buscar_livros`).
+          Era por isso que o equipamento recém-criado não aparecia: ver
+          `escolhaEquipamento.ts`. */}
       {escolhendo && aoNovoRegistro && (
-        // fecha-pelo-fundo: só ESCOLHE o equipamento — nada digitado se perde.
-        <div className="fj-modal-overlay" onClick={(e) => e.target === e.currentTarget && setEscolhendo(false)}>
-          <div
-            className="fj-modal-box iv4-escolha"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="reg-escolha-tit"
-            onKeyDown={(e) => e.key === 'Escape' && setEscolhendo(false)}
-          >
-            <div className="fj-modal-head">
-              <div>
-                <h2 id="reg-escolha-tit">Novo registro</h2>
-                <div className="fj-eyebrow">Escolha o equipamento</div>
-              </div>
-              <button type="button" className="fj-modal-close" onClick={() => setEscolhendo(false)} aria-label="Fechar">
-                <Icone nome="x" tam={15} />
-              </button>
-            </div>
-            <div className="iv4-escolha-corpo">
-              <label className="lc-busca">
-                <Icone nome="search" tam={16} />
-                <input
-                  autoFocus
-                  value={filtroEscolha}
-                  onChange={(e) => setFiltroEscolha(e.target.value)}
-                  placeholder="Buscar por TAG ou equipamento"
-                  aria-label="Buscar equipamento"
-                />
-              </label>
-              <div className="iv4-escolha-lista">
-                {itens
-                  .filter((i) => `${i.tag} ${i.descricao ?? ''}`.toLowerCase().includes(filtroEscolha.trim().toLowerCase()))
-                  .map((i) => (
-                    <button
-                      key={i.tag}
-                      type="button"
-                      className="iv4-escolha-item"
-                      onClick={() => {
-                        setEscolhendo(false);
-                        aoNovoRegistro(i.tag);
-                      }}
-                    >
-                      <span className={`lc-ico ${i.tipo ?? 'outro'}`} aria-hidden="true">
-                        <Icone nome={(i.tipo && ICONE_TIPO[i.tipo]) || 'book'} tam={18} />
-                      </span>
-                      <span className="t">
-                        <b>{i.tag}</b>
-                        <small>{i.descricao || '—'}</small>
-                      </span>
-                      <Icone nome="chevright" tam={16} className="lc-seta" />
-                    </button>
-                  ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        <ModalEscolhaEquipamento
+          aoFechar={() => setEscolhendo(false)}
+          aoEscolher={(tag) => {
+            setEscolhendo(false);
+            aoNovoRegistro(tag);
+          }}
+        />
       )}
     </>
   );

@@ -13,7 +13,8 @@ describe('contador de /calibracoes reflete o salvamento sem F5', () => {
     expect(cat).toContain('contagensLocais[i.tag] !== undefined ? { ...i, calibracoes: contagensLocais[i.tag] } : i');
   });
   it('salvar (janela), registrar terceiro e excluir atualizam a contagem — só da TAG, sem recarregar a organização', () => {
-    expect(pag).toContain('setContagensLocais((c) => ({ ...c, [t]: listarCalibracoes(t).length }))');
+    // 21/11/2026 · só as OFICIAIS — a mesma conta da projeção (rascunho não é calibração).
+    expect(pag).toContain('setContagensLocais((c) => ({ ...c, [t]: listarCalibracoes(t).filter(ehOficial).length }))');
     // janela, terceiro e excluir
     expect(pag.match(/atualizarContagem\(/g)?.length).toBe(3);
     expect(pag).not.toContain('lerTudo(');

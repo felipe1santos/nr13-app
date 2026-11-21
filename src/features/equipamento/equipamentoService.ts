@@ -164,6 +164,10 @@ export async function criarEquipamento(
     tipo,
     // mantém o subtipo escolhido para autoclave E caldeira; vaso não tem subtipo.
     subtipo: tipo === 'autoclave' || tipo === 'caldeira' ? subtipo : '',
+    // Data de criação na ficha: a lista de /equipamentos ordena por ela (os mais
+    // novos no topo). Hora do APARELHO — o carimbo do servidor seria a hora da
+    // sincronização, errada para equipamento criado offline.
+    criadoEm: new Date().toISOString(),
   };
   // A unidade é gravada SEMPRE, inclusive quando é SI. Gravar só o que foge do
   // padrão deixaria "nunca escolheu" e "escolheu SI" indistinguíveis — e é essa

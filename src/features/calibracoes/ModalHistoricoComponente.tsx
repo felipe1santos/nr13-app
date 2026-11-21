@@ -6,13 +6,13 @@
  *   18/09/2026 — Aprovado · Cert. CERT-123 · Emitido
  *   18/09/2025 — Aprovado · Cert. CERT-080
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icone } from '../../components/Icone';
 import { VisorCertificado } from './ModalDetalhesLote';
 import type { ComponenteCal } from './componentesService';
 import { definicaoDe } from './instrumentos';
 import { historicoDoComponente } from './lote';
-import { ehEmitido, ehInterna, ehTerceiro, type DadosCalibracao } from './tipos';
+import { ehEmitido, ehInterna, ehOficial, ehTerceiro, type DadosCalibracao } from './tipos';
 import { arquivoCalibracao } from './calibracaoService';
 import { artefatoDaCalibracao } from './artefatoCalibracao';
 import '../relatorios/modalFiltrosRelatorios.css';
@@ -51,16 +51,51 @@ export default function ModalHistoricoComponente({
   const [vendo, setVendo] = useState<DadosCalibracao | null>(null);
   const def = definicaoDe(componente.tipo);
   const lista = historicoDoComponente(componente.id, calibracoes);
+  const oficiais = lista.filter(ehOficial).length;
+  const rascunhos = lista.length - oficiais;
+
+  // ── Acessibilidade (21/11/2026) ─────────────────────────────────────────
+  // O foco entra no modal ao abrir e VOLTA a quem o abriu (o botão
+  // "Histórico" do cartão) ao fechar. Esc fecha — é leitura, não há edição a
+  // perder. O Esc é ouvido no PRÓPRIO overlay, não no documento: a janela de
+  // calibração abre POR CIMA deste modal ("Continuar", "Nova calibração"), e um
+  // Esc dentro dela não pode fechar o histórico por baixo.
+  const caixa = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const anterior = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    caixa.current?.focus();
+    return () => anterior?.focus?.();
+  }, []);
 
   return (
-    <div className="fj-modal-overlay" role="dialog" aria-modal="true" aria-label={`Histórico de ${componente.nome}`}>
-      <div className="fj-modal-box mcomp-box">
+    <div
+      className="fj-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="hist-comp-titulo"
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape') return;
+        e.stopPropagation();
+        // Com o certificado aberto, o Esc fecha só o certificado.
+        if (vendo) setVendo(null);
+        else aoFechar();
+      }}
+      onMouseDown={(e) => {
+        // Clique FORA da caixa fecha: o modal é só leitura.
+        if (e.target === e.currentTarget && !vendo) aoFechar();
+      }}
+    >
+      <div className="fj-modal-box mcomp-box" ref={caixa} tabIndex={-1}>
         <div className="fj-modal-head">
           <div>
             <div className="fj-eyebrow">Histórico de calibrações · {tag}</div>
-            <h2>
+            <h2 id="hist-comp-titulo">
               {def.curto.toUpperCase()} — {componente.nome}
             </h2>
+            <p className="mlote-sub hist-comp-conta">
+              {oficiais === 1 ? '1 calibração realizada' : `${oficiais} calibrações realizadas`}
+              {rascunhos > 0 ? ` · ${rascunhos === 1 ? '1 rascunho em aberto' : `${rascunhos} rascunhos em aberto`}` : ''}
+            </p>
             <p className="mlote-sub">
               {[componente.fabricante, componente.modelo, componente.serie && `S/N ${componente.serie}`, componente.referencia]
                 .filter(Boolean)

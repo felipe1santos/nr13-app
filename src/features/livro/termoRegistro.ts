@@ -112,6 +112,8 @@ export interface DadosPrevia {
  * a mesma coisa no livro, e o rótulo é o que diz qual delas está sendo lavrada.
  */
 export function tituloTermo(tipo: string): string {
+  // O literal, e não `TIPO_ABERTURA`: `aberturaLivro.ts` importa deste módulo.
+  if (tipo === 'Abertura de livro') return 'Termo de Abertura:';
   return ehInspecao(tipo) ? 'Termo de Inspeção:' : 'Termo de Ocorrência:';
 }
 

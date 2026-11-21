@@ -9,6 +9,7 @@
  * Nada de regra nova aqui. `salvarOcorrencia` e `montarEntradaLivroManual`
  * continuam onde estavam.
  */
+import type { MotivoAbertura } from './aberturaLivro';
 
 /** Os tipos de ocorrência oferecidos no modal. */
 export const TIPOS_OCORRENCIA = [
@@ -50,6 +51,13 @@ export interface FormOcorrencia {
   relatorioCodigo?: string;
   /** Laudo APTO/INAPTO herdado do relatório; `null`/ausente = não marcado. */
   apto?: boolean | null;
+  /**
+   * Só na ABERTURA DE LIVRO (`TIPO_ABERTURA`): por que o livro está sendo
+   * aberto. É estado do formulário — o que fica gravado é a frase que ele põe
+   * na descrição e no termo, e é dela que o rascunho reaberto o recupera
+   * (`motivoPelaDescricao`).
+   */
+  motivoAbertura?: MotivoAbertura | '';
 }
 
 export const FORM_OCORRENCIA_VAZIO: FormOcorrencia = {

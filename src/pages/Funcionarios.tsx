@@ -369,20 +369,19 @@ export default function Funcionarios() {
       {/* Cobalto: padrão de cadastro do SimplesDental — UM cartão com o título,
           a contagem e o botão de criar, e a lista em linhas. */}
       <section className="cad2-cartao">
+      {/* 21/11/2026: barra de UMA linha, igual às outras listas — sem título
+          (a topbar já diz "Equipe"); a contagem vai para o lado da busca. */}
       <div className="cad-page-header cad2-cab">
-        <div>
-          <h2 className="cad-page-titulo">Equipe</h2>
-          <p className="cad-page-sub">
-            {funcionarios.length} profissional{funcionarios.length !== 1 ? 'is' : ''} cadastrado{funcionarios.length !== 1 ? 's' : ''} — assinam a documentação gerada
-          </p>
-        </div>
         <label className="cad2-busca">
           <Icone nome="search" tam={15} />
           <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Digite o nome, função ou registro..." aria-label="Buscar na equipe" />
         </label>
+        <span className="lc-conta" title="Os profissionais assinam a documentação gerada">
+          <b>{funcionarios.length}</b> profissiona{funcionarios.length !== 1 ? 'is' : 'l'}
+        </span>
         <span className="cad2-esp" />
-        <button type="button" className="btn-primario" onClick={novoFuncionario}>
-          Novo profissional
+        <button type="button" className="lc-criar" onClick={novoFuncionario}>
+          <Icone nome="plus" tam={18} /> Novo profissional
         </button>
       </div>
 

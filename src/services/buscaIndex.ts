@@ -137,6 +137,17 @@ export interface ItemCatalogo {
   /** Versão da verdade que originou esta linha. Serve à auditoria e ao merge. */
   sourceVersion: number;
   /**
+   * Data de criação DERIVADA pelo servidor (`equipamentos_index.criado_em`,
+   * ver `supabase/equipamentos_ordem_criacao.sql`), como o PostgREST a manda —
+   * STRING, nunca `Date`: ela volta como cursor, e reconverter arriscaria a
+   * emenda entre páginas.
+   *
+   * Opcional: só a consulta por criação a devolve. `undefined`/`null` = o
+   * servidor não informou (consulta por TAG, servidor sem a migração, ou item
+   * local ainda não sincronizado).
+   */
+  criadoEm?: string | null;
+  /**
    * Verdadeiro quando o item veio do que este aparelho gravou e ainda não
    * voltou do servidor. A tela mostra o selo de pendente — o item NUNCA some
    * (§6.5 do desenho).
@@ -214,11 +225,31 @@ export interface FiltrosBusca {
   categoria?: string;
 }
 
+/**
+ * Ordem do catálogo.
+ *
+ *   `tag`     · a de sempre (collation "C"). Inspeções, Livro, Calibrações,
+ *               Prontuários e Relatórios continuam nela.
+ *   `criacao` · mais NOVOS no topo (`/equipamentos`). Exige o SQL
+ *               `equipamentos_ordem_criacao.sql`; sem ele, cai em `tag`.
+ */
+export type OrdemCatalogo = 'tag' | 'criacao';
+
 export interface PaginaCatalogo {
   itens: ItemCatalogo[];
-  /** `tag` do último item; passe de volta para pedir a próxima página. */
+  /**
+   * Passe de volta para pedir a próxima página. É OPACO para a tela: na ordem
+   * por TAG é a `tag` do último item (como sempre foi); na ordem por criação é
+   * um cursor composto (`criado_em` + `tag`) codificado por `cursorCriacao`.
+   */
   proximoCursor: string | null;
   temMais: boolean;
+  /**
+   * A ordem que o servidor REALMENTE aplicou. Pode ser `tag` mesmo quando se
+   * pediu `criacao` — servidor sem a migração. A tela usa este valor, e não o
+   * que pediu, para posicionar os itens locais.
+   */
+  ordem?: OrdemCatalogo;
 }
 
 export interface Contagem {
@@ -283,6 +314,8 @@ interface LinhaRpc {
    */
   pmta_adotada_mpa?: number | string | null;
   pth_adotada_mpa?: number | string | null;
+  /** Só `buscar_equipamentos_recentes` devolve. `timestamptz` em ISO. */
+  criado_em?: string | null;
 }
 
 /** `numeric` do Postgres chega como STRING no PostgREST — nunca como número. */
@@ -347,6 +380,7 @@ function daLinha(l: LinhaRpc): ItemCatalogo {
         ? null
         : Number(l.livro_entradas),
     livroUltima: l.livro_ultima ?? null,
+    ...(l.criado_em !== undefined ? { criadoEm: l.criado_em } : {}),
   };
 }
 
@@ -360,15 +394,82 @@ export class ErroBusca extends Error {
   }
 }
 
+/** Cursor composto da ordem por criação: a última linha da página anterior. */
+interface CursorCriacao {
+  o: 'criacao';
+  /** `criado_em` EXATAMENTE como o servidor mandou (string). */
+  c: string;
+  t: string;
+}
+
+/** Codifica o cursor da ordem por criação. Exportado para teste. */
+export function cursorCriacao(criadoEm: string, tag: string): string {
+  const c: CursorCriacao = { o: 'criacao', c: criadoEm, t: tag };
+  return JSON.stringify(c);
+}
+
 /**
- * Uma página do catálogo, do servidor.
- *
- * Pede `TAMANHO_PAGINA + 1` para saber se há próxima SEM uma segunda consulta e
- * SEM contar a base inteira. O 51º é descartado; ele só responde "tem mais?".
+ * Lê um cursor da ordem por criação — `null` quando é um cursor de TAG (ou
+ * lixo). TAG nunca começa com `{`; mesmo que começasse, sem `o: 'criacao'` o
+ * texto continua sendo tratado como TAG.
  */
-export async function listarPagina(
-  filtros: FiltrosBusca = {},
-  cursor: string | null = null,
+export function lerCursorCriacao(cursor: string | null): CursorCriacao | null {
+  if (!cursor || cursor[0] !== '{') return null;
+  try {
+    const c = JSON.parse(cursor) as Partial<CursorCriacao> | null;
+    return c && c.o === 'criacao' && typeof c.c === 'string' && typeof c.t === 'string'
+      ? { o: 'criacao', c: c.c, t: c.t }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * O servidor ainda não tem `buscar_equipamentos_recentes` (o front pode ir ao
+ * ar antes do SQL). Lembrado por SESSÃO: perguntar de novo a cada busca seria
+ * uma requisição perdida por tecla. Só a recusa de ASSINATURA marca — erro de
+ * rede não, senão uma queda momentânea prenderia a tela na ordem por TAG.
+ */
+let recentesAusente = false;
+
+/** Só para teste: esquece que a função nova faltou. */
+export function __reiniciarDeteccaoOrdem(): void {
+  recentesAusente = false;
+}
+
+/**
+ * A RPC não existe (ou não com estes argumentos) no servidor.
+ *
+ *   PGRST202 · PostgREST: "Could not find the function … in the schema cache"
+ *   42883    · Postgres: undefined_function
+ *
+ * Exportado para teste.
+ */
+export function ehFuncaoAusente(erro: unknown): boolean {
+  if (!erro || typeof erro !== 'object') return false;
+  const e = erro as { code?: unknown; message?: unknown };
+  if (e.code === 'PGRST202' || e.code === '42883') return true;
+  const msg = typeof e.message === 'string' ? e.message : '';
+  return /could not find the function/i.test(msg) && /buscar_equipamentos_recentes/.test(msg);
+}
+
+function montarPagina(data: unknown, ordem: OrdemCatalogo): PaginaCatalogo {
+  const linhas = (data ?? []) as LinhaRpc[];
+  const temMais = linhas.length > TAMANHO_PAGINA;
+  const itens = linhas.slice(0, TAMANHO_PAGINA).map(daLinha);
+  const ultimo = itens.length ? itens[itens.length - 1] : null;
+  let proximoCursor: string | null = null;
+  if (ultimo) {
+    proximoCursor =
+      ordem === 'criacao' && ultimo.criadoEm ? cursorCriacao(ultimo.criadoEm, ultimo.tag) : ultimo.tag;
+  }
+  return { itens, proximoCursor, temMais, ordem };
+}
+
+async function paginaPorTag(
+  filtros: FiltrosBusca,
+  cursor: string | null,
   sinal?: AbortSignal,
 ): Promise<PaginaCatalogo> {
   const { data, error } = await supabase
@@ -382,15 +483,52 @@ export async function listarPagina(
     .abortSignal(sinal as AbortSignal);
 
   if (error) throw new ErroBusca('Não foi possível consultar os equipamentos.', error);
+  return montarPagina(data, 'tag');
+}
 
-  const linhas = (data ?? []) as LinhaRpc[];
-  const temMais = linhas.length > TAMANHO_PAGINA;
-  const itens = linhas.slice(0, TAMANHO_PAGINA).map(daLinha);
-  return {
-    itens,
-    proximoCursor: itens.length ? itens[itens.length - 1].tag : null,
-    temMais,
-  };
+/**
+ * Uma página do catálogo, do servidor.
+ *
+ * Pede `TAMANHO_PAGINA + 1` para saber se há próxima SEM uma segunda consulta e
+ * SEM contar a base inteira. O 51º é descartado; ele só responde "tem mais?".
+ *
+ * `ordem: 'criacao'` usa `buscar_equipamentos_recentes` (mais novos no topo).
+ * Se o servidor ainda não a tiver, cai em `buscar_equipamentos` (ordem por TAG)
+ * e devolve `ordem: 'tag'` — a tela continua funcionando, só na ordem antiga.
+ * O CURSOR decide a continuação: cursor de TAG segue por TAG, mesmo que a tela
+ * peça criação, porque misturar as duas ordens no meio da rolagem pularia itens.
+ */
+export async function listarPagina(
+  filtros: FiltrosBusca = {},
+  cursor: string | null = null,
+  sinal?: AbortSignal,
+  ordem: OrdemCatalogo = 'tag',
+): Promise<PaginaCatalogo> {
+  const cc = lerCursorCriacao(cursor);
+  const porCriacao = cc !== null || (ordem === 'criacao' && cursor === null && !recentesAusente);
+  if (!porCriacao) return paginaPorTag(filtros, cursor, sinal);
+
+  const { data, error } = await supabase
+    .rpc('buscar_equipamentos_recentes', {
+      p_termo: filtros.termo?.trim() ?? '',
+      p_tipo: filtros.tipo || null,
+      p_categoria: filtros.categoria || null,
+      p_cursor_criado: cc?.c ?? null,
+      p_cursor_tag: cc?.t ?? null,
+      p_limite: TAMANHO_PAGINA + 1,
+    })
+    .abortSignal(sinal as AbortSignal);
+
+  if (error) {
+    // Primeira página e o servidor não conhece a função: ordem por TAG. No meio
+    // da rolagem não há para onde cair sem pular itens — vira erro comum.
+    if (cc === null && ehFuncaoAusente(error)) {
+      recentesAusente = true;
+      return paginaPorTag(filtros, null, sinal);
+    }
+    throw new ErroBusca('Não foi possível consultar os equipamentos.', error);
+  }
+  return montarPagina(data, 'criacao');
 }
 
 /**
@@ -427,17 +565,29 @@ export async function contar(filtros: FiltrosBusca = {}, sinal?: AbortSignal): P
  * certo porque o local é o que o usuário acabou de digitar — se ele diverge do
  * servidor, é porque o servidor ainda não sabe.
  *
- * A ordenação replica a do banco: `tag` sob collation "C", que é comparação
- * byte a byte. `localeCompare` NÃO serve aqui — ele ordenaria diferente do
- * servidor e a paginação passaria a pular itens na emenda entre páginas.
+ * ORDEM POR TAG (padrão): replica a do banco — `tag` sob collation "C", que é
+ * comparação byte a byte. `localeCompare` NÃO serve aqui — ele ordenaria
+ * diferente do servidor e a paginação passaria a pular itens na emenda entre
+ * páginas.
+ *
+ * ORDEM POR CRIAÇÃO (`/equipamentos`): o item local que o servidor ainda não
+ * devolveu é, por definição, o mais NOVO — vai para o TOPO, e só na PRIMEIRA
+ * página (com cursor, ele já foi mostrado). Entre vários pendentes, o de
+ * `criadoEm` mais recente primeiro; sem data (o normal para quem ainda não
+ * sincronizou), na frente de todos, por TAG. O pendente que o servidor JÁ
+ * devolveu (uma edição na fila) fica onde o servidor o pôs — editar não é
+ * criar. Aqui NÃO se corta a página: cortar descartaria linhas do servidor
+ * ANTES do cursor, e elas nunca mais apareceriam.
  */
 export function fundirLocais(
   doServidor: ItemCatalogo[],
   locais: ItemCatalogo[],
   cursor: string | null = null,
   limite = TAMANHO_PAGINA,
+  ordem: OrdemCatalogo = 'tag',
 ): ItemCatalogo[] {
   if (!locais.length) return doServidor;
+  if (ordem === 'criacao') return fundirPorCriacao(doServidor, locais, cursor);
 
   const porTag = new Map<string, ItemCatalogo>();
   for (const item of doServidor) porTag.set(item.tag, item);
@@ -451,4 +601,40 @@ export function fundirLocais(
 
   const ordenados = [...porTag.values()].sort((a, b) => (a.tag < b.tag ? -1 : a.tag > b.tag ? 1 : 0));
   return ordenados.slice(0, limite);
+}
+
+function porTagC(a: ItemCatalogo, b: ItemCatalogo): number {
+  return a.tag < b.tag ? -1 : a.tag > b.tag ? 1 : 0;
+}
+
+function fundirPorCriacao(
+  doServidor: ItemCatalogo[],
+  locais: ItemCatalogo[],
+  cursor: string | null,
+): ItemCatalogo[] {
+  const local = new Map<string, ItemCatalogo>();
+  for (const item of locais) local.set(item.tag, { ...item, pendente: item.pendente ?? true });
+
+  // Os que o servidor já devolveu: conteúdo local, POSIÇÃO e data do servidor.
+  const noServidor = new Set<string>();
+  const mesclados = doServidor.map((s) => {
+    noServidor.add(s.tag);
+    const l = local.get(s.tag);
+    return l ? { ...l, criadoEm: l.criadoEm ?? s.criadoEm } : s;
+  });
+  if (cursor !== null) return mesclados;
+
+  const tempo = (i: ItemCatalogo): number => {
+    const t = i.criadoEm ? Date.parse(i.criadoEm) : NaN;
+    return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY; // sem data = mais novo
+  };
+  const novos = [...local.values()]
+    .filter((i) => !noServidor.has(i.tag))
+    .sort((a, b) => {
+      const ta = tempo(a);
+      const tb = tempo(b);
+      if (ta !== tb) return ta > tb ? -1 : 1;
+      return porTagC(a, b);
+    });
+  return novos.length ? [...novos, ...mesclados] : mesclados;
 }

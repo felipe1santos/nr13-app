@@ -8,6 +8,10 @@ export type SubtipoCaldeira = 'flamotubular' | 'aquatubular' | 'vertical' | 'mis
 // nr13_info_<TAG>
 export interface InfoEquipamento {
   tag: string;
+  /** Instante da criação (ISO 8601), gravado por `criarEquipamento` desde
+   *  21/11/2026. Ordena a lista de /equipamentos (`f9_criado_em` no SQL); acerta
+   *  também o equipamento criado offline. Ausente em equipamento anterior. */
+  criadoEm?: string;
   tipo: TipoEquipamento;
   subtipo: SubtipoAutoclave | SubtipoCaldeira | '';
   descricao?: string;

@@ -134,39 +134,6 @@
 }
 .reg-modal-nota svg { flex: 0 0 auto; margin-top: 1px; }
 
-/* ── PRÉ-PREENCHIMENTO: oferta, num bloco próprio ────────────────────────── */
-.reg-modal-prefill {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 12px 13px;
-  border-radius: 10px;
-  border: 1px solid var(--blue-line, #c9dcf0);
-  background: var(--blue-bg, #eaf2fb);
-}
-.reg-modal-prefill-topo { display: flex; align-items: center; gap: 6px; }
-.reg-modal-prefill label {
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 700;
-  color: var(--blue-deep, #35639c);
-}
-.reg-modal-prefill select {
-  width: 100%;
-  border: 1px solid var(--blue-line, #c9dcf0);
-  border-radius: 8px;
-  padding: 9px 11px;
-  font-size: 13px;
-  font-family: var(--font-base);
-  color: var(--text);
-  background: #fff;
-}
-.reg-modal-prefill select:focus {
-  outline: 2px solid var(--amber, #ff7a1a);
-  border-color: var(--amber, #ff7a1a);
-}
-
 /* O "i" e o popover que ele abre. */
 .reg-ajuda { position: relative; display: inline-flex; }
 .reg-ajuda-btn {
@@ -367,16 +334,6 @@
 .reg-modal-form .fj-field select,
 .reg-modal-form .fj-field textarea { border-radius: 6px; }
 
-/* Pré-preenchimento: sem caixa colorida — um filete azul à esquerda basta para
-   dizer "isto é uma oferta, não um campo obrigatório". */
-.reg-modal-prefill {
-  border: none;
-  border-left: 3px solid var(--blue, #457dc1);
-  border-radius: 0;
-  background: transparent;
-  padding: 2px 0 2px 12px;
-}
-.reg-modal-prefill select { border-radius: 6px; border-color: var(--line, #e4e1d8); }
 
 /* ── COLUNA DA PRÉVIA ────────────────────────────────────────────────────── */
 .reg-modal-lado {
@@ -466,8 +423,7 @@
 .reg-modal { border-radius: 6px; }
 .reg-modal-form .fj-field input,
 .reg-modal-form .fj-field select,
-.reg-modal-form .fj-field textarea,
-.reg-modal-prefill select { border-radius: 4px; }
+.reg-modal-form .fj-field textarea { border-radius: 4px; }
 .reg-modal-figura,
 .reg-modal-nota,
 .reg-ajuda-pop { border-radius: 5px; }
@@ -628,7 +584,6 @@
    CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
    nunca pílula. Acrescentado no fim para valer sobre as regras acima.
    ============================================================================ */
-.reg-modal-prefill label,
 .reg-modal-grupo h3,
 .ficha-reg-eyebrow,
 .ficha-reg-selo,
@@ -653,9 +608,6 @@
 .reg-modal-figura { border-color: var(--fio); border-radius: var(--r-md); }
 .reg-modal-passos li::before { background: var(--superficie-3); color: var(--texto-1); }
 .reg-modal-nota { background: var(--st-info-bg); border-color: transparent; color: var(--st-info); border-radius: var(--r-sm); }
-.reg-modal-prefill { border-color: var(--fio); background: var(--superficie-2); border-radius: var(--r-md); }
-.reg-modal-prefill label { color: var(--texto-2); }
-.reg-modal-prefill select { border-color: var(--fio-campo); }
 .reg-ajuda-btn { border-color: var(--fio-campo); color: var(--texto-2); }
 .reg-ajuda-btn:hover { background: var(--superficie-3); color: var(--texto-1); }
 .reg-ajuda-pop { border-color: var(--fio); border-radius: var(--r-sm); }
@@ -663,3 +615,173 @@
 .ficha-reg-selo.lacrado { background: var(--st-ok-bg); color: var(--st-ok); }
 .ficha-reg-data { color: var(--texto-1); }
 .ficha-reg-tipo { color: var(--texto-1); }
+
+
+/* ============================================================================
+   21/11/2026 · O MODAL "ACENDE" — pedido do dono ("seco, sem vida").
+
+   Botões: hover e selecionado com fundo SÓLIDO `--sel` e texto branco.
+   Tipo de ocorrência: lista própria (`SeletorOcorrencia`) — o item sob o mouse
+   em vermelho claro, o escolhido com vermelho SÓ atrás do nome.
+   Quem realizou / Responsável técnico: preenchidos em azul petróleo.
+   Acrescentado no fim, como manda o §15: as regras de cima seguem valendo.
+   ============================================================================ */
+
+/* ── Botões ─────────────────────────────────────────────────────────────── */
+.reg-modal .reg-modal-acoes .fj-btn-primary,
+.reg-modal .reg-modal-descarte .fj-btn-primary {
+  background: var(--sel);
+  border-color: var(--sel);
+  color: #fff;
+}
+.reg-modal .reg-modal-acoes .fj-btn-primary:hover,
+.reg-modal .reg-modal-descarte .fj-btn-primary:hover {
+  background: var(--sel-hover);
+  border-color: var(--sel-hover);
+  color: #fff;
+}
+.reg-modal .reg-modal-descarte .fj-btn-ghost:hover,
+.reg-modal .fj-modal-close:hover {
+  background: var(--sel);
+  border-color: var(--sel);
+  color: #fff;
+}
+.reg-modal-abas button {
+  border-radius: 4px 4px 0 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.reg-modal-abas button:hover,
+.reg-modal-abas button.ativa {
+  background: var(--sel);
+  color: #fff;
+  border-bottom-color: var(--sel);
+}
+.reg-modal-abas button:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+.reg-modal-restaurar:hover { color: var(--sel); }
+
+/* ── Tipo de ocorrência ─────────────────────────────────────────────────── */
+.reg-tipo { position: relative; }
+.reg-tipo-gatilho {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 8px;
+  border: 1px solid var(--fio-campo, #cfd6e0);
+  border-radius: 4px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.reg-tipo-gatilho:hover { border-color: var(--sel); }
+.reg-tipo-gatilho:focus-visible,
+.reg-tipo.aberto .reg-tipo-gatilho { outline: 2px solid var(--sel); outline-offset: -1px; border-color: var(--sel); }
+.reg-tipo-vazio { color: var(--muted, #7a8790); padding-left: 4px; }
+/* O vermelho fica só ATRÁS DO NOME, não na caixa toda. */
+.reg-tipo-sel,
+.reg-tipo-opcao.escolhida .reg-tipo-nome {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 4px;
+  background: #DC2626;
+  color: #fff;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.reg-tipo-seta { margin-left: auto; color: var(--muted, #7a8790); flex: 0 0 auto; transition: transform 0.15s ease; }
+.reg-tipo.aberto .reg-tipo-seta { transform: rotate(180deg); }
+.reg-tipo-lista {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--fio, #e4e7ec);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(15, 22, 49, 0.14);
+  max-height: 280px;
+  overflow-y: auto;
+  outline: none;
+}
+.reg-tipo-opcao {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--texto-1, #1a1a1a);
+  cursor: pointer;
+}
+.reg-tipo-opcao.ativa,
+.reg-tipo-opcao:hover { background: #FEE2E2; color: #B42318; }
+.reg-tipo-opcao.escolhida.ativa,
+.reg-tipo-opcao.escolhida:hover { background: #FEE2E2; }
+.reg-tipo-check { margin-left: auto; color: #DC2626; }
+.reg-tipo-nome { padding: 3px 9px; border-radius: 4px; }
+
+/* ── Motivo da abertura do livro ────────────────────────────────────────── */
+.reg-motivo-topo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-12, 12px);
+  font-weight: 600;
+  color: var(--texto-2, #3d4756);
+}
+.reg-motivo-topo em {
+  font-style: normal;
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: var(--r-xs, 3px);
+  background: var(--amber-bg, #fff1e6);
+  color: var(--amber-deep, #d9640c);
+}
+.reg-motivo-opcoes { display: flex; flex-direction: column; gap: 6px; }
+.reg-motivo-opcao {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 9px 12px;
+  border: 1px solid var(--fio-campo, #cfd6e0);
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.reg-motivo-opcao b { font-size: 13px; }
+.reg-motivo-opcao small { font-size: 12px; color: var(--muted, #5f6b82); }
+.reg-motivo-opcao:hover,
+.reg-motivo-opcao.ativa {
+  background: var(--sel);
+  border-color: var(--sel);
+  color: #fff;
+}
+.reg-motivo-opcao:hover small,
+.reg-motivo-opcao.ativa small { color: rgba(255, 255, 255, 0.86); }
+.reg-motivo-opcao:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+
+/* ── Preenchido = azul petróleo ─────────────────────────────────────────── */
+.reg-modal-form .fj-field input#oc-quem.preenchido,
+.reg-modal-form .fj-field select#oc-ph.preenchido {
+  color: var(--petroleo);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .reg-tipo-gatilho { min-height: 44px; }
+  .reg-tipo-opcao { min-height: 44px; }
+  .reg-motivo-opcao { min-height: 44px; }
+}

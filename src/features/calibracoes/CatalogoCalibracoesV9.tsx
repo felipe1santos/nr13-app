@@ -40,6 +40,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BuscaLista from '../../components/BuscaLista';
 import { iconeDoTipo } from '../../components/listaCobalto';
 import { Icone, type NomeIcone } from '../../components/Icone';
+import FotoImg from '../../components/FotoImg';
+import { buscarAcessoriosPorTag, contagemDeAcessorios, type AcessoriosPorTag } from './acessoriosServidor';
 import { usePainelVencimentos } from '../../services/vencimentosServidor';
 import type { ItemVencimento } from '../../services/vencimentos';
 import ModalFiltrosProntuarios, {
@@ -99,6 +101,12 @@ export interface PropsCatalogoCalibracoes {
    * tocadas nesta sessão entram; o resto segue a projeção.
    */
   contagensLocais?: Record<string, number>;
+  /**
+   * 21/11/2026 · quantos ACESSÓRIOS (componentes cadastrados, sem os
+   * removidos) cada TAG tem, pelo cadastro que ESTE aparelho já leu. Vence a
+   * resposta do servidor — ver `acessoriosServidor.ts`.
+   */
+  acessoriosLocais?: Record<string, number>;
 }
 
 export default function CatalogoCalibracoesV9({
@@ -108,6 +116,7 @@ export default function CatalogoCalibracoesV9({
   acoes,
   modo = 'lista',
   contagensLocais,
+  acessoriosLocais,
 }: PropsCatalogoCalibracoes) {
   const [itens, setItens] = useState<ItemCatalogo[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -268,6 +277,22 @@ export default function CatalogoCalibracoesV9({
   // calibração oficial mais recente. Nada é lido do cache por TAG e nada é
   // inventado — equipamento sem acessório com prazo mostra "—".
   const painel = usePainelVencimentos();
+  /**
+   * A CONTAGEM de acessórios NÃO sai do agregado de vencimentos: ele só tem
+   * os acessórios que já têm calibração oficial com prazo, e por isso a lista
+   * dizia 3 onde o painel do equipamento dizia 5. Sai do cadastro
+   * (`acessoriosServidor.ts`). Uma ida por montagem, sem depender de nada.
+   */
+  const [acessoriosServidor, setAcessoriosServidor] = useState<AcessoriosPorTag | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    void buscarAcessoriosPorTag().then((r) => {
+      if (vivo) setAcessoriosServidor(r);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, []);
   const acessoriosPorTag = useMemo(() => {
     const m = new Map<string, ItemVencimento[]>();
     for (const it of painel.itens) {
@@ -395,6 +420,7 @@ export default function CatalogoCalibracoesV9({
             <span />
             <span>TAG</span>
             <span>Equipamento</span>
+            <span className="c-num">Calibrações</span>
             <span className="c-cli">Cliente</span>
             <span>Acessórios</span>
             <span>Próximo vencimento</span>
@@ -419,6 +445,7 @@ export default function CatalogoCalibracoesV9({
             desenhar={(item) => {
               const acs = acessoriosPorTag.get(item.tag) ?? [];
               const prox = acs[0];
+              const nAcessorios = contagemDeAcessorios(item.tag, acessoriosServidor, acessoriosLocais);
               const cli = [item.clienteNome?.trim(), item.clienteCidade?.trim()].filter(Boolean);
               return (
                 <button
@@ -427,11 +454,27 @@ export default function CatalogoCalibracoesV9({
                   onClick={() => aoEscolher(item.tag)}
                   data-z={(zebra.get(item.tag) ?? 0) % 2 === 1 || undefined}
                 >
-                  <span className={`lc-ico ${item.tipo ?? 'outro'}`} aria-hidden>
-                    <Icone nome={iconeDoTipo(item.tipo)} tam={18} />
+                  {/* A FOTO do equipamento, pela referência da projeção e na
+                      miniatura de 400px (a mesma da lista de Equipamentos).
+                      Sem foto, o ícone do tipo. */}
+                  <span className={`lc-ico cal3-foto ${item.tipo ?? 'outro'}`} aria-hidden>
+                    {item.fotoRef ? (
+                      <FotoImg foto={{ ref: item.fotoRef }} alt="" placeholder="" variante="thumb" className="cal3-foto-img" />
+                    ) : (
+                      <Icone nome={iconeDoTipo(item.tipo)} tam={18} />
+                    )}
                   </span>
                   <span className="cal3-tag">{item.tag}</span>
                   <span className="cal3-eq">{item.descricao?.trim() || (item.tipo ? (ROTULO_TIPO[item.tipo] ?? item.tipo) : '—')}</span>
+                  {/* `null` = a projeção ainda não contou: "—", nunca 0.
+                      `item` já vem de `visiveis`, com a contagem local (só
+                      oficiais) sobreposta à da projeção. */}
+                  <span
+                    className={`cal3-ncal c-num${item.calibracoes ? '' : ' vazio'}`}
+                    title={rotuloCalibracoes(item.calibracoes) || '—'}
+                  >
+                    {item.calibracoes ?? '—'}
+                  </span>
                   <span className="cal3-cli c-cli">
                     {cli.length ? (
                       <>
@@ -442,21 +485,22 @@ export default function CatalogoCalibracoesV9({
                       textoCliente(item) || '—'
                     )}
                   </span>
-                  <span className="cal3-acs">
-                    {acs.length > 0 ? (
-                      <>
-                        {acs.slice(0, 4).map((a, n) => (
-                          <span key={n} className={`cal3-mini ${classeInstrumento(a.tipoEquip)}`} title={`${a.tag} · ${a.tipoEquip}`}>
-                            <Icone nome={iconeInstrumento(a.tipoEquip)} tam={14} />
-                          </span>
-                        ))}
-                        <b>{acs.length}</b>
-                      </>
-                    ) : (
-                      // O rótulo SOME quando ninguém contou: "Nenhuma calibração"
-                      // seria afirmar uma ausência que não foi medida.
-                      <small>{rotuloCalibracoes(item.calibracoes) || '—'}</small>
-                    )}
+                  {/* Ícones = acessórios com prazo (o agregado); NÚMERO = os
+                      acessórios cadastrados, a mesma conta do painel. */}
+                  <span
+                    className="cal3-acs"
+                    title={
+                      nAcessorios == null
+                        ? 'Contagem de acessórios ainda não disponível'
+                        : `${nAcessorios} acessório${nAcessorios === 1 ? '' : 's'} cadastrado${nAcessorios === 1 ? '' : 's'}`
+                    }
+                  >
+                    {acs.slice(0, 4).map((a, n) => (
+                      <span key={n} className={`cal3-mini ${classeInstrumento(a.tipoEquip)}`}>
+                        <Icone nome={iconeInstrumento(a.tipoEquip)} tam={14} />
+                      </span>
+                    ))}
+                    {nAcessorios == null ? <small>—</small> : <b>{nAcessorios}</b>}
                   </span>
                   <span className="cal3-venc">
                     {prox?.vencimento ? (

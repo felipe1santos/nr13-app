@@ -15,6 +15,7 @@ import {
   ehCongelada,
   ehEmitido,
   ehInterna,
+  ehOficial,
   ehTerceiro,
   rotuloOrigem,
   type DadosCalibracao,
@@ -126,8 +127,23 @@ export default function Calibracoes() {
   const [calibrando, setCalibrando] = useState<Calibrando | null>(null);
   /** Contagem por TAG que este aparelho já conhece (ver `CatalogoCalibracoesV9.contagensLocais`). */
   const [contagensLocais, setContagensLocais] = useState<Record<string, number>>({});
+  // Só as OFICIAIS: é o que a projeção conta (`calibracoes_index` não recebe
+  // rascunho). Contar o rascunho aqui fazia o número da coluna mudar de
+  // definição conforme o aparelho tinha ou não aberto o equipamento.
   const atualizarContagem = (t: string) =>
-    setContagensLocais((c) => ({ ...c, [t]: listarCalibracoes(t).length }));
+    setContagensLocais((c) => ({ ...c, [t]: listarCalibracoes(t).filter(ehOficial).length }));
+  /**
+   * Acessórios por TAG que este aparelho já leu do CADASTRO — a mesma conta
+   * do painel do equipamento (`componentes.length`). Ver `acessoriosServidor.ts`.
+   */
+  const [acessoriosLocais, setAcessoriosLocais] = useState<Record<string, number>>({});
+  const conhecerComponentes = (t: string, lista: ComponenteCal[]) =>
+    setAcessoriosLocais((a) => (a[t] === lista.length ? a : { ...a, [t]: lista.length }));
+  /** O cadastro do equipamento ABERTO mudou: a tela e a contagem andam juntas. */
+  const definirComponentes = (t: string, lista: ComponenteCal[]) => {
+    setComponentes(lista);
+    conhecerComponentes(t, lista);
+  };
   /** Busca do seletor de equipamento da Nova calibração (a da lista não é tocada). */
   const [termoNova, setTermoNova] = useState('');
   const [novaCal, setNovaCal] = useState<NovaCal | null>(null);
@@ -230,7 +246,8 @@ export default function Calibracoes() {
           parseDateBR(b.dataCalibracao || b.criadoEm) - parseDateBR(a.dataCalibracao || a.criadoEm),
       ),
     );
-    setComponentes(aberto.componentes);
+    definirComponentes(tagEscolhida, aberto.componentes);
+    setContagensLocais((c) => ({ ...c, [tagEscolhida]: aberto.calibracoes.filter(ehOficial).length }));
     setLotes(aberto.lotes);
     setConfirmandoId(null);
     setTela('historico');
@@ -272,6 +289,7 @@ export default function Calibracoes() {
   /** Nova calibração, passo 1 → 2: semeia a TAG (sem hidratar a organização) e lista os componentes. */
   async function escolherEquipamentoNova(t: string) {
     const aberto = await abrirEquipamentoParaCalibracoes(t);
+    conhecerComponentes(t, aberto.componentes);
     setNovaCal({
       passo: 'componente',
       tag: t,
@@ -492,6 +510,7 @@ export default function Calibracoes() {
             aoMudarTermo={setTermoBusca}
             aoEscolher={(t) => void abrirPorTag(t)}
             contagensLocais={contagensLocais}
+            acessoriosLocais={acessoriosLocais}
             acoes={
               <>
                 {/* [i] Informações na barra da SESSÃO: a explicação do fluxo com a
@@ -754,7 +773,7 @@ export default function Calibracoes() {
                 aoFechar={() => setCompForm(null)}
                 aoSalvar={async (c) => {
                   await salvarComponente(tag, c);
-                  setComponentes(listarComponentes(tag));
+                  definirComponentes(tag, listarComponentes(tag));
                   setCompForm(null);
                 }}
               />
@@ -1040,6 +1059,7 @@ export default function Calibracoes() {
             aoMudarTermo={setTermoNova}
             aoEscolher={(t) => void escolherEquipamentoNova(t)}
             contagensLocais={contagensLocais}
+            acessoriosLocais={acessoriosLocais}
           />
         </ModalSelecionarEquipamento>
       )}
@@ -1054,6 +1074,7 @@ export default function Calibracoes() {
             await salvarComponente(novaCal.tag, c);
             const lista = listarComponentes(novaCal.tag);
             setNovaCal({ ...novaCal, componentes: lista });
+            conhecerComponentes(novaCal.tag, lista);
             if (novaCal.tag === tag) setComponentes(lista);
           }}
           aoEscolher={(c) => {
@@ -1079,7 +1100,7 @@ export default function Calibracoes() {
           aoSalvar={(form, loteId, acao) => salvarDaJanela(calibrando, form, loteId, acao)}
           aoComponenteSalvo={async (c) => {
             await salvarComponente(calibrando.tag, c);
-            if (calibrando.tag === tag) setComponentes(listarComponentes(tag));
+            if (calibrando.tag === tag) definirComponentes(tag, listarComponentes(tag));
           }}
           aoFechar={() => setCalibrando(null)}
         />

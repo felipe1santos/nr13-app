@@ -272,37 +272,51 @@ describe('o modal "Novo registro"', () => {
   });
 });
 
-describe('o campo "Pré-preencher a partir de um relatório finalizado"', () => {
-  it('tem o "i" com popover acessível', () => {
-    // O botão virou `PopoverAjuda` na 3ª rodada; o modal declara o rótulo.
-    expect(modal).toContain('rotulo="O que é pré-preencher"');
+describe('o pré-preenchimento por relatório SAIU do modal (21/11/2026)', () => {
+  // O dono pediu a remoção: "confunde". O registro do livro é ato do usuário
+  // (10B.2), e a oferta de copiar um relatório para o formulário levava quem
+  // preenchia a achar que precisava escolher um relatório.
+  it('nem o campo, nem o "i", nem a prop que o alimentava', () => {
+    const limpo = semComentarios(modal);
+    expect(limpo).not.toContain('Pré-preencher a partir de um relatório finalizado');
+    expect(limpo).not.toContain('oc-relatorio');
+    expect(limpo).not.toContain('O que é pré-preencher');
+    expect(limpo).not.toContain('Preencher manualmente');
+    expect(limpo).not.toContain('aoPreencherDeRelatorio');
+    expect(limpo).not.toContain('OpcaoRelatorio');
+    expect(limpo).not.toContain('AjudaPrefill');
+    expect(limpo).not.toContain('reg-modal-prefill');
+  });
+
+  it('a página não monta mais a lista de relatórios nem pré-preenche', () => {
+    const limpo = semComentarios(pagina);
+    expect(limpo).not.toContain('preencherDeRelatorio');
+    expect(limpo).not.toContain('montarEntradaLivroDoRelatorio');
+    expect(limpo).not.toContain('listarIndice(');
+    expect(limpo).not.toContain('carregarRelatorio(');
+    expect(limpo).not.toContain('function paraISO');
+    expect(limpo).not.toContain('relatorios={');
+  });
+
+  it('e o CSS do bloco saiu junto', () => {
+    expect(cssModal).not.toContain('.reg-modal-prefill');
+  });
+
+  it('o "i" do modal continua acessível (agora o da abertura de livro)', () => {
+    expect(modal).toContain('rotulo="O que é abrir o livro"');
     expect(popoverAjuda).toContain('aria-expanded={aberto}');
     expect(popoverAjuda).toContain('aria-controls={idPop}');
     expect(popoverAjuda).toContain('role="note"');
   });
 
   it('o ESC fecha o POPOVER sem derrubar o modal', () => {
-    // Sem o `stopPropagation`, um ESC para fechar a explicação fecharia o modal
-    // inteiro e levaria junto o que já tinha sido digitado.
     expect(popoverAjuda).toContain('e.stopPropagation();');
-  });
-
-  it('o texto descreve o que `preencherDeRelatorio` faz DE VERDADE', () => {
-    // Conferido no código: copia data, tipo, descrição e responsável para o
-    // formulário, que continua editável, e não grava nada sozinho.
-    expect(modal).toContain('copia para os campos abaixo');
-    expect(modal).toContain('Tudo continua');
-    expect(modal).toContain('revise e complete antes de salvar');
-  });
-
-  it('a opção padrão deixou de ser "— preencher à mão —"', () => {
-    expect(modal).toContain('Preencher manualmente');
-    expect(semComentarios(modal)).not.toContain('preencher à mão');
-    expect(semComentarios(pagina)).not.toContain('preencher à mão');
   });
 
   it('"sem assinatura" também perdeu os travessões', () => {
     expect(modal).toContain('<option value="">Sem assinatura</option>');
+    expect(semComentarios(modal)).not.toContain('preencher à mão');
+    expect(semComentarios(pagina)).not.toContain('preencher à mão');
   });
 });
 
@@ -336,22 +350,13 @@ describe('os passos do modal cabem na coluna certa', () => {
   });
 });
 
-describe('o pré-preenchimento entrega o que o texto promete', () => {
-  it('a data do relatório é convertida para o formato do campo', () => {
-    // `<input type="date">` só aceita `aaaa-mm-dd`. A entrada montada traz a
-    // data do relatório, que pode vir `dd/mm/aaaa`: atribuída direto, o campo
-    // ficava VAZIO sem erro nenhum — medido em produção em 07/09/2026.
-    expect(pagina).toContain('function paraISO(data: string): string {');
-    expect(pagina).toContain('data: paraISO(String(entrada.data ?? ');
-  });
-
-  it('o tipo vindo do relatório aparece no select', () => {
+describe('o tipo gravado continua aparecendo no campo', () => {
+  it('um tipo fora da lista (rascunho antigo) entra nas opções', () => {
     // "Inspeção Periódica" não está entre as ocorrências manuais. Sem entrar na
-    // lista, o campo obrigatório ficava em branco depois de pré-preencher e o
-    // "Salvar rascunho" recusava.
+    // lista, o campo obrigatório ficava em branco e o "Salvar rascunho" recusava.
     expect(modal).toContain('const tipos = TIPOS_OCORRENCIA.includes(form.tipoOcorrencia)');
-    expect(modal).toContain('[form.tipoOcorrencia, ...TIPOS_OCORRENCIA]');
-    expect(modal).toContain('{tipos.map((t) => (');
+    expect(modal).toContain('[form.tipoOcorrencia, ...TIPOS_OCORRENCIA, TIPO_ABERTURA]');
+    expect(modal).toContain('opcoes={tipos}');
   });
 });
 
@@ -377,7 +382,7 @@ describe('tela principal, refinada', () => {
   });
 
   it('o "i" é um só componente, usado nos três lugares', () => {
-    // Modal (pré-preencher), título da sessão e selo da cadeia. Três cópias
+    // Modal (abertura de livro), título da sessão e selo da cadeia. Três cópias
     // seriam três comportamentos de ESC diferentes daqui a um mês.
     expect(popover).toContain('export default function PopoverAjuda');
     expect(popover).toContain('e.stopPropagation();');
@@ -614,9 +619,8 @@ describe('o termo é editável', () => {
 });
 
 describe('o modal ficou mais reto', () => {
-  it('menos caixa: o pré-preenchimento virou filete', () => {
-    expect(cssModal).toContain('border-left: 3px solid var(--blue, #457dc1);');
-    expect(cssModal).toContain('background: transparent;');
+  it('menos caixa: o bloco do pré-preenchimento nem existe mais', () => {
+    expect(cssModal).not.toContain('.reg-modal-prefill');
   });
 
   it('raio menor, de software corporativo', () => {
@@ -701,7 +705,7 @@ describe('a ficha tem hierarquia de leitura, não cara de papel', () => {
 
   it('o modal ficou mais reto ainda: 6px', () => {
     expect(cssModal).toContain('.reg-modal { border-radius: 6px; }');
-    expect(cssModal).toContain('.reg-modal-prefill select { border-radius: 4px; }');
+    expect(cssModal).toContain('.reg-modal-form .fj-field textarea { border-radius: 4px; }');
   });
 });
 

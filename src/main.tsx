@@ -23,6 +23,8 @@ import './styles/listas-cobalto.css'
 import App from './App.tsx'
 // Depois do App de propósito: vem depois do CSS das telas (cartão padrão ouro).
 import './styles/cartoes-cobalto.css'
+// Padrão único das barras de lista (21/11/2026) — o último a falar.
+import './styles/barra-lista.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

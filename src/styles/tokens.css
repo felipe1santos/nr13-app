@@ -483,6 +483,14 @@ h1, h2, h3, h4, .titulo-display {
   --neutro-100: #EDEDED;
   --criar: #43A047;          /* botão de criar (padrão SimplesDental) */
   --criar-hover: #2E7D32;
+  /* Ação SELECIONADA / em hover das barras de lista (21/11/2026): o verde
+     petróleo que era o hover do "Importar planilha". Branco sobre ele: 5,5:1. */
+  --sel: #0F766E;
+  --sel-hover: #0B5E58;
+  --sel-bg: #E6F4F1;
+  /* Recorte de Clientes (Todos/Com portal/Sem portal) e contador do menu. */
+  --laranja: #C2410C;      /* branco sobre ele: 5,2:1 */
+  --laranja-hover: #9A3412;
 
   /* Cor própria de cada ENSAIO (texto/borda · fundo) — protótipo Cobalto */
   --e-checklist: #2F5BEA;  --e-checklist-bg: #E3EAFF;

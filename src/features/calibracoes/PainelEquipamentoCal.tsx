@@ -7,13 +7,12 @@
  * dele (`ehOficial`, a mesma regra do painel de vencimentos) — rascunho não
  * gera prazo.
  */
-import type { ReactNode } from 'react';
 import { Icone } from '../../components/Icone';
 import { iconeDoTipo } from '../../components/listaCobalto';
 import type { ComponenteCal } from './componentesService';
 import { definicaoDe } from './instrumentos';
 import { ehOficial, ehTerceiro, type DadosCalibracao } from './tipos';
-import { parseDataPrazo, statusPrazo } from '../../services/vencimentos';
+import { prazoDoCanto, situacaoDoAcessorio, type SituacaoAcessorio } from './situacaoAcessorio';
 
 /** Cor de identidade do instrumento (mesma família da lista). */
 function classeDoInstrumento(tipo: string): string {
@@ -33,25 +32,17 @@ function classeDoInstrumento(tipo: string): string {
   }
 }
 
-function dataNum(c: DadosCalibracao): number {
-  return parseDataPrazo(c.dataCalibracao || c.criadoEm)?.getTime() ?? 0;
-}
+const ROTULO_SELO: Record<NonNullable<SituacaoAcessorio['selo']>, string> = {
+  'em-dia': 'Em dia',
+  vencido: 'Vencido',
+  reprovado: 'Reprovado',
+};
 
-interface SituacaoAcessorio {
-  ultima: DadosCalibracao | null;
-  rascunho: DadosCalibracao | null;
-  dias: number | null;
-}
-
-function situacaoDoAcessorio(c: ComponenteCal, cals: DadosCalibracao[], hoje = new Date()): SituacaoAcessorio {
-  const doComp = cals.filter((x) => x.componenteId === c.id);
-  const oficiais = doComp.filter(ehOficial).sort((a, b) => dataNum(b) - dataNum(a));
-  const rascunho = doComp.find((x) => !ehOficial(x)) ?? null;
-  const ultima = oficiais[0] ?? null;
-  const venc = parseDataPrazo(ultima?.dataProxCalibracao ?? null);
-  const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-  return { ultima, rascunho, dias: venc ? statusPrazo(venc, hojeZero).dias : null };
-}
+const ROTULO_CERT: Record<NonNullable<SituacaoAcessorio['certificado']>, string> = {
+  emitido: 'Certificado emitido',
+  externo: 'Certificado de laboratório externo',
+  anterior: 'Certificado não emitido (registro anterior)',
+};
 
 function prazoCurto(dias: number): string {
   if (dias < 0) return `Vencido há ${Math.abs(dias)} dia${Math.abs(dias) === 1 ? '' : 's'}`;
@@ -128,6 +119,7 @@ export function GradeAcessorios({
   aoHistorico,
   aoCalibrar,
   aoContinuar,
+  hoje,
 }: {
   componentes: ComponenteCal[];
   cals: DadosCalibracao[];
@@ -136,6 +128,8 @@ export function GradeAcessorios({
   aoHistorico: (c: ComponenteCal) => void;
   aoCalibrar: (c: ComponenteCal) => void;
   aoContinuar: (cal: DadosCalibracao) => void;
+  /** Só para teste: a data de referência do prazo. */
+  hoje?: Date;
 }) {
   return (
     <section className="mz-card cal-acessorios-card">
@@ -153,80 +147,107 @@ export function GradeAcessorios({
         <div className="cal4-grade">
           {componentes.map((c) => {
             const def = definicaoDe(c.tipo);
-            const s = situacaoDoAcessorio(c, cals);
-            const faixa = c.tipo === 'psv' && c.pressaoAjuste ? `ajuste ${c.pressaoAjuste}` : c.referencia;
-            const desc = [c.fabricante, c.modelo].filter((x) => x && x.trim()).join(' · ');
-            let rodape: ReactNode;
-            if (s.rascunho) rodape = <span className="cal4-st rasc">Rascunho em aberto</span>;
-            else if (s.ultima && ehTerceiro(s.ultima)) rodape = <span className="cal4-st ter">Laboratório externo</span>;
-            else if (s.ultima) rodape = <span className="eres ok">Certificado emitido</span>;
-            else rodape = <span className="cal4-st nada">Sem calibração</span>;
+            const s = situacaoDoAcessorio(c, cals, hoje);
+            const classe = classeDoInstrumento(c.tipo);
+            const calibrarOuContinuar = () => (s.rascunho ? aoContinuar(s.rascunho) : aoCalibrar(c));
+
+            // ── NUNCA CALIBRADO ────────────────────────────────────────────
+            // Só o nome, o tipo e "Requer calibração". O cartão INTEIRO é o
+            // botão — um jeito só de calibrar. Editar o cadastro continua a um
+            // clique, dentro da janela da calibração ("Editar componente").
+            if (!s.ultima) {
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`cal4-ac cal4-ac-novo ${classe}`}
+                  aria-label={`${s.rascunho ? 'Continuar a calibração de' : 'Calibrar'} ${c.nome} (${def.rotulo}) — requer calibração`}
+                  title={s.rascunho ? 'Continuar a calibração em rascunho' : 'Calibrar este acessório'}
+                  onClick={calibrarOuContinuar}
+                >
+                  <span className="cal4-ac-cab">
+                    <span className="cal4-ci" aria-hidden>
+                      <Icone nome={def.icone} tam={18} />
+                    </span>
+                    <span className="t">
+                      <b>{c.nome}</b>
+                      <span className="cal4-tipo">{def.rotulo}</span>
+                    </span>
+                  </span>
+                  <span className="cal4-requer">
+                    <Icone nome="manometro" tam={40} />
+                    <strong>Requer calibração</strong>
+                    {s.rascunho && <span className="cal4-st rasc">Rascunho em aberto</span>}
+                  </span>
+                </button>
+              );
+            }
+
+            // ── JÁ CALIBRADO ───────────────────────────────────────────────
+            const u = s.ultima;
             return (
-              <article
-                key={c.id}
-                className={`cal4-ac ${classeDoInstrumento(c.tipo)}`}
-                tabIndex={0}
-                title="Ver o histórico de calibrações"
-                onClick={() => aoHistorico(c)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') aoHistorico(c);
-                }}
-              >
+              <article key={c.id} className={`cal4-ac cal4-ac-cal ${classe}`}>
                 <header>
                   <span className="cal4-ci" aria-hidden>
                     <Icone nome={def.icone} tam={18} />
                   </span>
                   <div className="t">
-                    <b>{c.nome}</b>
-                    <small>{def.rotulo}</small>
+                    <span className="cal4-nome">
+                      <b>{c.nome}</b>
+                      {s.selo && <span className={`cal4-selo ${s.selo}`}>{ROTULO_SELO[s.selo]}</span>}
+                    </span>
+                    <span className="cal4-tipo">{def.rotulo}</span>
                   </div>
-                  <SeloPrazo dias={s.dias} />
+                  <span className={`cal4-canto${s.dias !== null && s.dias < 0 ? ' venc' : ''}`}>{prazoDoCanto(s.dias)}</span>
                 </header>
-                <p className="nm">{desc || ' '}</p>
                 <dl>
                   <div>
-                    <dt>Nº de série</dt>
-                    <dd>{c.serie?.trim() || '—'}</dd>
-                  </div>
-                  <div>
-                    <dt>Faixa</dt>
-                    <dd>
-                      {faixa?.trim() || '—'} {faixa && c.unidade ? <small>{c.unidade}</small> : null}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Última</dt>
-                    <dd>{s.ultima?.dataCalibracao || '—'}</dd>
+                    <dt>Última calibração</dt>
+                    <dd>{u.dataCalibracao || '—'}</dd>
                   </div>
                   <div>
                     <dt>Próxima</dt>
-                    <dd>{s.ultima?.dataProxCalibracao || '—'}</dd>
+                    <dd>{u.dataProxCalibracao || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt>Resultado</dt>
+                    <dd>
+                      {u.statusConclusao === 'aprovado' ? 'Aprovado' : u.statusConclusao === 'reprovado' ? 'Reprovado' : '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Certificado</dt>
+                    <dd>{u.numeroCertificado || '—'}</dd>
                   </div>
                 </dl>
+                <p className={`cal4-cert ${s.certificado ?? ''}`}>
+                  <Icone nome={s.certificado === 'anterior' ? 'alerttri' : 'checkcircle'} tam={14} />
+                  {s.certificado ? ROTULO_CERT[s.certificado] : '—'}
+                  {s.rascunho && <span className="cal4-st rasc">Rascunho em aberto</span>}
+                </p>
                 <footer>
-                  {rodape}
                   <span className="grow" />
                   <button
                     type="button"
                     className="cal4-ra"
                     title="Editar acessório"
                     aria-label={`Editar ${c.nome}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      aoEditar(c);
-                    }}
+                    onClick={() => aoEditar(c)}
                   >
                     <Icone nome="pencil" tam={15} />
                   </button>
                   <button
                     type="button"
-                    className="cal4-calibrar"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (s.rascunho) aoContinuar(s.rascunho);
-                      else aoCalibrar(c);
-                    }}
+                    className="cal4-hist"
+                    title="Calibrações já feitas deste acessório"
+                    aria-label={`Histórico de ${c.nome}: ${s.oficiais} ${s.oficiais === 1 ? 'calibração' : 'calibrações'}`}
+                    aria-haspopup="dialog"
+                    onClick={() => aoHistorico(c)}
                   >
+                    <Icone nome="clock" tam={15} />
+                    Histórico <span className="n">{s.oficiais}</span>
+                  </button>
+                  <button type="button" className="cal4-calibrar" onClick={calibrarOuContinuar}>
                     <Icone nome="gauge" tam={15} />
                     {s.rascunho ? 'Continuar' : 'Calibrar'}
                   </button>

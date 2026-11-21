@@ -32,16 +32,21 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Icone } from '../../components/Icone';
 import PopoverAjuda from './PopoverAjuda';
 import PreviaRegistro from './PreviaRegistro';
-import { descricaoCombinada, termoSugerido, tituloTermo, type DadosPrevia } from './termoRegistro';
+import SeletorOcorrencia from './SeletorOcorrencia';
+import { tituloTermo, type DadosPrevia } from './termoRegistro';
 import type { FormOcorrencia } from './formRegistro';
 import { TIPOS_OCORRENCIA } from './formRegistro';
+import {
+  MOTIVOS_ABERTURA,
+  TIPO_ABERTURA,
+  descricaoDoMotivo,
+  ehAbertura,
+  podeTrocarDescricao,
+  type DadosAberturaEquipamento,
+  type MotivoAbertura,
+} from './aberturaLivro';
+import { sugestaoDoFormulario } from './sugestaoTermo';
 import './modalNovoRegistro.css';
-import { tipoDaTag } from '../equipamento/perfilEquipamento';
-
-export interface OpcaoRelatorio {
-  id: string;
-  rotulo: string;
-}
 
 export interface OpcaoAssinante {
   id: string;
@@ -55,12 +60,11 @@ export default function ModalNovoRegistro({
   modo,
   form,
   aoMudarForm,
-  relatorios,
   assinantes,
   avisoRetificacao,
   erro,
   abaInicial = 'previa',
-  aoPreencherDeRelatorio,
+  abertura,
   aoSalvar,
   aoFechar,
 }: {
@@ -72,14 +76,17 @@ export default function ModalNovoRegistro({
   modo: 'novo' | 'editar' | 'retificar';
   form: FormOcorrencia;
   aoMudarForm: (f: FormOcorrencia) => void;
-  relatorios: OpcaoRelatorio[];
   assinantes: OpcaoAssinante[];
   /** Aviso do registro que está sendo retificado (a página monta o texto). */
   avisoRetificacao?: string;
   erro: string;
   /** `previa` (padrão) ou `ajuda` — o olho da lista abre direto na prévia. */
   abaInicial?: 'previa' | 'ajuda';
-  aoPreencherDeRelatorio: (id: string) => void;
+  /**
+   * Os dados que o Termo de Abertura cita (equipamento, cliente, folhas). A
+   * página os lê uma vez do cache; sem eles, a sugestão os lê sozinha.
+   */
+  abertura?: DadosAberturaEquipamento | null;
   aoSalvar: () => void;
   aoFechar: () => void;
 }) {
@@ -88,11 +95,17 @@ export default function ModalNovoRegistro({
   const idTitulo = useId();
   const [aba, setAba] = useState<'previa' | 'ajuda'>(abaInicial);
 
+  const ehAberturaLivro = ehAbertura(form.tipoOcorrencia);
   const titulo =
-    modo === 'retificar' ? 'Registro de retificação' : modo === 'editar' ? 'Editar rascunho' : 'Novo registro';
+    modo === 'retificar'
+      ? 'Registro de retificação'
+      : modo === 'editar'
+        ? 'Editar rascunho'
+        : ehAberturaLivro
+          ? 'Abrir livro de registro'
+          : 'Novo registro';
 
-  // Foco na DATA: é o primeiro campo obrigatório, e o pré-preenchimento acima
-  // dele é uma oferta, não o caminho principal.
+  // Foco na DATA: é o primeiro campo obrigatório.
   useEffect(() => {
     primeiro.current?.focus();
   }, []);
@@ -147,16 +160,28 @@ export default function ModalNovoRegistro({
   }
 
   /*
-   * O tipo que vem do PRÉ-PREENCHIMENTO não está na lista de ocorrências
-   * manuais: um relatório traz "Inspeção Periódica", e a lista oferece
-   * manutenção, reparo, substituição… Sem esta linha o `<select>` recebia um
-   * valor sem opção correspondente e exibia VAZIO — o usuário via o campo
-   * obrigatório em branco depois de pré-preencher, e o "Salvar" recusava
-   * (medido em produção em 07/09/2026).
+   * O tipo GRAVADO pode não estar na lista de ocorrências manuais: um rascunho
+   * antigo pode trazer "Inspeção Periódica" (do pré-preenchimento por
+   * relatório, que saiu em 21/11/2026). Sem esta linha o campo recebia um valor
+   * sem opção correspondente e exibia VAZIO — o usuário via o obrigatório em
+   * branco, e o "Salvar" recusava (medido em produção em 07/09/2026).
+   *
+   * A ABERTURA DE LIVRO entra no fim da lista: o botão "Abrir livro" da tela é
+   * o caminho principal, e aqui ela continua escolhível.
    */
-  const tipos = TIPOS_OCORRENCIA.includes(form.tipoOcorrencia) || !form.tipoOcorrencia
-    ? TIPOS_OCORRENCIA
-    : [form.tipoOcorrencia, ...TIPOS_OCORRENCIA];
+  const conhecidos = [...TIPOS_OCORRENCIA, TIPO_ABERTURA];
+  const tipos = TIPOS_OCORRENCIA.includes(form.tipoOcorrencia) || !form.tipoOcorrencia || ehAberturaLivro
+    ? conhecidos
+    : [form.tipoOcorrencia, ...TIPOS_OCORRENCIA, TIPO_ABERTURA];
+
+  /** Trocar o motivo reescreve o "o que foi feito" só se ele ainda for a frase de um motivo. */
+  function escolherMotivo(m: MotivoAbertura) {
+    aoMudarForm({
+      ...form,
+      motivoAbertura: m,
+      oQueFoiFeito: podeTrocarDescricao(form.oQueFoiFeito) ? descricaoDoMotivo(m) : form.oQueFoiFeito,
+    });
+  }
 
   /*
    * O termo SUGERIDO acompanha os campos enquanto o usuário não escreve o dele.
@@ -164,17 +189,8 @@ export default function ModalNovoRegistro({
    * mudar a data depois disso não pode reescrever o texto de alguém.
    */
   const sugestao = useMemo(
-    () =>
-      termoSugerido({
-        tipo: form.tipoOcorrencia,
-        data: form.data,
-        empresa,
-        relatorioCodigo: form.relatorioCodigo,
-        apto: form.apto,
-        descricao: descricaoCombinada(form.oQueFoiFeito, form.descricao),
-        tipoEquipamento: tipoDaTag(tag),
-      }),
-    [form.tipoOcorrencia, form.data, form.relatorioCodigo, form.apto, form.oQueFoiFeito, form.descricao, empresa, tag],
+    () => sugestaoDoFormulario(form, { tag, empresa, abertura }),
+    [form, empresa, tag, abertura],
   );
   /*
    * A REGRA DO TERMO, em uma linha: `null` é "ainda não editado" — só aí a
@@ -226,26 +242,6 @@ export default function ModalNovoRegistro({
 
         <div className="reg-modal-corpo">
           <div className="reg-modal-form">
-            {/* Pré-preenchimento: oferta, não caminho obrigatório. */}
-            <div className="reg-modal-prefill">
-              <div className="reg-modal-prefill-topo">
-                <label htmlFor="oc-relatorio">Pré-preencher a partir de um relatório finalizado</label>
-                <AjudaPrefill />
-              </div>
-              <select
-                id="oc-relatorio"
-                defaultValue=""
-                onChange={(e) => aoPreencherDeRelatorio(e.target.value)}
-              >
-                <option value="">Preencher manualmente</option>
-                {relatorios.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.rotulo}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             {avisoRetificacao && (
               <p className="reg-modal-aviso" role="status">
                 <Icone nome="alerttri" tam={13} />
@@ -272,20 +268,45 @@ export default function ModalNovoRegistro({
                   <label htmlFor="oc-tipo">
                     Tipo de ocorrência <em>obrigatório</em>
                   </label>
-                  <select
+                  <SeletorOcorrencia
                     id="oc-tipo"
-                    value={form.tipoOcorrencia}
-                    onChange={(e) => set('tipoOcorrencia', e.target.value)}
-                  >
-                    <option value="">Selecione…</option>
-                    {tipos.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
+                    valor={form.tipoOcorrencia}
+                    opcoes={tipos}
+                    aoMudar={(v) => set('tipoOcorrencia', v)}
+                  />
                 </div>
               </div>
+
+              {ehAberturaLivro && (
+                <div className="fj-field reg-motivo">
+                  <span className="reg-motivo-topo" id="oc-motivo-rot">
+                    Motivo da abertura <em>obrigatório</em>
+                    <PopoverAjuda rotulo="O que é abrir o livro">
+                      <b>Lavra o Termo de Abertura de um livro novo.</b>
+                      <span>
+                        Serve a qualquer momento — também para equipamento em operação que perdeu o
+                        livro original. O termo entra no livro como um registro: nasce rascunho e,
+                        trancado, é lacrado no fim do livro. Nenhum registro anterior é apagado.
+                      </span>
+                    </PopoverAjuda>
+                  </span>
+                  <div className="reg-motivo-opcoes" role="radiogroup" aria-labelledby="oc-motivo-rot">
+                    {MOTIVOS_ABERTURA.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={form.motivoAbertura === m.id}
+                        className={`reg-motivo-opcao${form.motivoAbertura === m.id ? ' ativa' : ''}`}
+                        onClick={() => escolherMotivo(m.id)}
+                      >
+                        <b>{m.rotulo}</b>
+                        <small>{m.apoio}</small>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="fj-field">
                 <label htmlFor="oc-feito">
@@ -355,14 +376,20 @@ export default function ModalNovoRegistro({
                   <input
                     id="oc-quem"
                     type="text"
+                    className={form.quemRealizou.trim() ? 'preenchido' : undefined}
                     placeholder="Empresa ou técnico executante"
                     value={form.quemRealizou}
                     onChange={(e) => set('quemRealizou', e.target.value)}
                   />
                 </div>
                 <div className="fj-field">
-                  <label htmlFor="oc-ph">Responsável que assina</label>
-                  <select id="oc-ph" value={form.phId} onChange={(e) => set('phId', e.target.value)}>
+                  <label htmlFor="oc-ph">Responsável técnico</label>
+                  <select
+                    id="oc-ph"
+                    className={form.phId ? 'preenchido' : undefined}
+                    value={form.phId}
+                    onChange={(e) => set('phId', e.target.value)}
+                  >
                     <option value="">Sem assinatura</option>
                     {assinantes.map((f) => (
                       <option key={f.id} value={f.id}>
@@ -494,33 +521,5 @@ export default function ModalNovoRegistro({
         )}
       </div>
     </div>
-  );
-}
-
-/**
- * O "i" do pré-preenchimento.
- *
- * O texto descreve o que `preencherDeRelatorio` faz de verdade, conferido no
- * código: ele copia data, tipo, descrição e o responsável do relatório para os
- * campos — que continuam editáveis — e não grava nada sozinho. As duas recusas
- * possíveis (relatório ainda não baixado neste aparelho, relatório que já tem
- * registro trancado) aparecem como erro no próprio modal.
- *
- * O botão e o comportamento do ESC vivem em `PopoverAjuda`, compartilhado com
- * o "i" do título da sessão e o da cadeia de registros.
- */
-function AjudaPrefill() {
-  return (
-    <PopoverAjuda rotulo="O que é pré-preencher">
-      <b>Aproveita um relatório já emitido.</b>
-      <span>
-        Escolha um relatório finalizado deste equipamento e o sistema copia para os campos abaixo
-        a data, o tipo, a descrição da inspeção e o responsável que assinou. Tudo continua
-        editável: revise e complete antes de salvar.
-      </span>
-      <span>
-        Prefere escrever do zero? Deixe em <b>Preencher manualmente</b>.
-      </span>
-    </PopoverAjuda>
   );
 }

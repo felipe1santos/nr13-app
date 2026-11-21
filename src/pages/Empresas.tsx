@@ -160,8 +160,9 @@ export default function Empresas() {
     <div className="cli-v4">
       {/* O título já está no cabeçalho de 48px: a página não o repete. */}
       <section className="cli-painel" aria-label="Clientes">
+        {/* 21/11/2026: barra de UMA linha, igual às outras listas — sem
+            título (a topbar já diz "Clientes"). */}
         <div className="cli-barra">
-          <h2 className="cli-titulo">Clientes</h2>
           <label className="cli-busca">
             <Icone nome="search" tam={15} />
             <input
@@ -183,8 +184,8 @@ export default function Empresas() {
           <button type="button" className="cli-exportar" onClick={exportarCsv} disabled={visiveis.length === 0}>
             <Icone nome="download" tam={16} /> Exportar
           </button>
-          <button type="button" className="mcli-btn pri" onClick={novoCliente}>
-            <Icone nome="plus" tam={14} /> Novo cliente
+          <button type="button" className="lc-criar" onClick={novoCliente}>
+            <Icone nome="plus" tam={18} /> Novo cliente
           </button>
         </div>
 

@@ -30,6 +30,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import BuscaLista from '../../components/BuscaLista';
+import SeletorTipo from '../../components/SeletorTipo';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
 import * as buscaIndex from '../../services/buscaIndex';
 import { rotuloInspecoes } from '../../services/buscaIndex';
@@ -61,14 +62,6 @@ const ROTULO_TIPO: Record<string, string> = {
 
 /** Altura estimada de uma linha; corrigida por medição no primeiro quadro. */
 const ALT_LINHA = 44; // Cobalto: linha de lista de 44px (--row-h)
-
-/** Abas da lista: o recorte por tipo que o catálogo do servidor já filtra. */
-const ABAS_TIPO: { valor: string; rotulo: string }[] = [
-  { valor: '', rotulo: 'Todos' },
-  { valor: 'vaso', rotulo: 'Vasos' },
-  { valor: 'caldeira', rotulo: 'Caldeiras' },
-  { valor: 'autoclave', rotulo: 'Autoclaves' },
-];
 
 export default function InspecoesV9() {
   const [params, setParams] = useSearchParams();
@@ -360,19 +353,8 @@ export default function InspecoesV9() {
             contagem={contagem}
             offline={offline}
             compacto
+            antes={<SeletorTipo valor={tipo} aoMudar={(v) => trocarParam('tipo', v)} />}
           >
-            <div className="iv4-seg" role="group" aria-label="Tipo de equipamento">
-              {ABAS_TIPO.map((a) => (
-                <button
-                  key={a.valor || 'todos'}
-                  type="button"
-                  aria-pressed={tipo === a.valor}
-                  onClick={() => trocarParam('tipo', a.valor)}
-                >
-                  {a.rotulo}
-                </button>
-              ))}
-            </div>
             <button type="button" className="lc-criar iv4-criar" onClick={() => setEscolhendo(true)}>
               <Icone nome="plus" tam={18} /> Criar nova inspeção
             </button>

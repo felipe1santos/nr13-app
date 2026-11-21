@@ -105,6 +105,19 @@ function EquipamentoView({ tag }: { tag: string }) {
     return () => window.removeEventListener('focus', atualizarCalculo);
   }, [tag]);
 
+  // Esc fecha os dois diálogos da ficha (memorial e confirmação de exclusão),
+  // como o "×" e o clique fora já fechavam.
+  useEffect(() => {
+    if (!modalMemorial && !confirmandoExclusao) return;
+    function aoTeclar(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      setModalMemorial(false);
+      setConfirmandoExclusao(false);
+    }
+    document.addEventListener('keydown', aoTeclar);
+    return () => document.removeEventListener('keydown', aoTeclar);
+  }, [modalMemorial, confirmandoExclusao]);
+
   function abrirMemorialCompleto() {
     setModalMemorial(true);
   }
@@ -186,11 +199,17 @@ function EquipamentoView({ tag }: { tag: string }) {
               className="fj-modal-overlay"
               onClick={(e) => e.target === e.currentTarget && setConfirmandoExclusao(false)}
             >
-              <div className="fj-modal-box" style={{ maxWidth: 460 }}>
+              <div
+                className="fj-modal-box"
+                style={{ maxWidth: 460 }}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="excluir-equip-titulo"
+              >
                 <div className="fj-modal-head">
                   <div>
                     <div className="fj-eyebrow">Excluir equipamento</div>
-                    <h2>{tag}</h2>
+                    <h2 id="excluir-equip-titulo">{tag}</h2>
                   </div>
                   <button
                     type="button"
@@ -220,7 +239,7 @@ function EquipamentoView({ tag }: { tag: string }) {
                     </button>
                     <button
                       type="button"
-                      className="btn-excluir-equip"
+                      className="btn-excluir-equip ficha-excluir-confirmar"
                       onClick={() => void excluirEquipamento()}
                       disabled={excluindo}
                     >
@@ -262,7 +281,10 @@ function EquipamentoView({ tag }: { tag: string }) {
           {fotoCapa ? (
             <FotoImg foto={{ ref: fotoCapa.ref, base64: fotoCapa.src }} alt={`Foto de ${tag}`} />
           ) : (
-            <div className="equipamento-foto-vazia">Sem Foto</div>
+            <div className="equipamento-foto-vazia">
+              <Icone nome="camera" tam={26} />
+              <span>Sem foto</span>
+            </div>
           )}
         </div>
       </div>
@@ -383,11 +405,22 @@ function EquipamentoView({ tag }: { tag: string }) {
 
       {modalMemorial && (calculo || calculoGv) && (
         <div className="modal-memorial-overlay" onClick={() => setModalMemorial(false)}>
-          <div className="modal-memorial-box" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal-memorial-box"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-memorial-titulo"
+          >
             <div className="modal-memorial-header">
-              <span>Memorial de Cálculo — TAG: {tag}</span>
-              <button type="button" className="modal-memorial-fechar" onClick={() => setModalMemorial(false)}>
-                ✕
+              <span id="modal-memorial-titulo">Memorial de Cálculo — TAG: {tag}</span>
+              <button
+                type="button"
+                className="modal-memorial-fechar"
+                onClick={() => setModalMemorial(false)}
+                aria-label="Fechar memorial"
+              >
+                <Icone nome="x" tam={16} />
               </button>
             </div>
             <div className="modal-memorial-corpo">
