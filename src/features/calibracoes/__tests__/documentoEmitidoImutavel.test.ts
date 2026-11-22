@@ -174,10 +174,26 @@ describe('cliente: terceiro oficial congelado como o emitido', () => {
     expect((banco.get('nr13_calibracao_item_T1') as { laboratorio: string }).laboratorio).toBe('Lab');
   });
 
-  it('a tela não oferece "Excluir" para registro congelado', () => {
+  it('a tela não oferece "Excluir" para registro congelado — nem para calibração concluída', () => {
+    // 22/11/2026: só RASCUNHO se exclui; calibração antiga concluída (oficial,
+    // sem emissão) também deixou de oferecer Excluir.
     expect(readFileSync('src/pages/Calibracoes.tsx', 'utf8')).toContain(
-      '{ehCongelada(calAtual) ? null : confirmandoId === calAtual.id ? (',
+      '{ehCongelada(calAtual) || ehOficial(calAtual) ? null : confirmandoId === calAtual.id ? (',
     );
+  });
+
+  it('calibração concluída abre a folha SOMENTE LEITURA (ro=1 + DOM travado + palco sem drenar)', () => {
+    const src = readFileSync('src/pages/Calibracoes.tsx', 'utf8');
+    expect(src).toContain('somenteLeitura: ehOficial(calAtual),');
+    expect(src).toContain('${paramsSomenteLeitura(ehOficial(calAtual))}');
+    expect(src).toContain('if (ehOficial(calAtual)) travarIframeSomenteLeitura(e.currentTarget);');
+  });
+
+  it('o certificado abre em MODAL sobre a lista, não troca de tela', () => {
+    const src = readFileSync('src/pages/Calibracoes.tsx', 'utf8');
+    expect(src).toContain('setVendo(true);');
+    expect(src).toContain('<CaixaCalibracao aoFechar={() => setVendo(false)}>');
+    expect(src).not.toContain("setTela('visualizador')");
   });
 
   it('a lista legada de relatórios não oferece excluir (toda linha é finalizada)', () => {

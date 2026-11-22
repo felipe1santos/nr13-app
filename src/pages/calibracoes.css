@@ -1149,3 +1149,84 @@
 
 /* Histórico do acessório: a caixa recebe o foco ao abrir. */
 .calibracoes-page .mcomp-box:focus { outline: none; }
+
+/* ── Certificado em MODAL (22/11/2026) ──────────────────────────────────────
+   O "olho" de Calibrações realizadas abre o certificado no centro da tela, sem
+   sair da lista. Topo compacto e fixo (título, situação, ações, fechar); o
+   documento ocupa o resto da altura e só ele rola. */
+.calv-fundo { align-items: center; justify-content: center; padding: 16px; }
+.calv {
+  position: relative;
+  width: min(1040px, calc(100vw - 32px));
+  height: min(calc(100dvh - 32px), 1100px);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 24px 64px rgba(15, 22, 49, 0.28), 0 2px 8px rgba(15, 22, 49, 0.12);
+  overflow: hidden;
+  outline: none;
+  animation: calv-entra 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes calv-entra { from { opacity: 0; transform: translateY(8px) scale(0.99); } }
+.calv .calv-topo {
+  flex: none;
+  margin: 0 !important;
+  padding: 14px 56px 12px 20px !important;
+  border: 0 !important;
+  border-bottom: 1px solid #EDEDED !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.calv-sub { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font: var(--t-caption); color: #6B6B6B; }
+.calv-sub strong { color: #1A1A1A; font-weight: 600; }
+.calv .meta-card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0; }
+.calv .meta-card-header h3 { margin: 0; font: 600 17px/24px var(--font); color: #1A1A1A; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.calv .meta-card-header .btn-secundario,
+.calv .meta-card-header .btn-remover {
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: #E9E9E9;
+  color: #1A1A1A;
+  font: 600 13px/1 var(--font);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color .15s, color .15s;
+}
+.calv .meta-card-header .btn-secundario:hover { background: var(--destaque); color: #fff; }
+.calv .meta-card-header .btn-remover:hover { background: var(--vermelho-padrao, #DC2626); color: #fff; }
+.calv-fechar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #6B6B6B;
+  cursor: pointer;
+  z-index: 2;
+  transition: background-color .15s, color .15s;
+}
+.calv-fechar:hover { background: #F4F4F5; color: #1A1A1A; }
+.calv-fechar:focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }
+.calv-corpo { flex: 1; min-height: 0; overflow: auto; padding: 12px 20px 20px; background: #F4F5F7; }
+.calv-corpo > .bloco-dados,
+.calv-corpo > .cal-emissao-selo { margin: 0 0 12px; }
+.calv-corpo .cal-preview-arquivo { height: 100%; min-height: 0; }
+.calv-corpo .cal-preview-arquivo:only-child,
+.calv-corpo .cal-emissao-selo + .cal-preview-arquivo { height: calc(100% - 4px); }
+.calv-corpo .cal-preview { display: flex; justify-content: center; }
+@media (max-width: 640px) {
+  .calv-fundo { padding: 0; }
+  .calv { width: 100vw; height: 100dvh; border-radius: 0; }
+  .calv .calv-topo { padding: 12px 52px 10px 12px !important; }
+  .calv-corpo { padding: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .calv { animation: none; } }

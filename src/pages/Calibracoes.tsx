@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useFocoPreso } from '../components/useFocoPreso';
+import { paramsSomenteLeitura, travarIframeSomenteLeitura } from '../features/documentos/somenteLeituraDoc';
 import { Icone } from '../components/Icone';
 import ModalComponente from '../features/calibracoes/ModalComponente';
 import AjudaCalibracoes from '../features/calibracoes/AjudaCalibracoes';
@@ -122,6 +124,11 @@ function parseDateBR(d: string): number {
 
 export default function Calibracoes() {
   const [tela, setTela] = useState<Tela>('equipamentos');
+  /**
+   * O certificado abre num MODAL sobre a tela atual (22/11/2026) — antes
+   * trocava de tela. `tela` continua sendo o FUNDO (histórico ou dados).
+   */
+  const [vendo, setVendo] = useState(false);
   const [tag, setTag] = useState('');
   const [cals, setCals] = useState<DadosCalibracao[]>([]);
   const [calAtual, setCalAtual] = useState<DadosCalibracao | null>(null);
@@ -170,7 +177,11 @@ export default function Calibracoes() {
   // impediria o relatório de abrir em seguida.
   const palco = usePalcoDocumento(tag, `cal-${calAtual?.id ?? 'nenhuma'}-${versao}`, {
     // Fase 7 · rascunho interno sai do gerador vetorial, sem palco.
-    pular: tela !== 'visualizador' || !!artefatoAtual || !arquivoAtual || ehRascunhoInterno(calAtual),
+    pular: !vendo || !!artefatoAtual || !arquivoAtual || ehRascunhoInterno(calAtual),
+    // Calibração CONCLUÍDA (oficial) é somente leitura: o que a folha tiver
+    // de campo não volta para o banco. Era o defeito: registro antigo sem PDF
+    // arquivado abria a folha editável e a ponte gravava o que se digitava.
+    somenteLeitura: ehOficial(calAtual),
   });
   /**
    * 9F.3.5 · qual lista responde. Lido UMA vez, no primeiro render: trocar a
@@ -203,7 +214,7 @@ export default function Calibracoes() {
   // relatório/prontuário. Sem isto, o Ctrl+P/botão Imprimir cairia no print nativo do iframe
   // (sai em tiras / só 1 página). Limpa ao sair do visualizador.
   useEffect(() => {
-    if (tela !== 'visualizador') return;
+    if (!vendo) return;
     let cancelado = false;
     const preview = document.querySelector<HTMLElement>('.cal-preview');
     if (!preview) return;
@@ -223,7 +234,7 @@ export default function Calibracoes() {
       cancelado = true;
       limparFolhasImpressao();
     };
-  }, [tela, calAtual, versao]);
+  }, [vendo, calAtual, versao]);
 
 
   /**
@@ -239,6 +250,7 @@ export default function Calibracoes() {
    */
   async function abrirPorTag(tagEscolhida: string) {
     const aberto = await abrirEquipamentoParaCalibracoes(tagEscolhida);
+    setVendo(false);
     setTag(tagEscolhida);
     setEqAtual(aberto.resumo);
     setCals(
@@ -328,7 +340,7 @@ export default function Calibracoes() {
   function abrirVisualizador(cal: DadosCalibracao) {
     setCalAtual(cal);
     setVersao((v) => v + 1);
-    setTela('visualizador');
+    setVendo(true);
   }
 
   function abrirVerDados(cal: DadosCalibracao) {
@@ -348,7 +360,7 @@ export default function Calibracoes() {
     setCals([...lista].sort((a, b) => parseDateBR(b.dataCalibracao || b.criadoEm) - parseDateBR(a.dataCalibracao || a.criadoEm)));
     atualizarContagem(tag);
     setConfirmandoId(null);
-    if (tela === 'visualizador') setTela('historico');
+    if (vendo) setVendo(false);
   }
 
   // Os lotes que a lista mostra: ordenados pela data de EXECUÇÃO (não pela de
@@ -843,19 +855,22 @@ export default function Calibracoes() {
       )}
 
       {/* ── VISUALIZADOR ─────────────────────────────── */}
-      {tela === 'visualizador' && calAtual && (
-        <>
-          <div className="bloco-dados">
-            <div className="meta-breadcrumb">
-              <button type="button" className="btn-secundario" onClick={() => setTela('historico')}>
-                ← Voltar
-              </button>
+      {vendo && calAtual && (
+        // Fundo NÃO fecha: o rascunho tem campo (responsável) e ação (emitir).
+        // Fecha pelo X e pelo Esc (useFocoPreso).
+        <div className="fj-modal-overlay calv-fundo">
+          <CaixaCalibracao aoFechar={() => setVendo(false)}>
+          <div className="bloco-dados calv-topo">
+            <button type="button" className="calv-fechar" onClick={() => setVendo(false)} aria-label="Fechar">
+              <Icone nome="x" tam={16} />
+            </button>
+            <div className="calv-sub">
               <strong>{tag}</strong>
               <span className="breadcrumb-chevron">›</span>
               <span>{calAtual.nome}</span>
             </div>
             <div className="meta-card-header">
-              <h3>
+              <h3 id="calv-tit">
                 {ehTerceiro(calAtual) ? 'Certificado do laboratório' : 'Certificado de Calibração'} —{' '}
                 {definicaoDe(calAtual.tipo).rotulo}
                 <span className={`cal-status-cert ${ehTerceiro(calAtual) ? 'externo' : ehEmitido(calAtual) ? 'emitido' : ehInterna(calAtual) && calAtual.status === 'rascunho' ? 'rascunho' : 'legado'}`}>
@@ -869,7 +884,14 @@ export default function Calibracoes() {
                 </span>
               </h3>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button type="button" className="btn-secundario" onClick={() => abrirVerDados(calAtual)}>
+                <button
+                  type="button"
+                  className="btn-secundario"
+                  onClick={() => {
+                    setVendo(false);
+                    abrirVerDados(calAtual);
+                  }}
+                >
                   Ver preenchido
                 </button>
                 {artefatoAtual ? (
@@ -903,7 +925,10 @@ export default function Calibracoes() {
                     <Icone nome="pencil" tam={13} /> {ehEmitido(calAtual) ? 'Corrigir (nova revisão)' : 'Criar revisão para emitir'}
                   </button>
                 )}
-                {ehCongelada(calAtual) ? null : confirmandoId === calAtual.id ? (
+                {/* Só RASCUNHO se exclui. Concluída (oficial) não se edita nem se
+                    apaga — corrigir é revisão. Antes só o emitido/terceiro era
+                    protegido, e a calibração antiga concluída aparecia com Excluir. */}
+                {ehCongelada(calAtual) || ehOficial(calAtual) ? null : confirmandoId === calAtual.id ? (
                   <>
                     <button type="button" className="btn-remover" onClick={() => excluir(calAtual.id)}>
                       Confirmar Exclusão
@@ -921,6 +946,7 @@ export default function Calibracoes() {
             </div>
           </div>
 
+          <div className="calv-corpo">
           {/* Fase 2 (C.3) · RASCUNHO → revisão → EMITIR. */}
           {ehInterna(calAtual) && calAtual.status === 'rascunho' && (
             <div className="bloco-dados cal-emissao">
@@ -1003,16 +1029,23 @@ export default function Calibracoes() {
                 {palco.estado === 'pronto' && (
                   <PaginaA4 key={`${calAtual.id}-${versao}`}>
                     <iframe
-                      src={`/arquivos-inspecao/${arquivoAtual}?calibId=${calAtual.id}&tag=${encodeURIComponent(tag)}&page=1${palco.paramsIframe}`}
+                      src={`/arquivos-inspecao/${arquivoAtual}?calibId=${calAtual.id}&tag=${encodeURIComponent(tag)}&page=1${palco.paramsIframe}${paramsSomenteLeitura(ehOficial(calAtual))}`}
                       scrolling="no"
                       title="Certificado de Calibração"
+                      // Concluída: trava o DOM da folha (camada visual do §7-ter);
+                      // a de dados é o `ro=1` acima + palco sem drenar.
+                      onLoad={(e) => {
+                        if (ehOficial(calAtual)) travarIframeSomenteLeitura(e.currentTarget);
+                      }}
                     />
                   </PaginaA4>
                 )}
               </div>
             </>
           )}
-        </>
+          </div>
+          </CaixaCalibracao>
+        </div>
       )}
 
       {/* ── VER PREENCHIDO (dados salvos, sem campos de edição) ── */}
@@ -1140,6 +1173,20 @@ export default function Calibracoes() {
           {toast}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * A caixa do modal do certificado: foco preso e Esc fecham — montada só
+ * quando o modal abre, que é quando o hook de foco precisa do elemento.
+ */
+function CaixaCalibracao({ aoFechar, children }: { aoFechar: () => void; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useFocoPreso(ref, aoFechar);
+  return (
+    <div ref={ref} className="calv" role="dialog" aria-modal="true" aria-labelledby="calv-tit" tabIndex={-1}>
+      {children}
     </div>
   );
 }
