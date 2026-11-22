@@ -25,6 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import BuscaLista from '../../components/BuscaLista';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
+import { linhaClicavel } from '../../components/linhaClicavel';
 import { Icone } from '../../components/Icone';
 import {
   ErroBuscaRelatorios,
@@ -1081,6 +1082,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                 return (
                   <div
                     className={`rel-linha rel-linha-rascunho${destaque && r.id === destaque ? ' rel-destaque' : ''}`}
+                    {...linhaClicavel(aoContinuarRascunho ? () => aoContinuarRascunho(r) : undefined, `Continuar editando ${r.codigo || r.nome}`)}
                     role="row"
                     data-rel-id={r.id}
                     data-z={(posicao.get(linha.chave) ?? 0) % 2 || undefined}
@@ -1164,6 +1166,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
               return (
                 <div
                   className={`rel-linha${sit === 'arquivado' ? ' rel-linha-arquivada' : ''}${destaque && r.relatorioId === destaque ? ' rel-destaque' : ''}`}
+                  {...linhaClicavel(() => abrir(r), `Visualizar ${ou(r.nome ?? r.codigo)}`)}
                   role="row"
                   data-rel-id={r.relatorioId}
                   data-z={(posicao.get(linha.chave) ?? 0) % 2 || undefined}

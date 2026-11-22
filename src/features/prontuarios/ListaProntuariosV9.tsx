@@ -33,6 +33,7 @@ import { useEffect, useMemo, useState } from 'react';
 import BuscaLista from '../../components/BuscaLista';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
 import { FotoListaPorTag } from '../../components/FotoLista';
+import { linhaClicavel } from '../../components/linhaClicavel';
 import { Icone } from '../../components/Icone';
 import {
   filtrarDocumentos,
@@ -251,7 +252,18 @@ function LinhaGrupo({
   const nome = principal.equipamento?.trim() || tag;
   const situacao = vigente ? 'emitido' : 'rascunho';
   return (
-    <div className={`pront-linha pront-linha-${situacao}`} role="row" data-teste="linha-prontuario" data-z={zebra || undefined}>
+    <div
+      className={`pront-linha pront-linha-${situacao}`}
+      // A linha abre o documento: o EMITIDO em visualização; sem emitido, o
+      // rascunho em edição — o mesmo que os botões da linha.
+      {...linhaClicavel(
+        vigente ? () => aoAbrir(vigente) : rascunho ? () => aoAbrir(rascunho) : undefined,
+        vigente ? `Abrir o prontuário de ${tag}` : `Continuar editando o prontuário de ${tag}`,
+      )}
+      role="row"
+      data-teste="linha-prontuario"
+      data-z={zebra || undefined}
+    >
       <span className="pront-linha-icone">
         <FotoListaPorTag tag={tag} tipo={principal.tipo} />
       </span>

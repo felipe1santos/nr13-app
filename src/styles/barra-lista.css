@@ -441,3 +441,18 @@
 :is(.barra-doc-btn, .vpdf-btn).cor-laranja:not(#_):is(:hover, .is-ativo):not(:disabled) { background: var(--laranja) !important; color: #fff !important; }
 /* O "⋯" (mais ações) acompanha, em azul. */
 .barra-doc .mmais-botao:not(#_):hover { background: var(--destaque) !important; color: #fff !important; border-color: transparent !important; }
+
+/* ── Linha clicável (Relatórios, Prontuários · 22/11/2026) ───────────────────
+   A linha inteira abre o documento: hover rosado com a faixa vermelha à
+   esquerda — o mesmo destaque das listas Cobalto — e anel de foco no teclado. */
+:is(.rel-linha, .pront-linha)[data-clicavel] { cursor: pointer; position: relative; transition: background-color .12s linear, box-shadow .12s linear; }
+:is(.rel-linha, .pront-linha)[data-clicavel]:not(#_):hover,
+:is(.rel-linha, .pront-linha)[data-clicavel]:not(#_):focus-visible {
+  background: var(--row-hover, #FFF5F4) !important;
+  box-shadow: inset 3px 0 0 var(--row-mark, #E5484D), 0 4px 12px -6px rgba(229, 72, 77, 0.18);
+  outline: none;
+}
+:is(.rel-linha, .pront-linha)[data-clicavel]:not(#_):hover > *,
+:is(.rel-linha, .pront-linha)[data-clicavel]:not(#_):focus-visible > * { background: transparent !important; }
+:is(.rel-linha, .pront-linha)[data-clicavel]:active { background: #FFECEA !important; }
+:is(.rel-linha, .pront-linha)[data-clicavel]:focus-visible { box-shadow: inset 0 0 0 2px var(--destaque), inset 3px 0 0 var(--row-mark, #E5484D); }
