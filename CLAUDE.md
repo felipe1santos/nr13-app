@@ -1286,3 +1286,8 @@ automação (arquivar, trancar registro do Livro, resetar senha).
   de cima seguem valendo — acrescentar, não reescrever regra travada por teste.
   **Não definir `--surface`/`--border`**: há dezenas de `var(--surface, #fff)` com fallback.
 - Travado por `src/__tests__/redesignPiloto.test.ts`.
+
+> **PADRÕES DO DONO (22/11/2026): `docs/design/padroes-cor.md`.** "Vermelho padrão" = a tag do
+> tipo de ocorrência escolhido no Novo registro (`#DC2626`, `--vermelho-padrao`); "verde padrão" =
+> a aba "Prévia" ativa (`#0F766E`, `--verde-padrao` = `--sel`); "espaçamento de tag" = `3px 9px`,
+> raio 4px (`--tag-pad`/`--tag-raio`, classe `.tag-padrao`). Pedido com esses nomes = esses valores.

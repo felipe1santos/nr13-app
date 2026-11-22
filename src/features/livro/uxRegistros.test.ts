@@ -157,6 +157,7 @@ describe('o card não repete a mesma informação duas vezes', () => {
 const modal = readFileSync('src/features/livro/ModalNovoRegistro.tsx', 'utf8');
 const cssModal = readFileSync('src/features/livro/modalNovoRegistro.css', 'utf8');
 const popoverAjuda = readFileSync('src/features/livro/PopoverAjuda.tsx', 'utf8');
+const comoFunciona = readFileSync('src/features/livro/ModalComoFunciona.tsx', 'utf8');
 
 describe('a tela do equipamento tem UMA barra de ferramentas', () => {
   it('as ações saíram da fileira solta e entraram na faixa', () => {
@@ -231,43 +232,44 @@ describe('o modal "Novo registro"', () => {
     expect(modal).not.toContain('montarEntradaLivro');
   });
 
-  it('usa a ilustração desta sessão, leve e sem esticar', () => {
-    expect(modal).toContain('/ilustracoes/registro-seguranca.webp');
-    expect(modal).toContain('loading="lazy"');
-    const b = readFileSync('public/ilustracoes/registro-seguranca.webp');
-    expect(b.slice(8, 12).toString()).toBe('WEBP');
-    expect(b.length).toBeLessThan(150_000);
-    expect(cssModal).toContain('aspect-ratio: 1 / 1;');
-    expect(cssModal).toContain('object-fit: contain;');
+  /* 22/11/2026 · o "Como funciona" saiu da coluna/aba do modal e virou uma
+     camada própria (`ModalComoFunciona`), aberta por um botão discreto do
+     cabeçalho, com ilustração LICENCIADA do sistema (`Ilustracao.tsx`). */
+  it('"Como funciona" é um botão discreto que abre uma camada', () => {
+    expect(modal).toContain('className="reg-modal-comofunciona"');
+    expect(modal).toContain('<ModalComoFunciona');
+    expect(semComentarios(modal)).not.toContain('role="tablist"');
   });
 
-  it('a ilustração tem alt descritivo — não o nome do arquivo', () => {
-    const alt = /alt="([^"]+)"/.exec(modal)![1];
-    expect(alt.length).toBeGreaterThan(40);
-    expect(alt).not.toContain('.webp');
+  it('usa ilustração licenciada do sistema, sem esticar', () => {
+    // Só as de `Ilustracao.tsx` (CLAUDE.md §15) — a troca por outra arte é um
+    // arquivo licenciado em public/ilustracoes/ e uma constante.
+    expect(comoFunciona).toContain("from '../../components/Ilustracao'");
+    expect(comoFunciona).toContain("const ILUSTRACAO_COMO_FUNCIONA: FonteIlustracao = { nome: 'assinatura' };");
+    expect(comoFunciona).toContain('<Ilustracao nome={fonte.nome}');
+    expect(semComentarios(comoFunciona)).not.toMatch(/pinterest|pinimg/i);
+    expect(cssModal).toContain('object-fit: contain;');
+    expect(cssModal).toContain('.reg-ajuda-arte-img { display: block; max-width: 100%; height: auto;');
   });
 
   it('explica o ciclo do registro: rascunho → continuar → trancar', () => {
-    expect(modal).toContain('Salve como rascunho');
-    expect(modal).toContain('continuar depois');
-    expect(modal).toContain('Tranque quando estiver certo');
+    expect(comoFunciona).toContain('Salve como rascunho');
+    expect(comoFunciona).toContain('continuar depois');
+    expect(comoFunciona).toContain('Tranque quando estiver certo');
     // O que o rascunho NÃO é — a dúvida que o parágrafo cinza antigo não tirava.
-    expect(modal).toContain('não conta como registro');
-    expect(modal).toContain('não pode mais ser editado');
+    expect(comoFunciona).toContain('não conta como registro');
+    expect(comoFunciona).toContain('não pode mais ser editado');
   });
 
-  it('no desktop o formulário fica à esquerda e o apoio à direita', () => {
-    // 4ª rodada: a coluna de apoio virou PRÉVIA + ajuda e passou a ter botões
-    // (as abas). Com foco dentro dela, o DOM precisa seguir a leitura — form
-    // primeiro, apoio depois — e o `order` do CSS saiu junto.
-    expect(modal.indexOf('reg-modal-form')).toBeLessThan(modal.indexOf('reg-modal-lado'));
-    expect(modal).toContain('role="tablist"');
+  it('uma coluna só: a prévia não divide mais a largura com o formulário', () => {
+    expect(semComentarios(modal)).not.toContain('reg-modal-lado');
+    expect(cssModal).not.toContain('.reg-modal-lado');
+    expect(modal).toContain('className="reg-modal-form"');
   });
 
-  it('empilha no tablet e no celular, com botões de 44px', () => {
-    expect(cssModal).toContain('@media (max-width: 900px)');
-    expect(cssModal).toContain('flex-direction: column;');
+  it('no celular vira tela cheia, com botões de 44px', () => {
     const movel = cssModal.slice(cssModal.indexOf('@media (max-width: 640px)'));
+    expect(movel).toContain('height: 100dvh;');
     expect(movel).toContain('height: 44px;');
   });
 });
@@ -324,7 +326,8 @@ describe('hierarquia do formulário', () => {
   it('os campos estão agrupados, com dois por linha no desktop', () => {
     expect(modal).toContain('<h3>Ocorrência</h3>');
     expect(modal).toContain('<h3>Responsáveis</h3>');
-    expect(cssModal).toContain('grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));');
+    // O mínimo nunca passa da largura disponível (ver `modalRegistroLargura.test.ts`).
+    expect(cssModal).toContain('grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));');
   });
 
   it('o obrigatório é uma marca no rótulo, não um asterisco solto', () => {
@@ -555,10 +558,14 @@ describe('ações por estado do registro', () => {
 });
 
 describe('prévia viva do registro', () => {
-  it('o modal mostra a prévia, e ela é a aba padrão', () => {
-    expect(modal).toContain('<PreviaRegistro dados={previa} />');
-    expect(modal).toContain("abaInicial = 'previa'");
-    expect(modal).toContain('role="tablist"');
+  it('a prévia abre numa camada POR CIMA, pelo "Ver prévia"', () => {
+    // 22/11/2026: deixou de ser a aba padrão de uma coluna ao lado.
+    expect(modal).toContain("<PreviaRegistro dados={previa} selo={{ texto: 'Rascunho', tom: 'rascunho' }} />");
+    expect(modal).toContain('Ver prévia');
+    expect(modal).toContain("abaInicial = 'formulario'");
+    const camada = modal.slice(modal.indexOf('{vendoPrevia && ('));
+    expect(camada).toContain('<CamadaModal');
+    expect(camada.indexOf('<CamadaModal')).toBeLessThan(camada.indexOf('<PreviaRegistro'));
   });
 
   it('a prévia acompanha o que está sendo digitado', () => {
@@ -623,9 +630,9 @@ describe('o modal ficou mais reto', () => {
     expect(cssModal).not.toContain('.reg-modal-prefill');
   });
 
-  it('raio menor, de software corporativo', () => {
-    expect(cssModal).toContain('.reg-modal { border-radius: 10px; }');
-    expect(cssModal).toContain('.reg-modal-form .fj-field textarea { border-radius: 6px; }');
+  it('raio de cartão (4px), de software corporativo', () => {
+    expect(cssModal).toContain('border-radius: var(--card-r, 4px);');
+    expect(cssModal).toMatch(/\.reg-modal-form \.fj-field textarea \{[\s\S]*?border-radius: 4px;/);
   });
 });
 
@@ -703,9 +710,8 @@ describe('a ficha tem hierarquia de leitura, não cara de papel', () => {
     expect(previaTsx).toContain('Esta é a ficha do registro no sistema');
   });
 
-  it('o modal ficou mais reto ainda: 6px', () => {
-    expect(cssModal).toContain('.reg-modal { border-radius: 6px; }');
-    expect(cssModal).toContain('.reg-modal-form .fj-field textarea { border-radius: 4px; }');
+  it('a ficha é reta: 4px', () => {
+    expect(cssModal).toMatch(/\.ficha-reg \{[\s\S]*?border-radius: 4px;/);
   });
 });
 

@@ -87,6 +87,10 @@ import { publicarArtefato, artefatoDe } from '../features/relatorios/artefatoRel
 import { anexarArt } from '../features/relatorios/anexoArt';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import { ehRascunho, numeroDoRelatorio, temArtefato, temTemplateHtml, type RelatorioIndiceItem, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from '../features/relatorios/tipos';
+import { ContextoAnotacoes, useEstadoAnotacoes } from '../features/relatorios/anotacoes/contexto';
+import { aplicarAnotacoes } from '../features/relatorios/anotacoes/aplicarAnotacoes';
+import { copiaAnotadaDoArtefato } from '../features/relatorios/anotacoes/copiaAnotada';
+import { nomeDaCopiaAnotada } from '../features/relatorios/anotacoes/modelo';
 import VisualizadorPdf, { abrirPdfEmAba, baixarPdfArquivado, baixarPdfDeBytes, imprimirPdfArquivado } from '../components/VisualizadorPdf';
 import { fonteDeImpressao, rotuloImpressao } from '../features/documentos/fonteImpressao';
 import { Icone } from '../components/Icone';
@@ -245,6 +249,8 @@ function RelatoriosLegado() {
   const [relatorioArquivado, setRelatorioArquivado] = useState<RelatorioSalvo | null>(null);
   // Destino da barra do visualizador dentro da BarraDocumento (portal).
   const [slotBarra, setSlotBarra] = useState<HTMLDivElement | null>(null);
+  // Uma lista de anotações por DOCUMENTO aberto: trocar de relatório as descarta.
+  const anotacoes = useEstadoAnotacoes(relatorioArquivado?.id ?? meta?.codigo ?? tag);
   // 13C · qual superfície edita os dois campos que a folha gravava. `iframe` é o
   // padrão; `react` liga os painéis e trava as folhas correspondentes.
   const superficieEdicao = edicaoAtual(window.location.search);
@@ -452,6 +458,15 @@ function RelatoriosLegado() {
       // no DOM saísse no papel como se fosse o documento assinado.
       // A regra (e o porquê) em `features/documentos/fonteImpressao.ts`.
       if (fonteDeImpressao(relatorioArquivado) === 'arquivo') {
+        // Com anotações na tela, imprime a CÓPIA anotada (bytes novos, só na
+        // memória). O arquivo da emissão, o `pdfRef` e o SHA não mudam.
+        if (anotacoes.lista.length > 0) {
+          const copia = await copiaAnotadaDoArtefato(artefatoDe(relatorioArquivado)!, anotacoes.lista);
+          if (!copia) setErroSalvar('Não foi possível abrir o PDF para impressão. Verifique a conexão.');
+          else if (!abrirPdfEmAba(copia)) setErroSalvar('Não foi possível abrir o PDF para impressão. Verifique o bloqueador de pop-ups.');
+          else registrarUso('impressao');
+          return;
+        }
         const ok = await imprimirPdfArquivado(artefatoDe(relatorioArquivado)!);
         if (!ok) setErroSalvar('Não foi possível abrir o PDF para impressão. Verifique a conexão.');
         else registrarUso('impressao');
@@ -463,7 +478,8 @@ function RelatoriosLegado() {
       // guardado — é prévia, e o botão diz isso.
       if (papelDaPrevia(fluxo) === 'previa-vetorial') {
         if (avisarBloqueioDocumentos()) return;
-        const { bytes } = await gerarPreviaRelatorio(tag, documentos ?? [], overrides, meta?.codigo);
+        const { bytes: previa } = await gerarPreviaRelatorio(tag, documentos ?? [], overrides, meta?.codigo);
+        const bytes = await aplicarAnotacoes(previa, anotacoes.lista);
         if (!abrirPdfEmAba(bytes)) {
           setErroSalvar('Não foi possível abrir a pré-visualização para impressão. Verifique o bloqueador de pop-ups.');
           return;
@@ -1003,6 +1019,17 @@ function RelatoriosLegado() {
       // registrado — deixaria de ser o documento assinado.
       if (relatorioArquivado && temArtefato(relatorioArquivado)) {
         if (documentosBloqueados()) return;
+        // Com anotações: baixa a CÓPIA anotada, gerada agora na memória. Sem
+        // elas, o arquivo da emissão byte a byte, como sempre.
+        if (anotacoes.lista.length > 0) {
+          const copia = await copiaAnotadaDoArtefato(artefatoDe(relatorioArquivado)!, anotacoes.lista);
+          if (!copia) setErroSalvar('Não foi possível baixar o PDF. Verifique a conexão.');
+          else {
+            baixarPdfDeBytes(copia, nomeDaCopiaAnotada(relatorioArquivado.nome));
+            registrarUso('pdf');
+          }
+          return;
+        }
         const ok = await baixarPdfArquivado(artefatoDe(relatorioArquivado)!, relatorioArquivado.nome);
         if (!ok) setErroSalvar('Não foi possível baixar o PDF. Verifique a conexão.');
         else registrarUso('pdf');
@@ -1014,8 +1041,9 @@ function RelatoriosLegado() {
       // agora. Nada é publicado — baixar uma prévia não emite documento.
       if (papelDaPrevia(fluxo) === 'previa-vetorial') {
         if (avisarBloqueioDocumentos()) return;
-        const { bytes } = await gerarRelatorioVetorial(tag, { documentos: documentos ?? [], overrides, idRelatorio: meta.codigo });
-        baixarPdfDeBytes(bytes, nome);
+        const { bytes: gerado } = await gerarRelatorioVetorial(tag, { documentos: documentos ?? [], overrides, idRelatorio: meta.codigo });
+        const bytes = await aplicarAnotacoes(gerado, anotacoes.lista);
+        baixarPdfDeBytes(bytes, anotacoes.lista.length > 0 ? nomeDaCopiaAnotada(nome) : nome);
         registrarUso('pdf');
         return;
       }
@@ -1742,6 +1770,9 @@ function RelatoriosLegado() {
 
           {/* DOCUMENTO FINALIZADO: mostra o arquivo, não remonta. Nem o palco é
               montado — ver relatório salvo deixa de disputar os 3.368 KB. */}
+          {/* Anotações (texto / desenho) do visualizador: só memória, e só na
+              cópia que sai por Baixar PDF / Imprimir — ver `anotacoes/modelo.ts`. */}
+          <ContextoAnotacoes.Provider value={anotacoes}>
           {relatorioArquivado && temArtefato(relatorioArquivado) ? (
             <>
               {relatorioArquivado.pdfPendente && (
@@ -1834,6 +1865,7 @@ function RelatoriosLegado() {
           </div>
           </>
           )}
+          </ContextoAnotacoes.Provider>
 
           {/* Modal de configurações: todas as datas/campos + Atualizar + Baixar PDF */}
           {modalConfig && (

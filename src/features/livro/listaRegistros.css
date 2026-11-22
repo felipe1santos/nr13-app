@@ -875,3 +875,108 @@
 /* 44px sempre: no dedo é o mínimo, e no desktop não pesa. Fora de um bloco
    de 640px de propósito — o último deles é o da lista única, travado em teste. */
 .livro-vazio-abrir .fj-btn { min-height: 44px; }
+
+/* ============================================================================
+   22/11/2026 · OS TRÊS ATALHOS DO LIVRO — Capa, Termo, Abrir livro.
+
+   Ícone num TILE de cor sólida com o traço em branco (contraste de leitura,
+   não um chip pastel que some no cartão branco). Cada um com a cor da sua
+   função: Capa = azul de destaque (o livro), Termo = roxo (o documento
+   lavrado, o mesmo roxo que o Termo já usava), Abrir livro = VERDE PADRÃO
+   (`--sel`): é uma AÇÃO, então o título também é verde e a seta vira "+".
+   Os três na MESMA linha no desktop — o `1fr 1fr` do cartoes-cobalto mandava
+   o terceiro para baixo.
+   ============================================================================ */
+.livro-fixos .livro-fixos-docs { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+.livro-fixos-docs .livro-doc-card { min-width: 0; }
+.livro-fixos-docs .livro-doc-card > div { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.livro-fixos-docs .livro-doc-card strong,
+.livro-fixos-docs .livro-doc-card > div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.livro-fixos-docs .livro-doc-ic {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s ease;
+}
+.livro-fixos-docs .livro-doc-ic .icone { stroke-width: 2; }
+.livro-fixos-docs .livro-doc-ic.capa { background: var(--destaque, #0c4f9b); color: #fff; }
+.livro-fixos-docs .livro-doc-ic.termo { background: #6D28D9; color: #fff; }
+.livro-fixos-docs .livro-doc-ic.abrir { background: var(--sel, #0f766e); color: #fff; }
+.livro-fixos-docs .livro-doc-card:hover .livro-doc-ic.capa { background: #0a4282; }
+.livro-fixos-docs .livro-doc-card:hover .livro-doc-ic.termo { background: #5b21b6; }
+.livro-fixos-docs .livro-doc-card.livro-doc-abrir:hover .livro-doc-ic.abrir { background: var(--sel-hover, #0b5e58); color: #fff; }
+.livro-fixos-docs .livro-doc-abrir strong { color: var(--sel, #0f766e); }
+.livro-fixos-docs .livro-doc-abrir::after { content: "+"; font: 400 24px/1 var(--font); color: var(--sel, #0f766e); }
+.livro-fixos-docs .livro-doc-abrir:hover { background: var(--sel-bg, #e6f4f1); }
+.livro-fixos-docs .livro-doc-card:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+
+@media (max-width: 900px) {
+  .livro-fixos .livro-fixos-docs { grid-template-columns: minmax(0, 1fr) !important; gap: 10px !important; }
+}
+
+/* ============================================================================
+   22/11/2026 · VER LIVRO COMPLETO — o documento ocupa a altura da tela.
+
+   A caixa tem a altura da área visível (`dvh`, menos o respiro do overlay) e
+   é uma coluna: barra de UMA linha (título, Exportar PDF, X) fixa em cima e
+   o corpo, que é o ÚNICO a rolar. A caixa em si não rola (`overflow:
+   hidden`) — era a rolagem dupla. No celular: tela inteira, sem respiro.
+   ============================================================================ */
+.fj-modal-overlay.livro-completo-overlay { padding: 16px; }
+.fj-modal-box.livro-completo {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 920px;
+  height: calc(100vh - 32px);
+  height: calc(100dvh - 32px);
+  max-height: none;
+  overflow: hidden;
+}
+.livro-completo-barra {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 8px 6px 18px;
+  border-bottom: 1px solid var(--fio, #e3e5e8);
+  background: #fff;
+}
+.livro-completo-titulos { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; }
+.livro-completo-titulos h2 { margin: 0; min-width: 0; max-width: 100%; font: 500 16px/22px var(--font); color: var(--texto-1, #1a1a1a); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.livro-completo-tag { color: var(--destaque, #0c4f9b); }
+.livro-completo-sub { font: var(--t-caption); color: #6b6b6b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.livro-completo-exportar { flex-shrink: 0; }
+.livro-completo-corpo {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 16px;
+  background: #EBEBEB;
+}
+.livro-completo-doc {
+  width: 794px;
+  margin: 0 auto;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+}
+
+@media (max-width: 700px) {
+  .fj-modal-overlay.livro-completo-overlay { padding: 0; }
+  .fj-modal-box.livro-completo { max-width: none; height: 100vh; height: 100dvh; border-radius: 0; }
+  .livro-completo-barra { padding: 4px 4px 4px 14px; gap: 6px; }
+  .livro-completo-sub { display: none; }
+  .livro-completo-barra .fj-modal-close { width: 44px; height: 44px; }
+  .livro-completo-exportar { height: 44px; }
+  .livro-completo-corpo { padding: 8px; }
+}
+/* Bem estreito: o Exportar fica só no ícone — o X e o título não podem sair. */
+@media (max-width: 400px) {
+  .livro-completo-exportar span { display: none; }
+}

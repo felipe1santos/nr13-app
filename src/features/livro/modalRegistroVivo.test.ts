@@ -12,8 +12,9 @@ const seletor = readFileSync('src/features/livro/SeletorOcorrencia.tsx', 'utf8')
 const bloco = css.slice(css.indexOf('21/11/2026 · O MODAL "ACENDE"'));
 
 describe('botões acendem com fundo sólido --sel e texto branco', () => {
-  it('abas, salvar e opções de motivo — no hover e no selecionado', () => {
-    expect(bloco).toMatch(/\.reg-modal-abas button:hover,\s*\.reg-modal-abas button\.ativa \{\s*background: var\(--sel\);\s*color: #fff;/);
+  it('Ver prévia, salvar e opções de motivo — no hover e no selecionado', () => {
+    // 22/11/2026: as abas saíram; o "Ver prévia" (ghost) acende no mesmo verde.
+    expect(bloco).toMatch(/\.reg-modal \.reg-modal-acoes \.fj-btn-ghost:hover,[\s\S]*?\{\s*background: var\(--sel\);\s*border-color: var\(--sel\);\s*color: #fff;/);
     expect(bloco).toMatch(/\.reg-modal-acoes \.fj-btn-primary:hover,[\s\S]*?background: var\(--sel-hover\);/);
     expect(bloco).toMatch(/\.reg-motivo-opcao:hover,\s*\.reg-motivo-opcao\.ativa \{\s*background: var\(--sel\);/);
   });

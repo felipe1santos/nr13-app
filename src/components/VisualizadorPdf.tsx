@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { baixarArtefato, chaveDoArtefato, type PdfArtefato } from '../features/relatorios/artefatoRelatorio';
+import { useAnotacoesDoDocumento } from '../features/relatorios/anotacoes/contexto';
+import BarraAnotacoes from '../features/relatorios/anotacoes/BarraAnotacoes';
+import CamadaAnotacoes from '../features/relatorios/anotacoes/CamadaAnotacoes';
+import { Icone } from './Icone';
 
 /**
  * Onde a barra do visualizador é desenhada (redesign Forja Compacto, 25/10/2026).
@@ -250,6 +254,9 @@ function QuadroPdf({
   const [semPdfJs, setSemPdfJs] = useState(false);
   const areaRef = useRef<HTMLDivElement>(null);
   const [larguraArea, setLarguraArea] = useState(0);
+  // Anotações (texto / desenho) só existem onde a tela que abriu o documento
+  // as provê — hoje, o documento do Relatórios. Sem contexto, nada muda.
+  const anot = useAnotacoesDoDocumento();
 
   // Carrega o documento no pdf.js. Import DINÂMICO: o visualizador só pesa
   // quando alguém abre um documento — a mesma escolha do printService.
@@ -361,6 +368,7 @@ function QuadroPdf({
   const barra = (
       <div className="vpdf-barra no-print">
         {extras}
+        {anot && !semPdfJs && <BarraAnotacoes estado={anot} />}
         {/* `vpdf-nucleo`: página e zoom. Na barra única do Relatórios eles vêm
             ANTES dos extras (CSS `order`), para não serem os que rolam para
             fora da vista. `vpdf-rotulo`: texto que a barra compacta esconde,
@@ -368,13 +376,15 @@ function QuadroPdf({
         {!semPdfJs && (
           <button
             type="button"
-            className={`vpdf-btn vpdf-nucleo${miniaturas ? ' is-ativo' : ''}`}
+            // `vpdf-alterna`: aceso (azul sólido, ícone branco) enquanto as
+            // miniaturas estão abertas — ver anotacoes.css.
+            className={`vpdf-btn vpdf-nucleo vpdf-alterna${miniaturas ? ' is-ativo' : ''}`}
             onClick={() => setMiniaturas((v) => !v)}
             aria-pressed={miniaturas}
             aria-label="Páginas"
-            title="Mostrar ou esconder as miniaturas das páginas"
+            title={miniaturas ? 'Esconder as miniaturas das páginas' : 'Mostrar as miniaturas das páginas'}
           >
-            <span aria-hidden="true">☰</span>
+            <Icone nome="paineis" tam={14} />
             <span className="vpdf-rotulo"> Páginas</span>
           </button>
         )}
@@ -449,6 +459,14 @@ function QuadroPdf({
                   p.numero,
                   Math.round(p.largura * escalaDe(p.largura)),
                   Math.round(p.altura * escalaDe(p.largura)),
+                )}
+                {anot && (
+                  <CamadaAnotacoes
+                    pagina={p.numero}
+                    largura={Math.round(p.largura * escalaDe(p.largura))}
+                    altura={Math.round(p.altura * escalaDe(p.largura))}
+                    estado={anot}
+                  />
                 )}
               </div>
             ))}

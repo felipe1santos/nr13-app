@@ -269,7 +269,7 @@ export default function PreviaVetorial({
   const controles = (
     <>
       <button type="button" className={`vpdf-btn cor-azul${gerando ? ' is-loading' : ''}`} onClick={() => void gerar()} disabled={gerando}>
-        <Icone nome="sliders" tam={13} />{' '}
+        <Icone nome="refresh" tam={13} />{' '}
         {gerando ? 'Gerando…' : (
           <>
             Atualizar<span className="vpdf-rotulo"> prévia</span>
@@ -282,7 +282,7 @@ export default function PreviaVetorial({
         onClick={() => setPainelAberto((v) => !v)}
         aria-pressed={painelAberto}
       >
-        O que falta{grupos.length > 0 ? ` (${grupos.length})` : ''}
+        <Icone nome="interrogacao" tam={13} /> O que falta{grupos.length > 0 ? ` (${grupos.length})` : ''}
       </button>
       {/* Ao lado do "O que falta" de propósito: os dois respondem à mesma
           pergunta — "o que ainda falta escrever aqui" —, e as predefinições são
@@ -297,7 +297,7 @@ export default function PreviaVetorial({
         {/* O número conta o que o MODAL lista — o conjunto do sistema incluído.
             Contar só os gravados faria o botão dizer "Predefinições" a uma
             organização nova e abrir com um item dentro. */}
-        <Icone nome="book" tam={13} /> <span className="vpdf-rotulo">Predefinições </span>({listaComSistema(predefinicoes).length})
+        <Icone nome="camadas" tam={13} /> <span className="vpdf-rotulo">Predefinições </span>({listaComSistema(predefinicoes).length})
       </button>
       {manuais > 0 && (
         <span className="previa-manuais" title="Campos com texto alterado manualmente neste relatório">

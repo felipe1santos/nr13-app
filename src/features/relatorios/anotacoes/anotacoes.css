@@ -1,0 +1,151 @@
+/* ============================================================================
+   Anotações do visualizador (22/11/2026) — texto e desenho à mão livre.
+   A camada fica por cima do canvas e da camada de edição da prévia. Desligada,
+   não recebe ponteiro: rolagem e cliques seguem para baixo.
+   ============================================================================ */
+.anot-camada {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.anot-camada.is-desenhar {
+  pointer-events: auto;
+  cursor: crosshair;
+  /* Só aqui o dedo risca em vez de rolar. Desligada, a camada nem recebe o toque. */
+  touch-action: none;
+}
+.anot-camada.is-texto {
+  pointer-events: auto;
+  cursor: text;
+}
+.anot-svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Caixa de texto: mesma fonte e mesma altura de linha que o PDF recebe
+   (Helvetica/Arial, line-height 1.25, sem padding — a conta da linha de base
+   em aplicarAnotacoes.ts depende disso). */
+.anot-texto {
+  position: absolute;
+  padding: 0;
+  margin: 0;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  white-space: pre;
+  pointer-events: none;
+  border-radius: 2px;
+  outline-offset: 2px;
+}
+.anot-camada.is-texto .anot-texto {
+  pointer-events: auto;
+  cursor: move;
+  touch-action: none;
+}
+.anot-camada.is-texto .anot-texto:hover { outline: 1px dashed rgba(12, 79, 155, .5); }
+.anot-texto.is-ativa,
+.anot-texto:focus-visible { outline: 2px dashed var(--destaque, #0C4F9B); }
+.anot-texto.is-editando { cursor: text; }
+.anot-texto-valor { display: block; min-width: 1ch; }
+.anot-texto-campo {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: rgba(255, 255, 255, .72);
+  font: inherit;
+  line-height: inherit;
+  color: inherit;
+  resize: none;
+  overflow: hidden;
+  white-space: pre;
+  outline: none;
+}
+.anot-excluir {
+  position: absolute;
+  top: -11px;
+  right: -11px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #DC2626;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+}
+.anot-excluir:focus-visible { outline: 2px solid var(--foco, #0C4F9B); outline-offset: 2px; }
+/* No dedo o alvo precisa de mais área que o círculo desenhado. */
+@media (pointer: coarse) {
+  .anot-excluir::after { content: ''; position: absolute; inset: -10px; }
+}
+
+/* ── Barra ─────────────────────────────────────────────────────────────── */
+.vpdf-anot,
+.vpdf-anot-opcoes {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.vpdf-anot { gap: 4px; }
+.vpdf-anot-opcoes {
+  padding: 0 4px;
+  border-left: 1px solid var(--fio, #E3E5E8);
+}
+.anot-cor,
+.anot-esp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+.anot-cor > span { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15); }
+.anot-esp > span { width: 14px; border-radius: 3px; background: #1A1A1A; }
+.anot-cor:hover,
+.anot-esp:hover { background: var(--superficie-3, #EEF0F2); }
+.anot-cor.is-ativo,
+.anot-esp.is-ativo { border-color: var(--destaque, #0C4F9B); background: #fff; box-shadow: 0 0 0 1px var(--destaque, #0C4F9B); }
+.anot-cor:focus-visible,
+.anot-esp:focus-visible { outline: 2px solid var(--foco, #0C4F9B); outline-offset: 1px; }
+.vpdf-anot-aviso {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #FFEDD5;
+  color: #7C2D12;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: help;
+}
+
+/* Botão que LIGA/DESLIGA (miniaturas, Texto, Desenhar): aceso = fundo sólido
+   no azul de destaque, ícone branco — o mesmo "ativo" das outras barras.
+   Especificidade acima de `.barra-doc .vpdf-btn.is-ativo` e do âmbar antigo. */
+.vpdf-btn.vpdf-alterna[aria-pressed="true"],
+.barra-doc .vpdf-btn.vpdf-alterna[aria-pressed="true"],
+.barra-doc .vpdf-btn.vpdf-alterna[aria-pressed="true"]:hover {
+  background: var(--destaque, #0C4F9B);
+  border-color: var(--destaque, #0C4F9B);
+  color: #fff;
+}
+.vpdf-btn.vpdf-alterna[aria-pressed="true"] .icone { color: #fff; }
+
+@media (pointer: coarse) {
+  .anot-cor,
+  .anot-esp { width: 36px; height: 36px; }
+}

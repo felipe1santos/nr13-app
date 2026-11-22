@@ -1,148 +1,249 @@
 /* ============================================================================
-   MODAL "NOVO REGISTRO" — Registros de Segurança (07/09/2026)
+   MODAL "NOVO REGISTRO" — Registros de Segurança (refeito em 22/11/2026)
 
-   Duas áreas: formulário e coluna de apoio (ilustração + os três passos do
-   ciclo rascunho → continuar → trancar). A paleta acompanha a ilustração —
-   azuis suaves sobre cinza-azulado —, mas o botão primário continua âmbar: é o
-   destaque de ação do sistema inteiro, e trocá-lo aqui faria o modal parecer de
-   outro produto.
+   UMA coluna: o formulário. Cabeçalho e rodapé fixos; só o corpo rola. A
+   prévia e o "Como funciona" abrem numa CAMADA por cima (`.reg-camada`), em vez
+   de dividir a largura com o que se digita.
+
+   ── BUG 1 · "cortado no topo" ───────────────────────────────────────────────
+   O overlay centralizava a caixa (`align-items: center`) e a caixa media
+   `max-height: 90vh` (94vh no celular). Quando a caixa passava da área VISÍVEL —
+   no celular o `vh` é o viewport GRANDE, sem descontar a barra do navegador; no
+   desktop, janela baixa ou zoom —, o flex centralizado transbordava para os
+   dois lados e a parte de cima ficava fora da tela, sem rolagem que a
+   alcançasse. Agora: `margin: auto` na caixa (centraliza quando cabe, encosta
+   no topo quando não cabe), altura limitada por `dvh` descontando o respiro do
+   overlay, e o modal vai para o `document.body` por portal.
+
+   ── BUG 2 · "estica para a direita e encolhe à esquerda" ────────────────────
+   O corpo era um flex em LINHA: formulário (`flex: 1 1 auto; min-width: 0`) e
+   a coluna da prévia (`flex: 0 0 340px`), SEM `min-width: 0`. O `min-width`
+   padrão de um item flex é `auto` = a largura mínima do CONTEÚDO, e a prévia
+   repete o termo com `white-space: pre-wrap` e sem `overflow-wrap`: uma
+   palavra longa, uma URL ou uma sequência sem espaço colada no termo virava o
+   mínimo da coluna. A coluna crescia além dos 340px (para a direita) e o
+   formulário, que podia encolher, cedia a diferença (encolhia à esquerda).
+   A correção não é só tirar a coluna: todo item de grade/flex do modal tem
+   `min-width: 0`, as grades usam `minmax(…, 1fr)` com mínimo que nunca passa
+   de 100%, o texto da ficha quebra em qualquer ponto (`overflow-wrap:
+   anywhere`) e o corpo não rola na horizontal. Travado por
+   `modalRegistroLargura.test.ts`.
 
    A base (overlay, caixa, cabeçalho, botão fechar, `fj-field`) vem do
-   `forja.css`. O que está aqui é só o arranjo desta tela.
+   `forja.css`/`cartoes-cobalto.css`. O que está aqui é o arranjo desta tela.
    ============================================================================ */
 
-.reg-modal {
-  max-width: 1020px;
+/* ── OVERLAY E CAIXA ─────────────────────────────────────────────────────── */
+.fj-modal-overlay.reg-modal-overlay {
+  align-items: flex-start;
+  overflow-y: auto;
+  padding: 24px;
+  animation: reg-modal-fundo 160ms ease-out;
+}
+.fj-modal-box.reg-modal {
+  position: relative;
+  margin: auto;
+  width: 100%;
+  max-width: 680px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  /* Quem rola é o corpo — o cabeçalho e os botões de ação ficam sempre à vista,
-     que é o que faltava quando o modal inteiro rolava junto. */
-  max-height: 90vh;
+  /* Quem rola é o corpo — o cabeçalho e os botões de ação ficam sempre à vista. */
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   overflow: hidden;
+  border-radius: var(--card-r, 4px);
+  animation: reg-modal-entra 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-
-.reg-modal-overlay { animation: reg-modal-fundo 160ms ease-out; }
-.reg-modal { animation: reg-modal-entra 200ms cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes reg-modal-fundo { from { opacity: 0; } to { opacity: 1; } }
 @keyframes reg-modal-entra {
   from { opacity: 0; transform: translateY(10px) scale(0.985); }
   to { opacity: 1; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .reg-modal-overlay, .reg-modal { animation: none; }
+  .reg-modal-overlay, .reg-modal, .reg-camada-overlay, .reg-camada { animation: none; }
 }
 
-.reg-modal-head { flex-shrink: 0; }
+/* ── CABEÇALHO ───────────────────────────────────────────────────────────── */
+.reg-modal-head {
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 12px 12px 12px 20px;
+}
+.reg-modal-titulos { flex: 1 1 auto; min-width: 0; }
+.reg-modal-titulos h2 { overflow-wrap: anywhere; }
 
-/* ── CORPO: formulário + coluna de apoio ─────────────────────────────────── */
+/* "Como funciona": atalho discreto, não aba. Texto + ícone, sem moldura. */
+.reg-modal-comofunciona {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font: 500 13px/1 var(--font, inherit);
+  color: var(--texto-2, #3a3f47);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.reg-modal-comofunciona .icone { color: var(--destaque, #0c4f9b); }
+.reg-modal-comofunciona:hover { background: var(--destaque-bg, #e7eff8); color: var(--destaque, #0c4f9b); }
+.reg-modal-comofunciona:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+
+/* ── CORPO ───────────────────────────────────────────────────────────────── */
 .reg-modal-corpo {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.reg-modal-form {
   flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+.reg-modal-form {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 18px 22px 22px;
+  gap: 0;
+  padding: 4px 20px 20px;
 }
 
-/* A coluna de apoio vem ANTES no DOM (é o que se lê primeiro) e vai para a
-   direita no desktop. `order` só reordena o que já é irmão — a ordem de
-   tabulação não muda, e não há nada focável dentro dela. */
-.reg-modal-lado {
-  flex: 0 0 292px;
-  padding: 18px 20px 22px;
-  border-left: 1px solid var(--blue-line, #c9dcf0);
-  background: linear-gradient(180deg, #f4f8fd 0%, #eef4fb 100%);
+/* ── GRUPOS DE CAMPOS ────────────────────────────────────────────────────── */
+.reg-modal-grupo {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  padding: 18px 0;
+  border-top: 1px solid var(--fio, #e3e5e8);
+}
+.reg-modal-grupo:first-of-type { border-top: 0; }
+.reg-modal-grupo h3 {
+  margin: 0;
+  font: 600 14px/20px var(--font, inherit);
+  color: var(--texto-1, #1a1a1a);
+  text-transform: none;
+  letter-spacing: 0;
 }
 
-.reg-modal-figura {
-  margin: 0;
-  border-radius: 12px;
-  background: #fff;
-  border: 1px solid var(--blue-line, #c9dcf0);
-  padding: 6px;
-}
-.reg-modal-figura img {
-  display: block;
-  width: 100%;
-  /* A arte é quadrada. `aspect-ratio` + `contain` garantem que ela nunca
-     estique nem corte, em qualquer largura. */
-  aspect-ratio: 1 / 1;
-  object-fit: contain;
-  height: auto;
-}
-
-.reg-modal-passos {
-  list-style: none;
-  counter-reset: passo;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.reg-modal-passos li {
+/* Dois campos curtos por linha quando cabem; um por linha quando não. O
+   mínimo `min(210px, 100%)` nunca passa da largura disponível. */
+.reg-modal-linha {
   display: grid;
-  grid-template-columns: 22px 1fr;
-  gap: 10px;
-  align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+  gap: 14px;
+  min-width: 0;
 }
-.reg-modal-passos li::before {
-  counter-increment: passo;
-  content: counter(passo);
+.reg-modal-linha > *,
+.reg-modal-form .fj-field { min-width: 0; }
+
+/* Obrigatório: uma marca discreta ao lado do rótulo. */
+.reg-modal-form .fj-field > label {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--blue2, #0c4f9b);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
+  gap: 6px;
+  flex-wrap: wrap;
 }
-/* O título e o texto ficam os DOIS na segunda coluna. Sem isto o `<span>` é
-   auto-posicionado na linha seguinte, na coluna de 22px do número — e o texto
-   sai com uma palavra por linha (visto em produção em 07/09/2026). */
-.reg-modal-passos li > b,
-.reg-modal-passos li > span { grid-column: 2; }
-.reg-modal-passos b { display: block; font-size: 12.5px; color: var(--text-main, #2d3339); }
-.reg-modal-passos span { font-size: 11.5px; line-height: 1.5; color: var(--muted, #7a8790); }
+.reg-modal-form .fj-field > label em,
+.reg-motivo-topo em {
+  font-style: normal;
+  font-size: var(--fs-12, 12px);
+  font-weight: 500;
+  line-height: 1.35;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--destaque-bg, #e7eff8);
+  color: var(--destaque, #0c4f9b);
+}
+.reg-modal-form .fj-field input,
+.reg-modal-form .fj-field select,
+.reg-modal-form .fj-field textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 4px;
+}
+.reg-modal-form .fj-field textarea {
+  min-height: 92px;
+  resize: vertical;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.reg-modal-form .fj-field small {
+  font-size: var(--fs-12, 12px);
+  color: var(--muted, #6b6b6b);
+  line-height: 1.45;
+}
 
-.reg-modal-nota {
+/* "restaurar sugestão": ação de texto, não botão — ela desfaz, não avança. */
+.reg-modal-restaurar {
+  margin-left: auto;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: var(--fs-12, 12px);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--destaque, #0c4f9b);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.reg-modal-restaurar:hover { color: var(--sel); }
+
+.reg-modal-aviso,
+.reg-modal-erro {
   display: flex;
   align-items: flex-start;
   gap: 7px;
-  margin: 0;
-  padding: 10px 11px;
-  border-radius: 9px;
-  background: var(--blue2-bg, #e4edf9);
-  border: 1px solid var(--blue2-line, #c4d9f0);
-  color: var(--blue2, #0c4f9b);
-  font-size: 11.5px;
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 13px;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
-.reg-modal-nota svg { flex: 0 0 auto; margin-top: 1px; }
+.reg-modal-aviso {
+  background: var(--warn-bg, #fbf1dc);
+  border: 1px solid var(--warn-line, #f0dba6);
+  color: var(--warn, #8a5a00);
+}
+.reg-modal-erro {
+  background: var(--crit-bg, #fbeae9);
+  border: 1px solid var(--crit-line, #f3c6c3);
+  color: var(--crit, #b42318);
+}
+.reg-modal-aviso svg,
+.reg-modal-erro svg { flex: 0 0 auto; margin-top: 2px; }
 
-/* O "i" e o popover que ele abre. */
+/* ── RODAPÉ FIXO ─────────────────────────────────────────────────────────── */
+.reg-modal-acoes {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  border-top: 1px solid var(--fio, #e3e5e8);
+  background: var(--superficie-2, #f8f9fa);
+}
+.reg-modal-acoes-dica { font-size: var(--fs-12, 12px); color: var(--muted, #6b6b6b); min-width: 0; }
+.reg-modal-acoes-btns { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+
+/* ── O "i" e o popover que ele abre (também usado pela página) ───────────── */
 .reg-ajuda { position: relative; display: inline-flex; }
 .reg-ajuda-btn {
   width: 17px;
   height: 17px;
   border-radius: 50%;
-  border: 1px solid var(--blue, #457dc1);
+  border: 1px solid var(--fio-campo, #cfd6e0);
   background: #fff;
-  color: var(--blue, #457dc1);
+  color: var(--texto-2, #3a3f47);
   font-family: var(--font-display);
   font-size: 11px;
   font-weight: 700;
@@ -153,9 +254,8 @@
   justify-content: center;
   padding: 0;
 }
-.reg-ajuda-btn:hover { background: var(--blue, #457dc1); color: #fff; }
-.reg-ajuda-btn:focus-visible { outline: 2px solid var(--amber, #ff7a1a); outline-offset: 1px; }
-
+.reg-ajuda-btn:hover { background: var(--superficie-3, #eef0f3); color: var(--texto-1, #1a1a1a); }
+.reg-ajuda-btn:focus-visible { outline: 2px solid var(--sel); outline-offset: 1px; }
 .reg-ajuda-pop {
   position: absolute;
   top: calc(100% + 8px);
@@ -166,369 +266,20 @@
   flex-direction: column;
   gap: 6px;
   padding: 11px 13px;
-  border-radius: 10px;
-  border: 1px solid var(--blue-line, #c9dcf0);
+  border-radius: var(--r-sm, 6px);
+  border: 1px solid var(--fio, #e3e5e8);
   background: #fff;
   box-shadow: 0 10px 26px rgba(20, 24, 28, 0.16);
-  font-size: 11.5px;
+  font-size: var(--fs-12, 12px);
   line-height: 1.55;
-  color: var(--muted, #7a8790);
+  color: var(--muted, #6b6b6b);
   text-transform: none;
   letter-spacing: 0;
   font-weight: 400;
 }
 .reg-ajuda-pop b { color: var(--text-main, #2d3339); font-weight: 700; }
 
-/* ── GRUPOS DE CAMPOS ────────────────────────────────────────────────────── */
-.reg-modal-grupo { display: flex; flex-direction: column; gap: 13px; }
-.reg-modal-grupo h3 {
-  position: relative;
-  margin: 0;
-  padding-left: 10px;
-  font-family: var(--font-display);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.7px;
-  color: var(--text-main, #2d3339);
-}
-/* O mesmo filete de `.bloco-dados h3` e do `fj-panel-head` — aqui em azul, para
-   acompanhar a ilustração sem inventar um segundo idioma. */
-.reg-modal-grupo h3::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 1px;
-  bottom: 1px;
-  width: 3px;
-  border-radius: 2px;
-  background: var(--blue2, #0c4f9b);
-}
-
-/* Dois campos por linha no desktop; empilhados no celular. */
-.reg-modal-linha {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 13px;
-}
-
-/* Obrigatório vira uma marca discreta ao lado do rótulo, no lugar do asterisco
-   solto que não dizia a quem pertencia. */
-.reg-modal-form .fj-field > label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.reg-modal-form .fj-field > label em {
-  font-style: normal;
-  font-size: 9px;
-  letter-spacing: 0.4px;
-  padding: 1px 6px;
-  border-radius: 20px;
-  background: var(--amber-bg, #fff1e6);
-  color: var(--amber-deep, #d9640c);
-}
-.reg-modal-form .fj-field input,
-.reg-modal-form .fj-field select,
-.reg-modal-form .fj-field textarea {
-  background: #fff;
-  font-family: var(--font-base);
-  padding: 10px 12px;
-}
-.reg-modal-form .fj-field textarea { min-height: 92px; resize: vertical; line-height: 1.5; }
-.reg-modal-form .fj-field small {
-  font-size: 10.5px;
-  color: var(--muted, #7a8790);
-  line-height: 1.45;
-}
-
-.reg-modal-aviso,
-.reg-modal-erro {
-  display: flex;
-  align-items: flex-start;
-  gap: 7px;
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: 9px;
-  font-size: 12px;
-  line-height: 1.5;
-}
-.reg-modal-aviso {
-  background: var(--warn-bg, #fbf1dc);
-  border: 1px solid var(--warn-line, #f0dba6);
-  color: var(--warn, #b8860b);
-}
-.reg-modal-erro {
-  background: var(--crit-bg, #fbeae9);
-  border: 1px solid var(--crit-line, #f3c6c3);
-  color: var(--crit, #d5453d);
-}
-.reg-modal-aviso svg,
-.reg-modal-erro svg { flex: 0 0 auto; margin-top: 1px; }
-
-/* ── RODAPÉ ──────────────────────────────────────────────────────────────── */
-.reg-modal-acoes {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 14px 22px;
-  border-top: 1px solid var(--line, #e4e1d8);
-  background: var(--bg-faint, #fbfaf7);
-}
-.reg-modal-acoes-dica { font-size: 11.5px; color: var(--muted, #7a8790); }
-.reg-modal-acoes-btns { display: flex; gap: 8px; align-items: center; }
-
-/* ── TABLET ──────────────────────────────────────────────────────────────
-   Abaixo de 900px as duas colunas espremem o formulário. A coluna de apoio
-   sobe para o topo e a ilustração encolhe: ela orienta, não é o conteúdo. */
-/* A faixa antiga (ilustração deitada no topo) saiu na 4ª rodada: a coluna da
-   direita agora é a PRÉVIA, e prévia no topo empurraria o formulário para fora
-   da tela. O empilhamento — com a prévia DEPOIS do formulário — está no bloco
-   de 900px logo adiante. */
-@media (max-width: 900px) {
-  .reg-modal-corpo { flex-direction: column; }
-}
-
-/* ── CELULAR ─────────────────────────────────────────────────────────────── */
-@media (max-width: 640px) {
-  .reg-modal-overlay { padding: 10px; }
-  .reg-modal { max-width: none; max-height: 94vh; }
-  .reg-modal-head { padding: 14px 16px; }
-  .reg-modal-head h2 { font-size: 16px; }
-  .reg-modal-lado {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    padding: 14px 16px;
-  }
-  /* `width: 100%` junto do `margin: 0 auto`: um item de grade com margem
-     automática encolhe para o conteúdo, e a figura media a largura INTRÍNSECA
-     da imagem — 85px enquanto o arquivo não tinha chegado. */
-  .reg-modal-figura { grid-row: auto; width: 100%; max-width: 220px; margin: 0 auto; }
-  .reg-modal-nota { grid-column: auto; }
-  .reg-modal-form { padding: 14px 16px 18px; gap: 14px; }
-  .reg-modal-acoes { padding: 12px 16px; }
-  .reg-modal-acoes-dica { order: 2; width: 100%; text-align: center; }
-  .reg-modal-acoes-btns { width: 100%; }
-  /* No dedo, os dois botões medem 44px e dividem a largura. */
-  .reg-modal-acoes-btns .fj-btn {
-    flex: 1;
-    justify-content: center;
-    height: 44px;
-    box-sizing: border-box;
-  }
-  .reg-ajuda-pop { left: auto; right: -6px; }
-}
-
-/* ============================================================================
-   4ª RODADA (07/09/2026) — menos caixas, cantos mais retos, prévia à direita.
-
-   O modal tinha caixa dentro de caixa: cada grupo com moldura, o bloco azul do
-   pré-preenchimento, a nota, a figura em cartão. Agora quem separa é o ESPAÇO e
-   um filete; o raio caiu de 12-14px para 8px, que é o desenho corporativo que
-   o resto do sistema usa em campo e botão.
-   ============================================================================ */
-.reg-modal { border-radius: 10px; }
-.reg-modal-form .fj-field input,
-.reg-modal-form .fj-field select,
-.reg-modal-form .fj-field textarea { border-radius: 6px; }
-
-
-/* ── COLUNA DA PRÉVIA ────────────────────────────────────────────────────── */
-.reg-modal-lado {
-  flex: 0 0 340px;
-  padding: 0;
-  gap: 0;
-  background: var(--bg-faint, #fbfaf7);
-  border-left: 1px solid var(--line, #e4e1d8);
-}
-.reg-modal-abas {
-  display: flex;
-  gap: 2px;
-  padding: 10px 12px 0;
-  border-bottom: 1px solid var(--line, #e4e1d8);
-  flex-shrink: 0;
-}
-.reg-modal-abas button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 7px 12px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted, #7a8790);
-  cursor: pointer;
-}
-.reg-modal-abas button.ativa {
-  color: var(--text-main, #2d3339);
-  border-bottom-color: var(--amber, #ff7a1a);
-}
-.reg-modal-abas button:focus-visible { outline: 2px solid var(--amber, #ff7a1a); outline-offset: -2px; }
-
-/* A prévia rola sozinha: o formulário é longo, e acompanhar o texto crescendo
-   não pode obrigar a rolar a coluna inteira. */
-.reg-modal-lado-corpo {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 14px 16px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.reg-modal-lado-corpo .reg-modal-figura { border-radius: 8px; }
-.reg-modal-nota { border-radius: 8px; }
-
-/* "restaurar sugestão": ação de texto, não botão — ela desfaz, não avança. */
-.reg-modal-restaurar {
-  margin-left: auto;
-  border: none;
-  background: none;
-  padding: 0;
-  font: inherit;
-  font-size: 10px;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--link, #1e3a8a);
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-@media (max-width: 900px) {
-  /* A prévia desce para depois do formulário: numa tela estreita, primeiro se
-     escreve, depois se confere. */
-  .reg-modal-lado {
-    flex: 0 0 auto;
-    border-left: none;
-    border-top: 1px solid var(--line, #e4e1d8);
-    display: block;
-  }
-  .reg-modal-lado-corpo { padding: 12px 14px 16px; }
-}
-
-/* ============================================================================
-   5ª RODADA (07/09/2026) — a FICHA ELETRÔNICA e um modal mais reto.
-
-   A prévia deixou de imitar papel: é a ficha do registro no sistema, com a
-   hierarquia que a leitura em tela pede. A folha A4 continua existindo, ao
-   lado, para imprimir e colar no livro físico.
-   ============================================================================ */
-
-/* Menos moldura no modal inteiro: 6px de raio, e o que separa é o espaço. */
-.reg-modal { border-radius: 6px; }
-.reg-modal-form .fj-field input,
-.reg-modal-form .fj-field select,
-.reg-modal-form .fj-field textarea { border-radius: 4px; }
-.reg-modal-figura,
-.reg-modal-nota,
-.reg-ajuda-pop { border-radius: 5px; }
-
-.ficha-reg {
-  background: #fff;
-  border: 1px solid var(--line, #e4e1d8);
-  border-radius: 5px;
-  padding: 18px 18px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.ficha-reg-topo {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid var(--blue2, #0c4f9b);
-}
-.ficha-reg-id { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.ficha-reg-eyebrow {
-  font-size: 9.5px;
-  letter-spacing: 0.9px;
-  text-transform: uppercase;
-  font-weight: 700;
-  color: var(--amber-deep, #d9640c);
-}
-.ficha-reg-equip {
-  font-family: var(--font-display);
-  font-size: 15px;
-  line-height: 1.25;
-  color: var(--text-main, #2d3339);
-}
-.ficha-reg-tag { font-family: var(--font-mono); font-size: 11px; color: var(--muted, #7a8790); }
-
-.ficha-reg-selo {
-  flex-shrink: 0;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 3px 9px;
-  border-radius: 3px;
-  white-space: nowrap;
-}
-.ficha-reg-selo.lacrado { background: var(--purple-bg, #f1edff); color: var(--purple, #7c5cfc); }
-.ficha-reg-selo.rascunho {
-  background: #fff;
-  color: var(--muted, #7a8790);
-  border: 1px dashed var(--border-dashed, #d8d5cc);
-}
-
-/* Os destaques: cada dado com o rótulo pequeno em cima e o valor colorido
-   embaixo. É o que se lê de relance. */
-.ficha-reg-destaques { display: flex; flex-wrap: wrap; gap: 8px 26px; }
-.ficha-reg-dado { display: flex; flex-direction: column; gap: 1px; }
-.ficha-reg-dado small {
-  font-size: 9.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 700;
-  color: var(--muted, #7a8790);
-}
-.ficha-reg-data {
-  font-family: var(--font-mono);
-  font-size: 15px;
-  color: var(--blue2, #0c4f9b);
-}
-.ficha-reg-tipo { font-size: 14px; color: var(--petroleo, #0a5a6e); }
-.ficha-reg-rel { font-family: var(--font-mono); font-size: 12px; color: var(--muted, #7a8790); }
-
-.ficha-reg-bloco { display: flex; flex-direction: column; gap: 3px; }
-.ficha-reg-bloco h4 {
-  margin: 0;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  font-weight: 700;
-  color: var(--petroleo, #0a5a6e);
-}
-.ficha-reg-bloco p { margin: 0; font-size: 12.5px; line-height: 1.6; white-space: pre-wrap; }
-.ficha-reg-termo { color: var(--text-main, #2d3339); text-align: justify; }
-.ficha-reg-desc { color: var(--muted, #7a8790); }
-
-.ficha-reg-pes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line, #e4e1d8);
-}
-.ficha-reg-pes span { display: flex; flex-direction: column; font-size: 12px; }
-.ficha-reg-pes small {
-  font-size: 9.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 700;
-  color: var(--muted, #7a8790);
-}
-.ficha-reg-nota { margin: 0; font-size: 10.5px; line-height: 1.45; color: var(--text-faint, #aeb4b9); }
-
-/* ── CONFIRMAÇÃO DE SAÍDA (07/09/2026) ──────────────────────────────────────
+/* ── CONFIRMAÇÃO DE SAÍDA ────────────────────────────────────────────────────
    Dentro da caixa, e não num segundo overlay: escurecer a tela duas vezes é
    uma camada a mais para dizer uma frase. */
 .reg-modal-descarte {
@@ -540,12 +291,10 @@
   justify-content: center;
   padding: 20px;
   background: rgba(20, 24, 28, 0.42);
-  border-radius: 6px;
 }
 .reg-modal-descarte-caixa {
   background: #fff;
-  border-radius: 5px;
-  border: 1px solid var(--line, #e4e1d8);
+  border-radius: 4px;
   box-shadow: 0 14px 34px rgba(20, 24, 28, 0.22);
   padding: 18px 20px 16px;
   max-width: 380px;
@@ -553,12 +302,12 @@
   flex-direction: column;
   gap: 6px;
 }
-.reg-modal-descarte-caixa strong { font-family: var(--font-display); font-size: 14px; }
+.reg-modal-descarte-caixa strong { font: 600 15px/20px var(--font, inherit); }
 .reg-modal-descarte-caixa p {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.5;
-  color: var(--muted, #7a8790);
+  color: var(--muted, #6b6b6b);
 }
 .reg-modal-descarte-btns {
   display: flex;
@@ -566,25 +315,235 @@
   margin-top: 10px;
   flex-wrap: wrap;
 }
-/* "Continuar editando" é a primária: o caminho seguro é o que se acerta sem
-   ler. "Descartar" fica em ghost, ao lado. */
+/* "Continuar editando" é a primária: o caminho seguro é o que se acerta sem ler. */
 .reg-modal-descarte-btns .fj-btn { flex: 1; justify-content: center; }
 
-@media (max-width: 640px) {
-  .reg-modal-descarte-btns .fj-btn { height: 44px; box-sizing: border-box; }
+/* ============================================================================
+   CAMADA POR CIMA — prévia e "Como funciona" (`CamadaModal.tsx`)
+   ============================================================================ */
+.reg-camada-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: flex-start;
+  overflow-y: auto;
+  padding: 24px;
+  background: rgba(15, 22, 49, 0.45);
+  animation: reg-modal-fundo 140ms ease-out;
 }
+.reg-camada {
+  margin: auto;
+  width: 100%;
+  max-width: 600px;
+  min-width: 0;
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  border-radius: var(--card-r, 4px);
+  box-shadow: 0 11px 15px -7px rgba(0, 0, 0, 0.2), 0 24px 38px 3px rgba(0, 0, 0, 0.14), 0 9px 46px 8px rgba(0, 0, 0, 0.12);
+  animation: reg-modal-entra 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reg-camada-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 12px 10px 20px;
+  border-bottom: 1px solid var(--fio, #e3e5e8);
+}
+.reg-camada-titulos { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.reg-camada-eyebrow { font: var(--t-caption, 400 12px/16px sans-serif); color: #6b6b6b; }
+.reg-camada-head h2 { margin: 0; font: 500 18px/24px var(--font, inherit); color: var(--texto-1, #1a1a1a); overflow-wrap: anywhere; }
+.reg-camada-corpo {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.reg-camada-rodape {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  border-top: 1px solid var(--fio, #e3e5e8);
+  background: var(--superficie-2, #f8f9fa);
+}
+.reg-camada-dica { font-size: var(--fs-12, 12px); color: var(--muted, #6b6b6b); margin-right: auto; min-width: 0; }
+.reg-camada-btns { display: flex; gap: 8px; align-items: center; }
 
-/* A confirmação é `position: absolute` sobre a caixa — que precisa ser o
-   contexto de posicionamento dela. */
-.reg-modal { position: relative; }
+/* A prévia fica sobre um fundo cinza: a ficha branca é o "papel" da tela. */
+.reg-camada-previa .reg-camada-corpo { background: var(--superficie-2, #f8f9fa); }
 
+/* "Como funciona": ilustração ao lado do texto no desktop, em cima no celular. */
+.reg-camada-ajuda { max-width: 640px; }
+.reg-ajuda-grade {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 22px;
+  align-items: center;
+}
+.reg-ajuda-arte {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  border-radius: var(--r-md, 8px);
+  background: var(--destaque-bg, #e7eff8);
+}
+/* A arte nunca estica nem corta: largura fixa, altura pela proporção do arquivo. */
+.reg-ajuda-arte-img { display: block; max-width: 100%; height: auto; object-fit: contain; }
+
+.reg-modal-passos {
+  list-style: none;
+  counter-reset: passo;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.reg-modal-passos li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 2px;
+  align-items: start;
+}
+.reg-modal-passos li::before {
+  counter-increment: passo;
+  content: counter(passo);
+  grid-row: 1 / span 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--destaque, #0c4f9b);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+/* O título e o texto ficam os DOIS na segunda coluna. Sem isto o `<span>` é
+   auto-posicionado na linha seguinte, na coluna do número — e o texto sai com
+   uma palavra por linha (visto em produção em 07/09/2026). */
+.reg-modal-passos li > b,
+.reg-modal-passos li > span { grid-column: 2; }
+.reg-modal-passos b { display: block; font: 600 14px/20px var(--font, inherit); color: var(--texto-1, #1a1a1a); }
+.reg-modal-passos span { font-size: 13px; line-height: 1.5; color: var(--texto-2, #3a3f47); }
+
+.reg-modal-nota {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 4px;
+  background: var(--st-info-bg, #e7eff8);
+  color: var(--st-info, #285a8f);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.reg-modal-nota svg { flex: 0 0 auto; margin-top: 2px; }
 
 /* ============================================================================
-   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
-   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
-   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   FICHA DO REGISTRO (`PreviaRegistro`) — prévia da camada E visualizador da
+   página. Hierarquia de leitura, não cara de papel.
    ============================================================================ */
-.reg-modal-grupo h3,
+.ficha-reg {
+  min-width: 0;
+  background: #fff;
+  border: 1px solid var(--fio, #e3e5e8);
+  border-radius: 4px;
+  padding: 18px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-wrap: anywhere;
+}
+.ficha-reg-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--blue2, #0c4f9b);
+}
+.ficha-reg-id { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ficha-reg-eyebrow { font-weight: 700; color: var(--amber-deep, #d9640c); }
+.ficha-reg-equip {
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.25;
+  color: var(--text-main, #2d3339);
+}
+.ficha-reg-tag { font-family: var(--font-mono); font-size: 12px; color: var(--muted, #7a8790); }
+.ficha-reg-selo {
+  flex-shrink: 0;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.ficha-reg-selo.lacrado { background: var(--purple-bg, #f1edff); color: var(--purple, #7c5cfc); }
+.ficha-reg-selo.rascunho {
+  background: #fff;
+  color: var(--muted, #7a8790);
+  border: 1px dashed var(--border-dashed, #d8d5cc);
+}
+/* Os destaques: cada dado com o rótulo pequeno em cima e o valor embaixo. */
+.ficha-reg-destaques { display: flex; flex-wrap: wrap; gap: 8px 26px; min-width: 0; }
+.ficha-reg-dado { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ficha-reg-dado small { font-weight: 700; color: var(--muted, #7a8790); }
+.ficha-reg-data {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--blue2, #0c4f9b);
+}
+.ficha-reg-tipo { font-size: 14px; color: var(--petroleo, #0a5a6e); }
+.ficha-reg-rel { font-family: var(--font-mono); font-size: 12px; color: var(--muted, #7a8790); }
+.ficha-reg-bloco { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ficha-reg-bloco h4 { margin: 0; font-weight: 700; color: var(--petroleo, #0a5a6e); }
+/* `pre-wrap` respeita as quebras que o usuário fez; `anywhere` impede que uma
+   palavra sem espaço alargue a ficha (era o BUG 2). */
+.ficha-reg-bloco p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.ficha-reg-termo { color: var(--text-main, #2d3339); text-align: justify; }
+.ficha-reg-desc { color: var(--muted, #7a8790); }
+.ficha-reg-pes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding-top: 12px;
+  border-top: 1px solid var(--fio, #e3e5e8);
+}
+.ficha-reg-pes span { display: flex; flex-direction: column; font-size: 13px; min-width: 0; }
+.ficha-reg-pes small { font-weight: 700; color: var(--muted, #7a8790); }
+.ficha-reg-nota { margin: 0; font-size: var(--fs-12, 12px); line-height: 1.45; color: var(--text-faint, #8a9096); }
+
+/* IDENTIDADE (§15): texto em caixa normal com 12px no mínimo; selo reto. */
 .ficha-reg-eyebrow,
 .ficha-reg-selo,
 .ficha-reg-dado small,
@@ -594,75 +553,50 @@
   letter-spacing: 0;
   font-size: var(--fs-12);
 }
-.reg-modal-form .fj-field > label em {
-  border-radius: var(--r-xs);
-}
-
-/* ============================================================================
-   IDENTIDADE · cores (1ª prévia + paleta B, 25/10/2026) — CLAUDE.md §15
-   O painel de apoio e a oferta de pré-preenchimento são superfícies neutras;
-   a nota é informação (info). Número de passo e lacre seguem a regra: passo
-   neutro, lacre = ok. Sem filete colorido nos títulos.
-   ============================================================================ */
-.reg-modal-lado { border-left-color: var(--fio); background: var(--superficie-2); }
-.reg-modal-figura { border-color: var(--fio); border-radius: var(--r-md); }
-.reg-modal-passos li::before { background: var(--superficie-3); color: var(--texto-1); }
-.reg-modal-nota { background: var(--st-info-bg); border-color: transparent; color: var(--st-info); border-radius: var(--r-sm); }
-.reg-ajuda-btn { border-color: var(--fio-campo); color: var(--texto-2); }
-.reg-ajuda-btn:hover { background: var(--superficie-3); color: var(--texto-1); }
-.reg-ajuda-pop { border-color: var(--fio); border-radius: var(--r-sm); }
-.reg-modal-grupo h3::before { display: none; }
 .ficha-reg-selo.lacrado { background: var(--st-ok-bg); color: var(--st-ok); }
 .ficha-reg-data { color: var(--texto-1); }
 .ficha-reg-tipo { color: var(--texto-1); }
 
-
 /* ============================================================================
    21/11/2026 · O MODAL "ACENDE" — pedido do dono ("seco, sem vida").
 
-   Botões: hover e selecionado com fundo SÓLIDO `--sel` e texto branco.
-   Tipo de ocorrência: lista própria (`SeletorOcorrencia`) — o item sob o mouse
-   em vermelho claro, o escolhido com vermelho SÓ atrás do nome.
-   Quem realizou / Responsável técnico: preenchidos em azul petróleo.
-   Acrescentado no fim, como manda o §15: as regras de cima seguem valendo.
+   Botões: hover e selecionado com fundo SÓLIDO `--sel` (o VERDE PADRÃO) e
+   texto branco. Tipo de ocorrência: lista própria (`SeletorOcorrencia`) — o
+   item sob o mouse em vermelho claro, o escolhido com o VERMELHO PADRÃO SÓ
+   atrás do nome. Quem realizou / Responsável técnico: preenchidos em azul
+   petróleo.
    ============================================================================ */
 
 /* ── Botões ─────────────────────────────────────────────────────────────── */
 .reg-modal .reg-modal-acoes .fj-btn-primary,
-.reg-modal .reg-modal-descarte .fj-btn-primary {
+.reg-modal .reg-modal-descarte .fj-btn-primary,
+.reg-camada .reg-camada-rodape .fj-btn-primary {
   background: var(--sel);
   border-color: var(--sel);
   color: #fff;
 }
 .reg-modal .reg-modal-acoes .fj-btn-primary:hover,
-.reg-modal .reg-modal-descarte .fj-btn-primary:hover {
+.reg-modal .reg-modal-descarte .fj-btn-primary:hover,
+.reg-camada .reg-camada-rodape .fj-btn-primary:hover {
   background: var(--sel-hover);
   border-color: var(--sel-hover);
   color: #fff;
 }
+.reg-modal .reg-modal-acoes .fj-btn-ghost:hover,
 .reg-modal .reg-modal-descarte .fj-btn-ghost:hover,
-.reg-modal .fj-modal-close:hover {
+.reg-camada .reg-camada-rodape .fj-btn-ghost:hover,
+.reg-modal .fj-modal-close:hover,
+.reg-camada .fj-modal-close:hover {
   background: var(--sel);
   border-color: var(--sel);
   color: #fff;
 }
-.reg-modal-abas button {
-  border-radius: 4px 4px 0 0;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.reg-modal-abas button:hover,
-.reg-modal-abas button.ativa {
-  background: var(--sel);
-  color: #fff;
-  border-bottom-color: var(--sel);
-}
-.reg-modal-abas button:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
-.reg-modal-restaurar:hover { color: var(--sel); }
 
 /* ── Tipo de ocorrência ─────────────────────────────────────────────────── */
-.reg-tipo { position: relative; }
+.reg-tipo { position: relative; min-width: 0; }
 .reg-tipo-gatilho {
   width: 100%;
+  min-width: 0;
   min-height: 40px;
   display: flex;
   align-items: center;
@@ -681,7 +615,7 @@
 .reg-tipo-gatilho:focus-visible,
 .reg-tipo.aberto .reg-tipo-gatilho { outline: 2px solid var(--sel); outline-offset: -1px; border-color: var(--sel); }
 .reg-tipo-vazio { color: var(--muted, #7a8790); padding-left: 4px; }
-/* O vermelho fica só ATRÁS DO NOME, não na caixa toda. */
+/* O VERMELHO PADRÃO fica só ATRÁS DO NOME, não na caixa toda. */
 .reg-tipo-sel,
 .reg-tipo-opcao.escolhida .reg-tipo-nome {
   display: inline-block;
@@ -692,6 +626,7 @@
   font-weight: 600;
   line-height: 1.35;
 }
+.reg-tipo-sel { min-width: 0; overflow-wrap: anywhere; }
 .reg-tipo-seta { margin-left: auto; color: var(--muted, #7a8790); flex: 0 0 auto; transition: transform 0.15s ease; }
 .reg-tipo.aberto .reg-tipo-seta { transform: rotate(180deg); }
 .reg-tipo-lista {
@@ -734,17 +669,10 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
   font-size: var(--fs-12, 12px);
   font-weight: 600;
   color: var(--texto-2, #3d4756);
-}
-.reg-motivo-topo em {
-  font-style: normal;
-  font-size: 9px;
-  padding: 1px 6px;
-  border-radius: var(--r-xs, 3px);
-  background: var(--amber-bg, #fff1e6);
-  color: var(--amber-deep, #d9640c);
 }
 .reg-motivo-opcoes { display: flex; flex-direction: column; gap: 6px; }
 .reg-motivo-opcao {
@@ -754,7 +682,7 @@
   gap: 2px;
   padding: 9px 12px;
   border: 1px solid var(--fio-campo, #cfd6e0);
-  border-radius: 6px;
+  border-radius: 4px;
   background: #fff;
   font: inherit;
   text-align: left;
@@ -780,8 +708,65 @@
   font-weight: 600;
 }
 
+/* ============================================================================
+   CELULAR — o modal e as camadas viram tela cheia: altura da área VISÍVEL
+   (`dvh`), sem respiro, cabeçalho e rodapé fixos, alvos de 44px.
+   ============================================================================ */
 @media (max-width: 640px) {
+  .fj-modal-overlay.reg-modal-overlay,
+  .reg-camada-overlay { padding: 0; }
+  .fj-modal-box.reg-modal,
+  .reg-camada {
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .reg-modal-head { padding: 8px 6px 8px 16px; }
+  .reg-modal-head h2 { font-size: 17px; line-height: 22px; }
+  .reg-modal-comofunciona { height: 44px; padding: 0 8px; }
+  .reg-modal-head .fj-modal-close,
+  .reg-camada-head .fj-modal-close { width: 44px; height: 44px; }
+  .reg-modal-form { padding: 0 16px 16px; }
+  .reg-modal-grupo { padding: 16px 0; }
+  .reg-modal-acoes,
+  .reg-camada-rodape { padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .reg-modal-acoes-dica,
+  .reg-camada-dica { order: 2; width: 100%; text-align: center; margin: 0; }
+  .reg-modal-acoes-btns,
+  .reg-camada-btns { width: 100%; margin-left: 0; }
+  /* No dedo, os botões medem 44px e dividem a largura. */
+  .reg-modal-acoes-btns .fj-btn,
+  .reg-camada-btns .fj-btn,
+  .reg-camada-rodape > .fj-btn {
+    flex: 1;
+    justify-content: center;
+    height: 44px;
+    box-sizing: border-box;
+  }
+  .reg-camada-rodape > .fj-btn { width: 100%; }
+  .reg-camada-head { padding: 6px 6px 6px 16px; }
+  .reg-camada-corpo { padding: 14px 16px; }
+  .reg-ajuda-grade { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .reg-ajuda-arte { padding: 10px; }
+  .reg-ajuda-arte .reg-ajuda-arte-img { width: 160px !important; }
+  .reg-modal-descarte-btns .fj-btn { height: 44px; box-sizing: border-box; }
   .reg-tipo-gatilho { min-height: 44px; }
   .reg-tipo-opcao { min-height: 44px; }
   .reg-motivo-opcao { min-height: 44px; }
+  .reg-ajuda-pop { left: auto; right: -6px; }
+}
+/* Tela bem estreita: "Como funciona" fica só no ícone (o nome segue no
+   rótulo acessível do texto escondido visualmente). */
+@media (max-width: 380px) {
+  .reg-modal-comofunciona span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 }

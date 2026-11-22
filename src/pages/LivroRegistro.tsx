@@ -22,6 +22,7 @@ import { somenteOficiais } from '../features/livro/estadoRegistro';
 import { validarRegistroLivro, type ResultadoValidacaoRegistro } from '../features/livro/validacaoRegistro';
 import ModalTrancarRegistro from '../features/livro/ModalTrancarRegistro';
 import ModalNovoRegistro from '../features/livro/ModalNovoRegistro';
+import DocumentoAjustado from '../features/livro/DocumentoAjustado';
 import PopoverAjuda from '../features/livro/PopoverAjuda';
 import { FORM_OCORRENCIA_VAZIO, type FormOcorrencia } from '../features/livro/formRegistro';
 import PreviaRegistro from '../features/livro/PreviaRegistro';
@@ -383,8 +384,8 @@ export default function LivroRegistro() {
   const [rascunhos, setRascunhos] = useState<LivroEntrada[]>([]);
   /** id do rascunho sendo editado no modal; `null` = registro novo. */
   const [editandoId, setEditandoId] = useState<string | null>(null);
-  /** Aba com que o modal abre: o olho da lista pede a prévia, o lápis o formulário. */
-  const [abaModal, setAbaModal] = useState<'previa' | 'ajuda'>('previa');
+  /** Como o modal abre: o olho da lista pede a prévia (por cima), o lápis o formulário. */
+  const [abaModal, setAbaModal] = useState<'formulario' | 'previa'>('formulario');
   /** Rascunho escolhido para trancar, já validado. `null` = modal fechado. */
   const [trancando, setTrancando] = useState<{ id: string; validacao: ResultadoValidacaoRegistro } | null>(null);
   const [trancandoOcupado, setTrancandoOcupado] = useState(false);
@@ -510,7 +511,7 @@ export default function LivroRegistro() {
 
   function abrirModalOcorrencia() {
     setForm(FORM_OCORRENCIA_VAZIO);
-    setAbaModal('previa');
+    setAbaModal('formulario');
     setEditandoId(null);
     setErroForm('');
     setModalOcorrencia(true);
@@ -529,7 +530,7 @@ export default function LivroRegistro() {
     const hoje = new Date();
     const iso = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
     setForm({ ...FORM_OCORRENCIA_VAZIO, tipoOcorrencia: TIPO_ABERTURA, data: iso, motivoAbertura: '' });
-    setAbaModal('previa');
+    setAbaModal('formulario');
     setEditandoId(null);
     setErroForm('');
     setModalOcorrencia(true);
@@ -542,7 +543,7 @@ export default function LivroRegistro() {
    * (ele quer LER o rascunho), o lápis abre no formulário. Nos dois casos é o
    * mesmo modal e o mesmo rascunho — ver e editar deixaram de ser dois lugares.
    */
-  function editarRascunho(r: LivroEntrada, aba: 'previa' | 'ajuda' = 'previa') {
+  function editarRascunho(r: LivroEntrada, aba: 'formulario' | 'previa' = 'previa') {
     // A descrição é gravada combinada ("o que foi feito — detalhe"). Na volta ela
     // vem inteira no primeiro campo: separar por um travessão que o usuário pode
     // ter digitado quebraria o texto dele no lugar errado.
@@ -813,7 +814,7 @@ export default function LivroRegistro() {
               >
                 {/* A capa é o LIVRO; o termo é o documento lavrado que o abre —
                     daí o livro e o carimbo de conformidade. */}
-                <span className="livro-doc-ic capa"><Icone nome="book" tam={15} /></span>
+                <span className="livro-doc-ic capa"><Icone nome="book" tam={20} /></span>
                 <div>
                   <strong>Capa do Livro</strong>
                   <span>Identificação e classificação</span>
@@ -824,7 +825,7 @@ export default function LivroRegistro() {
                 className="livro-doc-card"
                 onClick={() => { setRegistroAberto(null); setModoVisual('a4'); setPreview({ tag: linhaAberta.tag, doc: { arquivo: 'TERMO-ABERTURA.html', titulo: 'Termo de Abertura' } }); }}
               >
-                <span className="livro-doc-ic termo"><Icone nome="clipboard" tam={15} /></span>
+                <span className="livro-doc-ic termo"><Icone nome="clipboard" tam={20} /></span>
                 <div>
                   <strong>Termo de Abertura</strong>
                   <span>NR-13, subitem {itemRegistroSeguranca(tipoDaTag(linhaAberta.tag))}</span>
@@ -834,7 +835,7 @@ export default function LivroRegistro() {
                   Equipamento em operação que perdeu o livro original abre um
                   novo aqui; o termo é acrescentado, nada é apagado. */}
               <button type="button" className="livro-doc-card livro-doc-abrir" onClick={abrirModalAbertura}>
-                <span className="livro-doc-ic abrir"><Icone nome="plus" tam={15} /></span>
+                <span className="livro-doc-ic abrir"><Icone nome="plus" tam={20} /></span>
                 <div>
                   <strong>Abrir livro</strong>
                   <span>Lavrar um Termo de Abertura</span>
@@ -1018,7 +1019,7 @@ export default function LivroRegistro() {
                             className="btn-icone"
                             title="Editar rascunho"
                             aria-label="Editar o rascunho"
-                            onClick={() => editarRascunho(entrada, 'ajuda')}
+                            onClick={() => editarRascunho(entrada, 'formulario')}
                           >
                             <Icone nome="pencil" tam={14} />
                           </button>
@@ -1193,38 +1194,54 @@ export default function LivroRegistro() {
           </div>
         )}
 
+        {/*
+          VER LIVRO COMPLETO (22/11/2026) — o documento ocupa a altura da tela.
+
+          Era uma caixa de 88vh com cabeçalho alto, barra própria e o documento
+          numa segunda área com rolagem horizontal: rolagem dupla e meia tela
+          de moldura. Agora a caixa tem a altura da tela, a barra é UMA linha
+          (título, Exportar PDF e o X, no canto de sempre) e só o documento
+          rola. No celular a caixa é a tela inteira e as folhas encolhem até
+          caber na largura (`DocumentoAjustado`).
+        */}
         {livroCompleto && (
-          <div className="fj-modal-overlay" onClick={(e) => e.target === e.currentTarget && setLivroCompleto(false)}>
-            <div className="fj-modal-box" style={{ maxWidth: 900 }}>
-              <div className="fj-modal-head">
-                <div>
-                  <div className="fj-eyebrow">Livro de Registro completo — ordem cronológica</div>
-                  <h2>{linhaAberta.tag}</h2>
+          <div
+            className="fj-modal-overlay livro-completo-overlay"
+            onClick={(e) => e.target === e.currentTarget && setLivroCompleto(false)}
+          >
+            <div className="fj-modal-box livro-completo" role="dialog" aria-modal="true" aria-labelledby="livro-completo-titulo">
+              <div className="livro-completo-barra no-print">
+                <div className="livro-completo-titulos">
+                  <h2 id="livro-completo-titulo">
+                    Livro de Registro <span className="livro-completo-tag">{linhaAberta.tag}</span>
+                  </h2>
+                  <span className="livro-completo-sub">
+                    Ordem cronológica · capa, termo e {linhaAberta.entradas.length} registro
+                    {linhaAberta.entradas.length === 1 ? '' : 's'}
+                  </span>
                 </div>
+                <button
+                  type="button"
+                  className={`barra-btn barra-btn-pdf livro-completo-exportar${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                  onClick={() => void exportarLivroPdf()}
+                  disabled={exportandoLivro}
+                  aria-label={exportandoLivro ? 'Gerando PDF do livro' : 'Exportar o livro em PDF'}
+                >
+                  {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="download" tam={13} />}{' '}
+                  <span>{exportandoLivro ? 'Gerando PDF…' : 'Exportar PDF'}</span>
+                </button>
                 <button type="button" className="fj-modal-close" onClick={() => setLivroCompleto(false)} aria-label="Fechar">
                   <Icone nome="x" tam={15} />
                 </button>
               </div>
-              <div className="no-print" style={{ display: 'flex', gap: 8, padding: '0 16px' }}>
-                <button
-                  type="button"
-                  className={`barra-btn barra-btn-pdf${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
-                  onClick={() => void exportarLivroPdf()}
-                  disabled={exportandoLivro}
-                >
-                  {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="download" tam={13} />}{' '}
-                  {exportandoLivro ? 'Gerando PDF…' : 'Exportar PDF'}
-                </button>
-              </div>
-              <div style={{ padding: 16, overflowX: 'auto' }}>
-                {/* Documento único: capa, termo de abertura e todos os registros empilhados */}
-                {palco.estado !== 'pronto' && <RecusaPalco estado={palco.estado} falha={palco.falha} />}
-                <div style={{ width: 794, margin: '0 auto', background: '#fff', boxShadow: '0 2px 12px rgba(0,0,0,.18)' }}>
-                  {palco.estado === 'pronto' && urlsLivroCompleto(linhaAberta, palco.paramsIframe).map((url, i) => (
-                    <IframeBlocoLivro key={url} src={url} titulo={`Bloco ${i + 1} do livro`} />
-                  ))}
-                </div>
-              </div>
+              {/* Documento único: capa, termo de abertura e todos os registros empilhados */}
+              <DocumentoAjustado
+                antes={palco.estado !== 'pronto' ? <RecusaPalco estado={palco.estado} falha={palco.falha} /> : undefined}
+              >
+                {palco.estado === 'pronto' && urlsLivroCompleto(linhaAberta, palco.paramsIframe).map((url, i) => (
+                  <IframeBlocoLivro key={url} src={url} titulo={`Bloco ${i + 1} do livro`} />
+                ))}
+              </DocumentoAjustado>
             </div>
           </div>
         )}

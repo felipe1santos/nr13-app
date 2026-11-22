@@ -491,6 +491,15 @@ h1, h2, h3, h4, .titulo-display {
   /* Recorte de Clientes (Todos/Com portal/Sem portal) e contador do menu. */
   --laranja: #C2410C;      /* branco sobre ele: 5,2:1 */
   --laranja-hover: #9A3412;
+  /* PADRÕES DO DONO (22/11/2026) — ver docs/design/padroes-cor.md.
+     "Vermelho padrão" = tag do tipo de ocorrência escolhido (Novo registro);
+     "verde padrão" = aba "Prévia" ativa; espaçamento de tag = o da tag vermelha. */
+  --vermelho-padrao: #DC2626;
+  --vermelho-padrao-claro: #FEE2E2;
+  --vermelho-padrao-texto: #B42318;
+  --verde-padrao: #0F766E;
+  --tag-pad: 3px 9px;
+  --tag-raio: 4px;
 
   /* Cor própria de cada ENSAIO (texto/borda · fundo) — protótipo Cobalto */
   --e-checklist: #2F5BEA;  --e-checklist-bg: #E3EAFF;

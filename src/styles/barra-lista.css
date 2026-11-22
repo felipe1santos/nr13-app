@@ -456,3 +456,8 @@
 :is(.rel-linha, .pront-linha)[data-clicavel]:not(#_):focus-visible > * { background: transparent !important; }
 :is(.rel-linha, .pront-linha)[data-clicavel]:active { background: #FFECEA !important; }
 :is(.rel-linha, .pront-linha)[data-clicavel]:focus-visible { box-shadow: inset 0 0 0 2px var(--destaque), inset 3px 0 0 var(--row-mark, #E5484D); }
+
+/* Tag padrão (22/11/2026) — docs/design/padroes-cor.md. */
+.tag-padrao { display: inline-block; padding: var(--tag-pad); border-radius: var(--tag-raio); font: 600 13px/1.35 var(--font); white-space: nowrap; }
+.tag-padrao.vermelho { background: var(--vermelho-padrao); color: #fff; }
+.tag-padrao.verde { background: var(--verde-padrao); color: #fff; }

@@ -25,7 +25,10 @@ export type NomeIcone =
   | 'planilha' | 'planilha-nuvem' | 'planilha-calc' | 'planilha-csv'
   // Documento PDF: folha com o canto dobrado e a tarja vermelha. É o ÚNICO
   // ícone do sprite com cor própria — ver a nota em PATHS.
-  | 'pdf';
+  | 'pdf'
+  // Barra do documento (22/11/2026): ajuda ("O que falta"), predefinições como
+  // camadas reaproveitáveis, painel de miniaturas e as ferramentas de anotação.
+  | 'interrogacao' | 'camadas' | 'paineis' | 'texto' | 'caneta' | 'desfazer';
 
 const PATHS: Record<NomeIcone, ReactNode> = {
   grid: (<><rect x="3" y="3" width="7" height="7" rx="1.2" /><rect x="14" y="3" width="7" height="7" rx="1.2" /><rect x="14" y="14" width="7" height="7" rx="1.2" /><rect x="3" y="14" width="7" height="7" rx="1.2" /></>),
@@ -63,6 +66,18 @@ const PATHS: Record<NomeIcone, ReactNode> = {
   // O "i" da ajuda contextual. O ponto é uma linha de 0,1px com ponta redonda:
   // um <circle> preenchido destoaria do traço vazado do resto do sprite.
   info: (<><circle cx="12" cy="12" r="9" /><line x1="12" y1="11" x2="12" y2="16.5" /><line x1="12" y1="7.6" x2="12" y2="7.7" /></>),
+  // Interrogação: o mesmo círculo e o mesmo truque do ponto do `info`.
+  interrogacao: (<><circle cx="12" cy="12" r="9" /><path d="M9.3 9.2a2.8 2.8 0 0 1 5.4 1c0 1.9-2.7 2.6-2.7 4" /><line x1="12" y1="17.2" x2="12" y2="17.3" /></>),
+  // Camadas empilhadas: um conjunto pronto que se põe por cima do documento.
+  camadas: (<><polygon points="12 3 3 7.5 12 12 21 7.5 12 3" /><polyline points="3 12 12 16.5 21 12" /><polyline points="3 16.5 12 21 21 16.5" /></>),
+  // Janela com a coluna lateral: o painel de miniaturas das páginas.
+  paineis: (<><rect x="3" y="4" width="18" height="16" rx="2" /><line x1="9" y1="4" x2="9" y2="20" /><line x1="5.2" y1="8" x2="6.8" y2="8" /><line x1="5.2" y1="11.5" x2="6.8" y2="11.5" /></>),
+  // "T" de caixa de texto.
+  texto: (<><polyline points="5 7.5 5 4.5 19 4.5 19 7.5" /><line x1="12" y1="4.5" x2="12" y2="19.5" /><line x1="9" y1="19.5" x2="15" y2="19.5" /></>),
+  // Caneta-tinteiro riscando: desenho à mão livre (o lápis já é "Rascunho").
+  caneta: (<><path d="M14.5 4.5l5 5-8.5 8.5-6 1.5 1.5-6z" /><line x1="12.5" y1="6.5" x2="17.5" y2="11.5" /><path d="M3 21c2-1.5 3.5-1.5 5 0" /></>),
+  // Seta de desfazer: volta e faz a curva.
+  desfazer: (<><polyline points="9 14 4 9 9 4" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></>),
   calendar: (<><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>),
   plus: (<><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>),
   x: (<><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>),
