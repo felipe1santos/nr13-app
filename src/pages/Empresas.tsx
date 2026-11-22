@@ -16,6 +16,7 @@ import { Icone } from '../components/Icone';
 import MenuMais from '../components/MenuMais';
 import { listarClientes } from '../features/cadastros/cadastroService';
 import LogoCliente from '../features/cadastros/LogoCliente';
+import ZoomAoPassar from '../components/ZoomAoPassar';
 import ModalCliente from '../features/cadastros/ModalCliente';
 import { equipamentosDoCliente, normalizarNome } from '../features/cadastros/clienteResumo';
 import * as catalogo from '../services/catalogoLocal';
@@ -218,7 +219,10 @@ export default function Empresas() {
                 {visiveis.map((c) => (
                   <tr key={c.id} onClick={() => setAberto({ cliente: c, novo: false })}>
                     <td className="cli-nome">
-                      <LogoCliente cliente={c} tam={28} classe="cli-logo" />
+                      {/* 21/11/2026: passando o mouse, a logo abre maior. */}
+                      <ZoomAoPassar ampliado={<LogoCliente cliente={c} tam={176} classe="cli-logo cli-logo-zoom" />}>
+                        <LogoCliente cliente={c} tam={28} classe="cli-logo" />
+                      </ZoomAoPassar>
                       <button
                         type="button"
                         className="cli-nome-btn"

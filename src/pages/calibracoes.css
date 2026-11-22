@@ -1076,7 +1076,8 @@
 }
 
 /* ── Abas do painel: a selecionada em rosa SÓLIDO, hover discreto ────────── */
-.calibracoes-page .cal4-abas button { border-radius: var(--card-r, 4px) var(--card-r, 4px) 0 0; }
+.calibracoes-page .cal4-abas button { border-radius: var(--card-r, 4px) var(--card-r, 4px) 0 0; height: 38px; padding: 0 14px; }
+.calibracoes-page .cal4-abas { gap: 4px; height: 44px; }
 .calibracoes-page .cal4-abas button:hover { background: #F4F4F5; color: #1A1A1A; }
 .calibracoes-page .cal4-abas button[aria-selected="true"],
 .calibracoes-page .cal4-abas button[aria-selected="true"]:hover {

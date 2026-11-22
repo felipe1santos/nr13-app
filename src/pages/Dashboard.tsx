@@ -15,6 +15,7 @@ import { FILTROS_PRAZO, FILTRO_PRAZO_PADRAO, noFiltroPrazo, textoPrazo } from '.
 import type { FiltroPrazo, ItemVencimento } from '../services/vencimentos';
 import { usePainelVencimentos, textoContador } from '../services/vencimentosServidor';
 import SeloPainel from '../components/SeloPainel';
+import CalendarioVencimentos from '../components/CalendarioVencimentos';
 import { CartaoPortalCliente, CartaoRealizadoMes, CartaoVencimentosMes } from '../features/dashboard/GraficosPainel';
 import './dashboard-novo.css';
 import { rotaEquipamento } from '../app/rotas';
@@ -165,17 +166,14 @@ export default function Dashboard() {
 
   return (
     <div className="dash-page dash2">
-      {/* ===== ABAS (padrão Indicadores do SimplesDental) =====
-          Só navegação: cada aba leva à tela que já existe. À direita, a
+      {/* 21/11/2026: as sub-abas (Relatórios, Agenda, Vencimentos) saíram —
+          Relatórios e Agenda já estão no menu, e o que a tela Vencimentos
+          tinha a mais (taxa de conformidade e o calendário de próximas
+          inspeções) entrou aqui, no desenho dos Indicadores. Fica só a
           procedência do painel (hora do agregado, truncamento, falha). */}
-      <nav className="dash2-abas" aria-label="Painéis">
-        <button type="button" className="on" aria-current="page">Indicadores</button>
-        <button type="button" onClick={() => navigate('/relatorios')}>Relatórios</button>
-        <button type="button" onClick={() => navigate('/agenda')}>Agenda</button>
-        <button type="button" onClick={() => navigate('/vencimentos')}>Vencimentos</button>
-        <span className="grow" />
+      <div className="dash2-selo">
         <SeloPainel painel={painel} />
-      </nav>
+      </div>
 
       <div className="dash2-corpo">
         {/* ===== TRÊS INDICADORES ===== */}
@@ -241,6 +239,21 @@ export default function Dashboard() {
                 )}
               </div>
               <div className="dash2-kpi-rot" id="dash2-eq">Equipamentos cadastrados sob NR-13</div>
+            </div>
+          </section>
+
+          {/* Vinda de Vencimentos. Indefinida = o painel não pôde ser lido —
+              100 % por omissão seria a mentira mais cara desta tela. */}
+          <section className="dash2-kpi" aria-labelledby="dash2-conf">
+            <span className="dash2-kpi-ic ok"><Icone nome="checkcircle" tam={26} /></span>
+            <div className="dash2-kpi-txt">
+              <div className="dash2-kpi-n">
+                <b>{kpis.conformidade === undefined ? '—' : `${kpis.conformidade.toLocaleString('pt-BR')}%`}</b>
+              </div>
+              <div className="dash2-kpi-rot" id="dash2-conf">Taxa de conformidade</div>
+              <div className="dash2-kpi-sub">
+                {kpis.conformidade === undefined ? 'sem resposta do servidor' : 'itens com prazo em dia'}
+              </div>
             </div>
           </section>
         </div>
@@ -358,6 +371,17 @@ export default function Dashboard() {
           )}
         </section>
 
+        {/* ===== PRÓXIMAS INSPEÇÕES (vindo de Vencimentos) ===== */}
+        <section className="fj-panel dash2-card" aria-labelledby="dash2-cal">
+          <div className="dash2-card-hd">
+            <h2 id="dash2-cal">Próximas inspeções</h2>
+            <button type="button" className="dash2-ver" onClick={() => navigate('/inspecoes')}>Nova inspeção</button>
+          </div>
+          <div className="dash2-cal">
+            <CalendarioVencimentos itens={itens} />
+          </div>
+        </section>
+
         {/* ===== FATURAMENTO DA AGENDA (mês corrente) ===== */}
         <section className="fj-panel dash2-card" aria-labelledby="dash2-fat">
           <div className="dash2-card-hd">
@@ -409,7 +433,7 @@ export default function Dashboard() {
                 <b>{kpis.conformidade === undefined ? '—' : `${kpis.conformidade.toLocaleString('pt-BR')}%`}</b>
                 <small>{kpis.conformidade === undefined ? 'Taxa de conformidade · sem resposta do servidor' : 'Taxa de conformidade · prazos deste painel em dia'}</small>
               </div>
-              <button type="button" className="dash2-ver" onClick={() => navigate('/vencimentos')}>Ver</button>
+              <button type="button" className="dash2-ver" onClick={() => verJanela(FILTRO_PRAZO_PADRAO)}>Ver</button>
             </li>
             <li>
               <div><b>{resumoAgenda.quantidade}</b><small>Serviços no mês</small></div>

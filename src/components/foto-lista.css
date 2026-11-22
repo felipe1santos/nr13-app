@@ -47,3 +47,10 @@
 @media (prefers-reduced-motion: reduce) {
   .fl-mini img { transition: none; }
 }
+
+/* ZoomAoPassar (logo do cliente etc.) */
+.zap-ancora { display: inline-flex; cursor: zoom-in; }
+.zap-zoom { background: #fff; display: grid; place-items: center; }
+.zap-zoom .cli-logo-zoom { border-radius: 10px; font: 600 64px/1 var(--font) !important; display: grid; place-items: center; }
+.zap-zoom .cli-logo-zoom img { width: 100%; height: 100%; object-fit: contain; }
+.zap-zoom .cli-logo-zoom { background: #F1F5F9; color: #334155; }

@@ -827,7 +827,7 @@
 .dash2-abas .grow { flex: 1; }
 .dash2-corpo { max-width: 1240px; margin: 0 auto; padding: 20px 24px 32px; display: flex; flex-direction: column; gap: 16px; }
 
-.dash2-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.dash2-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .dash2-kpi { display: flex; align-items: flex-start; gap: 16px; padding: 18px 20px; background: #fff; border-radius: var(--card-r); box-shadow: var(--card-sh); }
 .dash2-kpi-ic { flex-shrink: 0; display: grid; place-items: center; width: 36px; height: 36px; }
 .dash2-kpi-ic.crit { color: #DC2626; }
@@ -835,6 +835,11 @@
 .dash2-kpi.pc-neutro .dash2-kpi-ic.crit { color: #8C97AB; }
 .dash2-kpi-ic.warn { color: #E2A400; }
 .dash2-kpi-ic.info { color: var(--destaque); }
+.dash2-kpi-ic.ok { color: var(--aprovado); }
+/* Procedência do painel no canto, onde ficavam as sub-abas (21/11/2026). */
+.dash2-selo { display: flex; justify-content: flex-end; max-width: 1240px; margin: 0 auto; padding: 10px 24px 0; }
+.dash2-selo:empty { display: none; }
+.dash2-cal { padding: 6px 20px 20px; }
 .dash2-kpi-txt { min-width: 0; }
 .dash2-kpi-n { display: flex; align-items: baseline; gap: 12px; }
 .dash2-kpi-n b { font: var(--t-display); color: var(--destaque); }
@@ -888,6 +893,9 @@
 .dash2-prox { padding: 14px 20px 20px; }
 .dash2-prox h3 { margin: 0 0 8px; font: var(--t-heading); color: #1A1A1A; }
 
+@media (max-width: 1180px) {
+  .dash2-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 900px) {
   .dash2-kpis { grid-template-columns: 1fr; }
   .dash2-corpo { padding: 12px; }

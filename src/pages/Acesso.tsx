@@ -349,7 +349,15 @@ export default function Acesso() {
               <tbody>
                 {(aba === 'equipe' ? equipeFiltrada : clientesFiltrados).map((u) => (
                   <tr key={u.id}>
-                    <td className="cel-titulo" style={{ fontWeight: 600 }}>{u.email}</td>
+                    <td className="cel-titulo" style={{ fontWeight: 600 }}>
+                      {/* 21/11/2026: ícone de perfil à esquerda do e-mail. */}
+                      <span className="acesso2-usuario">
+                        <span className={`acesso2-av${u.papel === 'cliente' ? ' cliente' : ''}`} aria-hidden="true">
+                          <Icone nome="user" tam={15} />
+                        </span>
+                        <span className="acesso2-email">{u.email}</span>
+                      </span>
+                    </td>
                     <td data-rot={aba === 'equipe' ? 'Papel' : 'Empresa'}>
                       {u.papel === 'cliente' ? (
                         <span

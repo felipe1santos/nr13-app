@@ -84,7 +84,13 @@ export default function ModalTrocarSenha({ email, onClose }: { email: string; on
     <div className="fj-modal-overlay">
       <div className="fj-modal-box mts-box">
         <div className="fj-modal-head">
-          <h2>Trocar Senha</h2>
+          <div className="mts-titulo">
+            <span className="mts-titulo-ic" aria-hidden="true"><Icone nome="key" tam={18} /></span>
+            <div>
+              <h2>Trocar senha</h2>
+              <small>Escolha como confirmar que é você</small>
+            </div>
+          </div>
           <button type="button" className="fj-modal-close" onClick={onClose} aria-label="Fechar">
             <Icone nome="x" tam={15} />
           </button>
@@ -199,7 +205,7 @@ export default function ModalTrocarSenha({ email, onClose }: { email: string; on
             {erro && <p className="mts-erro">{erro}</p>}
 
             <div className="mts-acoes">
-              <button type="button" className="fj-btn fj-btn-ghost" onClick={onClose}>
+              <button type="button" className="fj-btn fj-btn-ghost mts-btn-cancelar" onClick={onClose}>
                 Cancelar
               </button>
               <button

@@ -77,3 +77,44 @@
   color: var(--ok);
 }
 .mts-sucesso p { margin: 0; font-weight: 700; font-size: 14px; color: var(--text); }
+
+/* ── COBALTO (21/11/2026): o modal no desenho das outras telas ──────────────
+   Cabeçalho com ícone, abas com o selecionado em verde sólido (--sel), campos
+   de 40px com anel azul no foco, ação principal azul e "Trocar senha" no
+   verde de confirmar. Só aparência: o fluxo de troca não mudou. */
+.mts-box { max-width: 480px; border-radius: 8px; overflow: hidden; }
+.mts-box .fj-modal-head { padding: 16px 20px; border-bottom: 1px solid #EDEDED; }
+.mts-titulo { display: flex; align-items: center; gap: 12px; }
+.mts-titulo-ic { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; background: #FEF3C7; color: #92400E; flex-shrink: 0; }
+.mts-titulo h2 { margin: 0; font: 600 18px/24px var(--font); color: #1A1A1A; }
+.mts-titulo small { display: block; font: var(--t-caption); color: #6B6B6B; }
+
+.mts-corpo { padding: 18px 20px 20px; gap: 14px; }
+.mts-tabs { background: #EEEEEE; border-radius: 8px; padding: 4px; }
+.mts-tab { height: 34px; border-radius: 6px; font: 600 13px/1 var(--font); color: #555; transition: background-color .15s, color .15s; }
+.mts-tab:hover:not(.ativo) { background: #E2E2E2; color: #1A1A1A; }
+.mts-tab.ativo { background: var(--sel); color: #fff; box-shadow: none; }
+.mts-tab:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+
+.mts-desc { font: var(--t-body); color: #555; }
+.mts-desc b { color: #1A1A1A; }
+
+.mts-campo label { font: 500 12.5px/16px var(--font); color: #3A3F47; }
+.mts-campo input { height: 40px; padding: 0 12px; border: 1px solid #D6D9DE; border-radius: 6px; font: var(--t-body); background: #fff; color: #1A1A1A; transition: border-color .15s, box-shadow .15s; }
+.mts-campo input:hover:not(:disabled) { border-color: #9AA3AF; }
+.mts-campo input:focus-visible { outline: none; border-color: var(--destaque); box-shadow: 0 0 0 3px var(--destaque-bg); }
+.mts-campo input:disabled { background: #F4F4F5; color: #8A8A8A; }
+
+.mts-btn-enviar { height: 36px; padding: 0 14px; border: 0; border-radius: 6px; background: var(--destaque); color: #fff; font: 600 13.5px/1 var(--font); cursor: pointer; }
+.mts-btn-enviar:hover:not(:disabled) { background: #093D78; }
+.mts-btn-enviar:disabled { background: #C7D2E0; color: #fff; cursor: not-allowed; }
+.mts-enviado { color: var(--aprovado); }
+
+.mts-erro { border-radius: 6px; }
+
+.mts-acoes { padding-top: 14px; border-top: 1px solid #EDEDED; margin-top: 2px; }
+.mts-btn-cancelar { height: 38px; border: 0 !important; background: #E9E9E9 !important; color: #1A1A1A !important; border-radius: 6px !important; }
+.mts-btn-cancelar:hover { background: #DCDCDC !important; }
+.mts-btn-salvar { height: 38px; padding: 0 18px; border: 0; border-radius: 6px; background: var(--criar); color: #fff; font: 600 14px/1 var(--font); cursor: pointer; }
+.mts-btn-salvar:hover:not(:disabled) { background: var(--criar-hover); }
+.mts-btn-salvar:disabled { background: #B7DDB9; cursor: not-allowed; }

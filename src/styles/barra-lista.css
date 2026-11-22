@@ -343,3 +343,71 @@
 @media (prefers-reduced-motion: reduce) {
   .reg-abrindo-giro { animation: none; }
 }
+
+/* Livro do equipamento: Capa, Termo de Abertura e Abrir livro na MESMA linha
+   (21/11/2026). A grade era de 2 colunas e o 3º cartão descia sozinho. No
+   celular continua uma coluna (regra de cartoes-cobalto.css). */
+@media (min-width: 861px) {
+  /* !important: cartoes-cobalto.css fixa `1fr 1fr !important`. */
+  .livro-fixos .livro-fixos-docs { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}
+
+/* Meus dados · "Trocar senha": amarelo da chave (21/11/2026), sólido no hover. */
+.md2-senha {
+  height: 38px;
+  padding: 0 14px !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: #FEF3C7 !important;
+  color: #92400E !important;
+  font: 600 13.5px/1 var(--font) !important;
+  transition: background-color .15s, color .15s;
+}
+.md2-senha:hover,
+.md2-senha:active { background: #FACC15 !important; color: #1A1A1A !important; }
+.md2-senha:focus-visible { outline: 2px solid #A16207; outline-offset: 2px; }
+
+/* ── Ações de linha com CORES MESCLADAS por função (21/11/2026) ─────────────
+   O dono pediu: "não pode ser tudo verde". A cor diz O QUE o botão faz, igual
+   em todas as listas: ver/abrir = azul, editar = verde, nome/senha = amarelo,
+   permissões/duplicar/baixar = laranja, excluir = vermelho. Decidido pelo
+   `title` (todo botão de ícone já tem um — é o texto que o leitor de tela lê),
+   então nenhuma tela precisa de classe nova. O `:not(#_)` só sobe a
+   especificidade acima das regras antigas de cada tela (algumas com 8 classes). Ordem importa: a regra de baixo
+   vence ("Editar nome" é amarelo, não verde). */
+:is(.lc-acoes, .rel-cel-acoes, .pront-linha-acoes, .cli-acoes, .cad-item-acoes, .livro-timeline-acoes):not(#_) :is(button, a)[title^="Ver"]:hover,
+:is(.lc-acoes, .rel-cel-acoes, .pront-linha-acoes, .cli-acoes, .cad-item-acoes, .livro-timeline-acoes):not(#_) :is(button, a)[title^="Abrir"]:hover,
+:is(.lc-acoes, .rel-cel-acoes, .pront-linha-acoes, .cli-acoes, .cad-item-acoes, .livro-timeline-acoes):not(#_) :is(button, a)[title^="Visualizar"]:hover { background: var(--destaque) !important; color: #fff !important; }
+:is(.lc-acoes, .rel-cel-acoes, .pront-linha-acoes, .cli-acoes, .cad-item-acoes, .livro-timeline-acoes):not(#_) :is(button, a)[title^="Editar"]:hover,
+:is(.lc-acoes, .rel-cel-acoes, .pront-linha-acoes, .cli-acoes, .cad-item-acoes, .livro-timeline-acoes):not(#_) :is(button, a)[title^="Continuar"]:hover,
+:is(.lc-acoes, .rel-cel-acoes, .pront-linha-acoes, .cli-acoes, .cad-item-acoes, .livro-timeline-acoes):not(#_) :is(button, a)[title^="Liberar"]:hover,
+:is(.lc-acoes, .rel-cel-acoes, .pront-linha-acoes, .cli-acoes, .cad-item-acoes, .livro-timeline-acoes):not(#_) :is(button, a)[title^="Bloquear"]:hover { background: var(--sel) !important; color: #fff !important; }
+:is(.lc-acoes, .rel-cel-acoes, .pront-linha-acoes, .cli-acoes, .cad-item-acoes, .livro-timeline-acoes):not(#_) :is(button, a)[title*="nome"]:hover,
+:is(.lc-acoes, .rel-cel-acoes, .pront-linha-acoes, .cli-acoes, .cad-item-acoes, .livro-timeline-acoes):not(#_) :is(button, a)[title*="enha"]:hover { background: #FACC15 !important; color: #1A1A1A !important; }
+:is(.lc-acoes, .rel-cel-acoes, .pront-linha-acoes, .cli-acoes, .cad-item-acoes, .livro-timeline-acoes):not(#_) :is(button, a)[title^="Permiss"]:hover,
+:is(.lc-acoes, .rel-cel-acoes, .pront-linha-acoes, .cli-acoes, .cad-item-acoes, .livro-timeline-acoes):not(#_) :is(button, a)[title^="Duplicar"]:hover,
+:is(.lc-acoes, .rel-cel-acoes, .pront-linha-acoes, .cli-acoes, .cad-item-acoes, .livro-timeline-acoes):not(#_) :is(button, a)[title^="Baixar"]:hover { background: var(--laranja) !important; color: #fff !important; }
+:is(.lc-acoes, .rel-cel-acoes, .pront-linha-acoes, .cli-acoes, .cad-item-acoes, .livro-timeline-acoes):not(#_) :is(button, a)[title*="xcluir"]:hover { background: #DC2626 !important; color: #fff !important; }
+
+/* Acessos: avatar de perfil à esquerda do e-mail. */
+.acesso2-usuario { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.acesso2-av { width: 30px; height: 30px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--destaque-bg); color: var(--destaque); }
+.acesso2-av.cliente { background: #FFEDD5; color: var(--laranja); }
+.acesso2-email { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Barra com CORES MESCLADAS por controle (21/11/2026) ─────────────────────
+   "Não pode ser tudo verde": cada controle acende na SUA cor.
+     Tipo (SeletorTipo) ........ azul      (seletor-tipo.css)
+     Filtrar / Período e tipo .. amarelo
+     Ver em grade .............. verde
+     Ver em lista .............. vermelho
+   Escrito depois das regras verdes acima, e com :not(#_) para vencê-las. */
+.busca-lista-linha .fj-btn-ghost:not(#_):hover:not(:disabled),
+.busca-lista-linha .fj-btn-ghost:not(#_):active:not(:disabled),
+.busca-lista-linha .fj-btn-ghost.filtro-ativo:not(#_),
+.calibracoes-page .busca-lista .pront-btn-filtro.filtro-ativo:not(#_) { background: #FACC15 !important; color: #1A1A1A !important; }
+.busca-lista-linha .fj-btn-ghost.filtro-ativo:not(#_):hover { background: #EAB308 !important; }
+.equip-visao-btn[title="Ver em grade"]:not(#_).ativo,
+.equip-visao-btn[title="Ver em grade"]:not(#_)[aria-pressed='true'] { background: var(--sel) !important; color: #fff !important; }
+.equip-visao-btn[title="Ver em lista"]:not(#_).ativo,
+.equip-visao-btn[title="Ver em lista"]:not(#_)[aria-pressed='true'] { background: #DC2626 !important; color: #fff !important; }
