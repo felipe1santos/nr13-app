@@ -180,8 +180,8 @@ export default function ModalDetalheEquipamento({ tag, itens, onClose }: Props) 
                 <button
                   type="button"
                   className="mdq-ir"
-                  title="Abrir o relatório"
-                  onClick={() => ir(`/relatorios?q=${encodeURIComponent(ultimoRel.codigo || tag)}`)}
+                  title="Ver o relatório na lista"
+                  onClick={() => ir(`/relatorios?q=${encodeURIComponent(tag)}&destaque=${encodeURIComponent(ultimoRel.id)}`)}
                 >
                   <Icone nome="arrowright" tam={15} />
                 </button>

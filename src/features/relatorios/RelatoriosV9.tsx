@@ -214,6 +214,13 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
   // ESTADO NA URL: recarregar, voltar do relatório e compartilhar preservam a
   // busca (§13 do desenho).
   const termo = params.get('q') ?? '';
+  /**
+   * `?destaque=<id>` (21/11/2026): quem chega por um atalho (o modal do
+   * equipamento no Dashboard) vê ESTE relatório piscar em amarelo, já rolado
+   * para a vista. O parâmetro some sozinho depois do destaque — recarregar a
+   * página não pisca de novo.
+   */
+  const destaque = params.get('destaque') ?? '';
   const fTipo = params.get('tipo') ?? '';
   const fDe = params.get('de') ?? '';
   const fAte = params.get('ate') ?? '';
@@ -505,6 +512,18 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
     () => unificarLista(rascunhosVisiveis, visiveis),
     [rascunhosVisiveis, visiveis],
   );
+
+  // Rola até o relatório em destaque assim que a linha existir na lista, e tira
+  // o parâmetro quando o pisca termina (3 ciclos ≈ 3,6 s).
+  const qtdLinhas = linhas.length;
+  useEffect(() => {
+    if (!destaque || qtdLinhas === 0) return;
+    const el = document.querySelector<HTMLElement>(`[data-rel-id="${CSS.escape(destaque)}"]`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const t = window.setTimeout(() => trocarParam('destaque', ''), 4000);
+    return () => window.clearTimeout(t);
+  }, [destaque, qtdLinhas, trocarParam]);
+
   // Cobalto: posição de cada linha, só para a zebra (`data-z`). A lista é
   // virtualizada, então a paridade não pode vir de :nth-child.
   const posicao = useMemo(() => new Map(linhas.map((l, i) => [l.chave, i])), [linhas]);
@@ -1060,7 +1079,12 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
               if (linha.tipo === 'rascunho') {
                 const r = linha.rascunho;
                 return (
-                  <div className="rel-linha rel-linha-rascunho" role="row" data-z={(posicao.get(linha.chave) ?? 0) % 2 || undefined}>
+                  <div
+                    className={`rel-linha rel-linha-rascunho${destaque && r.id === destaque ? ' rel-destaque' : ''}`}
+                    role="row"
+                    data-rel-id={r.id}
+                    data-z={(posicao.get(linha.chave) ?? 0) % 2 || undefined}
+                  >
                     <span role="cell" className="rel-cel-icone">
                       <span className="rel-marca rel-marca-rascunho" title="Relatório em edição — ainda não finalizado">
                         <Icone nome="pencil" tam={15} />
@@ -1139,8 +1163,9 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
               const r = linha.item;
               return (
                 <div
-                  className={`rel-linha${sit === 'arquivado' ? ' rel-linha-arquivada' : ''}`}
+                  className={`rel-linha${sit === 'arquivado' ? ' rel-linha-arquivada' : ''}${destaque && r.relatorioId === destaque ? ' rel-destaque' : ''}`}
                   role="row"
+                  data-rel-id={r.relatorioId}
                   data-z={(posicao.get(linha.chave) ?? 0) % 2 || undefined}
                 >
                   {/* A marca do arquivo: quadrada, do sprite do próprio sistema.

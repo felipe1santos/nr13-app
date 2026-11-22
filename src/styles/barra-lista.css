@@ -411,3 +411,16 @@
 .equip-visao-btn[title="Ver em grade"]:not(#_)[aria-pressed='true'] { background: var(--sel) !important; color: #fff !important; }
 .equip-visao-btn[title="Ver em lista"]:not(#_).ativo,
 .equip-visao-btn[title="Ver em lista"]:not(#_)[aria-pressed='true'] { background: #DC2626 !important; color: #fff !important; }
+
+/* Relatórios · `?destaque=<id>`: a linha do relatório pisca em AMARELO (3×)
+   para ser achada na hora — chega pelo atalho do modal do Dashboard. */
+@keyframes rel-pisca {
+  0%, 100% { background-color: transparent; box-shadow: inset 0 0 0 0 transparent; }
+  50% { background-color: #FEF08A; box-shadow: inset 4px 0 0 #EAB308; }
+}
+.rel-linha.rel-destaque,
+.rel-linha.rel-destaque > * { animation: rel-pisca 1.2s ease-in-out 3; }
+@media (prefers-reduced-motion: reduce) {
+  .rel-linha.rel-destaque,
+  .rel-linha.rel-destaque > * { animation: none; background-color: #FEF9C3 !important; }
+}
