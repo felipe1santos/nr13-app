@@ -424,3 +424,20 @@
   .rel-linha.rel-destaque,
   .rel-linha.rel-destaque > * { animation: none; background-color: #FEF9C3 !important; }
 }
+
+/* ── Barra do editor de relatório: cores mescladas (22/11/2026) ─────────────
+   Cinza em repouso; no hover e quando ATIVO, a cor sólida da função —
+   o mesmo critério das listas: azul ver/atualizar/imprimir, verde laudo,
+   amarelo rascunho/"O que falta", laranja predefinições/baixar. */
+:is(.barra-doc-btn, .vpdf-btn):is(.cor-azul, .cor-verde, .cor-amarelo, .cor-laranja):not(#_) {
+  border: 0 !important;
+  background: #E9E9E9 !important;
+  color: #1A1A1A !important;
+  transition: background-color .15s, color .15s;
+}
+:is(.barra-doc-btn, .vpdf-btn).cor-azul:not(#_):is(:hover, .is-ativo):not(:disabled) { background: var(--destaque) !important; color: #fff !important; }
+:is(.barra-doc-btn, .vpdf-btn).cor-verde:not(#_):is(:hover, .is-ativo):not(:disabled) { background: var(--sel) !important; color: #fff !important; }
+:is(.barra-doc-btn, .vpdf-btn).cor-amarelo:not(#_):is(:hover, .is-ativo):not(:disabled) { background: #FACC15 !important; color: #1A1A1A !important; }
+:is(.barra-doc-btn, .vpdf-btn).cor-laranja:not(#_):is(:hover, .is-ativo):not(:disabled) { background: var(--laranja) !important; color: #fff !important; }
+/* O "⋯" (mais ações) acompanha, em azul. */
+.barra-doc .mmais-botao:not(#_):hover { background: var(--destaque) !important; color: #fff !important; border-color: transparent !important; }

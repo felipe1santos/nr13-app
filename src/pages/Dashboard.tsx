@@ -250,8 +250,8 @@ export default function Dashboard() {
             {/* O título não diz "Equipamentos": a lista agrega inspeção do
                 equipamento, calibração do acessório e certificado do padrão. */}
             <h2 id="pc-prazos-tit">Vencidos e a vencer</h2>
-          </div>
-          <div className="dash2-filtro">
+            {/* 22/11/2026: o filtro de prazo mora ao lado do título. */}
+            <div className="dash2-filtro">
             <label>
               Exibindo prazos
               <select
@@ -268,6 +268,7 @@ export default function Dashboard() {
                 ))}
               </select>
             </label>
+            </div>
           </div>
           <div className="dash2-origens" role="group" aria-label="Origem do prazo">
             {ORIGENS.map(([valor, rotulo]) => (

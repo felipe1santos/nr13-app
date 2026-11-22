@@ -268,7 +268,7 @@ export default function PreviaVetorial({
   // mantém uma barra só, em vez de uma fileira nossa empilhada sobre a dele.
   const controles = (
     <>
-      <button type="button" className={`vpdf-btn${gerando ? ' is-loading' : ''}`} onClick={() => void gerar()} disabled={gerando}>
+      <button type="button" className={`vpdf-btn cor-azul${gerando ? ' is-loading' : ''}`} onClick={() => void gerar()} disabled={gerando}>
         <Icone nome="sliders" tam={13} />{' '}
         {gerando ? 'Gerando…' : (
           <>
@@ -278,7 +278,7 @@ export default function PreviaVetorial({
       </button>
       <button
         type="button"
-        className={`vpdf-btn${painelAberto ? ' is-ativo' : ''}`}
+        className={`vpdf-btn cor-amarelo${painelAberto ? ' is-ativo' : ''}`}
         onClick={() => setPainelAberto((v) => !v)}
         aria-pressed={painelAberto}
       >
@@ -289,7 +289,7 @@ export default function PreviaVetorial({
           a resposta pronta para a parte que se repete de relatório em relatório. */}
       <button
         type="button"
-        className="vpdf-btn"
+        className="vpdf-btn cor-laranja"
         onClick={() => setModalPredef(true)}
         title="Predefinições: conjuntos de campos guardados para reusar em qualquer relatório"
         aria-label={`Predefinições (${listaComSistema(predefinicoes).length})`}

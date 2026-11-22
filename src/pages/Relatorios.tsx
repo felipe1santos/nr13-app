@@ -1565,7 +1565,7 @@ function RelatoriosLegado() {
                 mesmo número. O botão continua no rollback `?previa=iframe`,
                 onde a grade vive dentro do iframe. */}
             {superficieEdicao === 'react' && !somenteLeitura && fonteDeImpressao(relatorioArquivado) !== 'arquivo' && papelDaPrevia(fluxo) !== 'previa-vetorial' && (
-              <button type="button" className="barra-doc-btn" onClick={() => setModalMedicoes(true)}>
+              <button type="button" className="barra-doc-btn cor-azul" onClick={() => setModalMedicoes(true)}>
                 <Icone nome="sliders" tam={14} /> Medições
               </button>
             )}
@@ -1574,7 +1574,7 @@ function RelatoriosLegado() {
                 botão o APTO/INAPTO não teria onde ser marcado — que é o que
                 travava a finalização na configuração padrão (13E). */}
             {precisaPainelDeLaudo(fluxo, superficieEdicao) && !somenteLeitura && fonteDeImpressao(relatorioArquivado) !== 'arquivo' && (
-              <button type="button" className="barra-doc-btn" onClick={() => setModalLaudo(true)}>
+              <button type="button" className="barra-doc-btn cor-verde" onClick={() => setModalLaudo(true)}>
                 <Icone nome="checkcircle" tam={14} /> <span className="rotulo-compacto">Laudo</span>
               </button>
             )}
@@ -1587,7 +1587,7 @@ function RelatoriosLegado() {
               {!somenteLeitura && (
                 <button
                   type="button"
-                  className={`barra-doc-btn${salvandoRascunho ? ' is-loading' : ''}`}
+                  className={`barra-doc-btn cor-amarelo${salvandoRascunho ? ' is-loading' : ''}`}
                   onClick={salvarRascunhoAtual}
                   disabled={salvandoRascunho || salvando}
                 >
@@ -1630,7 +1630,7 @@ function RelatoriosLegado() {
                 <>
                   <button
                     type="button"
-                    className={`barra-doc-btn mmais-oculto-movel${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                    className={`barra-doc-btn cor-azul mmais-oculto-movel${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
                     onClick={prepararEImprimir}
                     disabled={imprimindo}
                   >
@@ -1639,7 +1639,7 @@ function RelatoriosLegado() {
                   </button>
                   <button
                     type="button"
-                    className={`barra-doc-btn mmais-oculto-movel${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                    className={`barra-doc-btn cor-laranja mmais-oculto-movel${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
                     onClick={baixarPdf}
                     disabled={exportando}
                   >

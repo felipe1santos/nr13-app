@@ -142,3 +142,29 @@
 .pp-balao.dir { left: auto; right: 0; transform: none; animation-name: pp-balaoLado; }
 .pp-balao.dir::after { left: auto; right: 15px; }
 @keyframes pp-balaoLado { from { opacity: 0; transform: translateY(4px); } }
+
+/* ── Ajustes de 22/11/2026 ───────────────────────────────────────────────── */
+/* Calibrações: verde-azulado (ciano), nunca vermelho/laranja — essas cores
+   ficam para erro e vencido. */
+.t-cal { --tipo: #0891B2; --tipo-bg: #CFFAFE; }
+
+/* Situação de cada tipo como etiqueta com fundo claro. */
+.pp-tipo-sit span { height: 22px; padding: 0 8px; border-radius: 999px; }
+.pp-tipo-sit .crit { background: #FEE2E2; }
+.pp-tipo-sit .warn { background: #FEF3C7; }
+.pp-tipo-sit .ok { background: #DCFCE7; }
+
+/* Indicadores do topo: ícone em bloco de cor MACIÇA (não só o traço). */
+.dash2-kpi .dash2-kpi-ic { width: 46px; height: 46px; border-radius: 12px; color: #fff !important; }
+.dash2-kpi .dash2-kpi-ic.crit { background: #DC2626; }
+.dash2-kpi.pc-ok .dash2-kpi-ic.crit { background: var(--aprovado); }
+.dash2-kpi.pc-neutro .dash2-kpi-ic.crit { background: #8C97AB; }
+.dash2-kpi .dash2-kpi-ic.warn { background: #D97706; }
+.dash2-kpi .dash2-kpi-ic.info { background: var(--destaque); }
+.dash2-kpi .dash2-kpi-ic.ok { background: var(--aprovado); }
+.dash2-kpi .dash2-kpi-ic svg { width: 24px; height: 24px; }
+
+/* "Vencidos e a vencer": filtro na linha do título; abas mais baixas. */
+.pc-painel .dash2-card-hd { flex-wrap: wrap; }
+.pc-painel .dash2-card-hd .dash2-filtro { padding: 0; }
+.dash2-origens button { height: 36px !important; }
