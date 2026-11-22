@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
-import { isMestre, isTrial, logout, papelAtual } from '../services/auth';
+import { atualizarIdentidadeVisivel, isMestre, isTrial, logout, papelAtual } from '../services/auth';
 import GuiaComecePorAqui from './GuiaComecePorAqui';
 import BarraTrial from '../components/BarraTrial';
 import BarraAssinatura from '../components/BarraAssinatura';
@@ -135,6 +135,19 @@ export default function Layout() {
   const [recolhida, setRecolhida] = useState(() => lerPreferencia(CHAVE_MENU_RECOLHIDO) === '1');
   const [gruposFechados, setGruposFechados] = useState<string[]>(gruposFechadosIniciais);
   const email = useEmailDaSessao();
+  // Foto e nome da conta no topo (Google). Lidos do que a entrada gravou e
+  // atualizados da sessão uma vez — quem já estava logado também ganha a foto.
+  const [identidade, setIdentidade] = useState(() => ({
+    foto: localStorage.getItem('nr13_conta_foto'),
+    nome: localStorage.getItem('nr13_conta_nome'),
+  }));
+  useEffect(() => {
+    let vivo = true;
+    void atualizarIdentidadeVisivel().then((r) => vivo && setIdentidade(r));
+    return () => {
+      vivo = false;
+    };
+  }, [email]);
   const papel = ROTULO_PAPEL[papelAtual()] ?? 'Administrador';
   // Contagem do selo do menu. Nasce da contagem local (instantânea, e correta
   // no caminho de sempre) e é substituída pelo total do painel assim que ele
@@ -365,6 +378,8 @@ export default function Layout() {
             <SeloSync />
             <MenuUsuario
               iniciais={iniciais(email)}
+              foto={identidade.foto}
+              nomeConta={identidade.nome}
               email={email}
               papel={papel}
               temAlerta={temAlerta}

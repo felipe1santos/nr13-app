@@ -292,6 +292,102 @@ export async function login(email: string, senha: string): Promise<LoginResultad
   if (error) {
     return { sucesso: false, erro: traduzErro(error.message) };
   }
+  return concluirEntrada(email);
+}
+
+// ── Entrar com Google (22/11/2026) ─────────────────────────────────────────
+//
+// O Google só AUTENTICA. Quem decide se a pessoa entra é o MESMO funil do
+// login por senha (`concluirEntrada`): perfil, liberação, expiração, sessão
+// única. Conta Google cujo e-mail não tem acesso ao NR-13 é deslogada na hora,
+// com a explicação — o Supabase liga a identidade Google à conta existente
+// quando o e-mail é o mesmo (e verificado), então quem já usa o sistema entra
+// direto com o Google do mesmo e-mail.
+
+/** Rota de volta do Google: a tela de login conclui a entrada ao reconhecer o parâmetro. */
+export const RETORNO_OAUTH = '/login?oauth=google';
+
+/**
+ * O provedor Google está LIGADO no Supabase? (`/auth/v1/settings`, público.)
+ * Sem isto, o botão apareceria e o clique devolveria "provider is not enabled".
+ * Lembrado por sessão de aba: a resposta não muda enquanto a tela está aberta.
+ */
+let googleLigado: Promise<boolean> | null = null;
+export function googleHabilitado(): Promise<boolean> {
+  if (googleLigado) return googleLigado;
+  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const chave = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+  if (!url || !chave) return Promise.resolve(false);
+  googleLigado = fetch(`${url}/auth/v1/settings`, { headers: { apikey: chave } })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j: { external?: { google?: boolean } } | null) => !!j?.external?.google)
+    .catch(() => false);
+  return googleLigado;
+}
+
+export async function loginComGoogle(): Promise<{ erro?: string }> {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}${RETORNO_OAUTH}`,
+      // Sempre deixa escolher a conta: quem tem duas contas Google não fica
+      // preso na que o navegador lembrou.
+      queryParams: { prompt: 'select_account' },
+    },
+  });
+  return error ? { erro: traduzErro(error.message) } : {};
+}
+
+/**
+ * Volta do Google: a sessão já foi criada pelo `detectSessionInUrl`. Daqui em
+ * diante é o funil de sempre. Conta sem acesso sai deslogada, com a causa.
+ */
+export async function concluirEntradaGoogle(): Promise<LoginResultado> {
+  const { data } = await supabase.auth.getSession();
+  const email = data.session?.user?.email;
+  if (!email) {
+    return { sucesso: false, erro: 'Não foi possível entrar com o Google. Tente de novo.' };
+  }
+  const r = await concluirEntrada(email);
+  if (!r.sucesso && r.erro === 'Acesso ainda não liberado pelo administrador.') {
+    return {
+      ...r,
+      erro: `A conta Google ${email} ainda não tem acesso ao NR-13. Se você já usa o sistema com outro e-mail, entre com ele; ou peça acesso ao administrador da sua empresa.`,
+    };
+  }
+  return r;
+}
+
+/**
+ * Nome e foto da conta para o topo do sistema — da identidade (Google traz
+ * `avatar_url`/`picture` e `full_name`/`name`). Conta só com senha não tem
+ * foto: o topo mostra as iniciais, como sempre.
+ */
+function guardarIdentidadeVisivel(meta: Record<string, unknown> | undefined): void {
+  const foto = String(meta?.avatar_url ?? meta?.picture ?? '').trim();
+  const nome = String(meta?.full_name ?? meta?.name ?? '').trim();
+  if (foto.startsWith('https://')) localStorage.setItem('nr13_conta_foto', foto);
+  else localStorage.removeItem('nr13_conta_foto');
+  if (nome) localStorage.setItem('nr13_conta_nome', nome);
+  else localStorage.removeItem('nr13_conta_nome');
+}
+
+/**
+ * Atualiza nome/foto do topo a partir da sessão atual — para quem já estava
+ * logado antes desta versão (a entrada só grava no login). Devolve o par.
+ */
+export async function atualizarIdentidadeVisivel(): Promise<{ foto: string | null; nome: string | null }> {
+  const { data } = await supabase.auth.getSession();
+  if (data.session) guardarIdentidadeVisivel(data.session.user.user_metadata as Record<string, unknown> | undefined);
+  return { foto: localStorage.getItem('nr13_conta_foto'), nome: localStorage.getItem('nr13_conta_nome') };
+}
+
+/** O funil comum a toda entrada: senha ou Google. */
+async function concluirEntrada(email: string): Promise<LoginResultado> {
+  {
+    const { data } = await supabase.auth.getSession();
+    guardarIdentidadeVisivel(data.session?.user?.user_metadata as Record<string, unknown> | undefined);
+  }
   // Gate de liberação/expiração: lê o perfil antes de liberar a entrada. Conta COM assinatura
   // conhecida entra mesmo suspensa e degrada para somente leitura (ver bloqueioEntrada).
   const perfil = await carregarPerfil();
@@ -574,6 +670,8 @@ export async function confirmarCodigoTrial(
 // perdida no meio do uso, a sessão do Supabase já caiu — não há signOut a fazer, só limpeza.
 export function encerrarSessaoLocal(): void {
   localStorage.removeItem('nr13_usuario_logado');
+  localStorage.removeItem('nr13_conta_foto');
+  localStorage.removeItem('nr13_conta_nome');
   localStorage.removeItem('nr13_plano');
   localStorage.removeItem('nr13_role');
   localStorage.removeItem('nr13_sessao_id');

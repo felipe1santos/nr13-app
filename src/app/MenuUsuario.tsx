@@ -24,6 +24,8 @@ export interface AtalhoConta {
  */
 export default function MenuUsuario({
   iniciais,
+  foto,
+  nomeConta,
   email,
   papel,
   temAlerta,
@@ -34,6 +36,10 @@ export default function MenuUsuario({
   onSair,
 }: {
   iniciais: string;
+  /** Foto da conta (Google). Sem foto, as iniciais. */
+  foto?: string | null;
+  /** Nome completo da conta (Google); sem ele, a parte do e-mail antes do @. */
+  nomeConta?: string | null;
   email: string | null;
   papel: string;
   temAlerta: boolean;
@@ -48,7 +54,15 @@ export default function MenuUsuario({
   const painel = useRef<HTMLDivElement>(null);
   const botao = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
-  const nome = email ? email.split('@')[0] : '—';
+  const nome = nomeConta?.trim() || (email ? email.split('@')[0] : '—');
+  const [fotoFalhou, setFotoFalhou] = useState(false);
+  const comFoto = !!foto && !fotoFalhou;
+  const conteudoAvatar = comFoto ? (
+    // Foto do Google: sem referrer (privacidade e a CDN do Google não exige).
+    <img src={foto!} alt="" referrerPolicy="no-referrer" onError={() => setFotoFalhou(true)} />
+  ) : (
+    iniciais
+  );
 
   useEffect(() => {
     if (!aberto) return;
@@ -87,8 +101,8 @@ export default function MenuUsuario({
         aria-expanded={aberto}
         aria-label="Sua conta"
       >
-        <span className="avatar">
-          {iniciais}
+        <span className={`avatar${comFoto ? ' com-foto' : ''}`}>
+          {conteudoAvatar}
           {temAlerta && <span className="avatar-dot" />}
         </span>
         <span className="user-chip-txt">
@@ -100,7 +114,7 @@ export default function MenuUsuario({
       {aberto && (
         <div className="um" role="dialog" aria-label="Sua conta" tabIndex={-1} ref={painel}>
           <div className="um-h">
-            <span className="avatar um-av">{iniciais}</span>
+            <span className={`avatar um-av${comFoto ? ' com-foto' : ''}`}>{conteudoAvatar}</span>
             <div className="um-id">
               <b>{nome}</b>
               <small title={email ?? ''}>{email ?? '—'}</small>
