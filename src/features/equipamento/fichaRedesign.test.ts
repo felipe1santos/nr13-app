@@ -195,7 +195,7 @@ describe('a lógica não mudou junto com o visual', () => {
     expect(s).toContain("{pmtaMpa != null ? formatarValor(pmtaMpa, unidade) : '—'}");
     expect(s).toContain('<Link to={rotaMemorial(tag)} className="btn-mem-edit">');
     expect(s).toContain('onClick={abrirMemorialCompleto}');
-    expect(s).toContain('Ver Memorial Salvo');
+    expect(s).toContain('aria-label="Ver Memorial Salvo"');
     expect(s).toContain('ficha-natureza-calculado');
   });
 

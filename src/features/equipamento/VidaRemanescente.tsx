@@ -307,7 +307,7 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
           </div>
 
           {(salvo?.avisos ?? []).map((a, i) => (
-            <p className="vida-hint" key={i}>⚠ {a}</p>
+            <p className="vida-hint vida-aviso" role="status" key={i}>⚠ {a}</p>
           ))}
 
           {toast && (

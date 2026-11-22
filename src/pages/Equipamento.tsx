@@ -346,8 +346,15 @@ function EquipamentoView({ tag }: { tag: string }) {
               <div className="ficha-memorial-acoes">
                 {calculo?.memorialHTML || calculoGv?.memorialHTML ? (
                   <>
-                    <button type="button" className="btn-ver-memorial" onClick={abrirMemorialCompleto}>
-                      <Icone nome="filetext" tam={14} /> Ver Memorial Salvo
+                    {/* 22/11/2026: só ícone + "Ver" — o cartão já diz que é o memorial. */}
+                    <button
+                      type="button"
+                      className="btn-ver-memorial"
+                      onClick={abrirMemorialCompleto}
+                      title="Ver Memorial Salvo"
+                      aria-label="Ver Memorial Salvo"
+                    >
+                      <Icone nome="filetext" tam={14} /> Ver
                     </button>
                     <Link to={rotaMemorial(tag)} className="btn-mem-edit">
                       <Icone nome="sigma" tam={13} /> Editar Memorial

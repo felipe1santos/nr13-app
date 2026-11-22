@@ -1554,3 +1554,25 @@
     transition: none;
   }
 }
+
+/* 22/11/2026 · avisos da ficha com fundo AMARELO para chamar a atenção
+   (erro de verdade usaria o vermelho padrão — docs/design/padroes-cor.md). */
+.equipamento-page .vida-hint.vida-aviso {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #FEF3C7;
+  color: #92400E;
+  font-weight: 600;
+}
+.equipamento-page .emp-aviso-sem-cliente {
+  display: block;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #FDE68A;
+  color: #78350F;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.equipamento-page .btn-ver-memorial { padding-left: 14px; padding-right: 14px; }
