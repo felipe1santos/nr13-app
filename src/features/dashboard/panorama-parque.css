@@ -1,0 +1,49 @@
+/* Panorama do parque — Dashboard (21/11/2026). Cores de ESTADO, sempre com
+   ícone + rótulo na legenda; fundo das faixas com contraste para o número. */
+.pp-grade { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 1000px) { .pp-grade { grid-template-columns: 1fr; } }
+
+.pp-corpo { padding: 6px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
+.pp-hero { display: flex; align-items: baseline; gap: 8px; }
+.pp-hero b { font: var(--t-display); color: #1A1A1A; font-variant-numeric: tabular-nums; }
+.pp-hero span { font: var(--t-body); color: #6B6B6B; }
+
+/* Barra segmentada: 2px de respiro entre os blocos, pontas arredondadas. */
+.pp-barra { display: flex; gap: 2px; height: 12px; border-radius: 4px; overflow: hidden; background: #EDEDED; }
+.pp-barra.alta { height: 40px; border-radius: 6px; }
+.pp-barra.vazia { background: #F1F1F1; }
+.pp-seg { display: grid; place-items: center; min-width: 4px; transition: filter .12s; cursor: default; }
+.pp-seg:hover { filter: brightness(0.92); }
+.pp-seg b { font: 700 14px/1 var(--font); font-variant-numeric: tabular-nums; }
+.s-crit { background: #DC2626; color: #fff; }
+.s-warn { background: #F5B400; color: #1A1A1A; }
+.s-ok { background: #15803D; color: #fff; }
+.s-semPrazo { background: #C9CED6; color: #1A1A1A; }
+
+.pp-leg { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 16px; }
+.pp-leg li { display: flex; align-items: center; gap: 6px; font: var(--t-body); color: #3A3F47; }
+.pp-sw { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.pp-leg-rot { flex: 1; min-width: 0; }
+.pp-leg b { font: var(--t-strong); color: #1A1A1A; font-variant-numeric: tabular-nums; }
+.pp-leg small { font: var(--t-caption); color: #6B6B6B; min-width: 32px; text-align: right; }
+
+.pp-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.pp-ver { height: 32px; padding: 0 12px; border: 0; border-radius: 6px; font: 600 13px/1 var(--font); cursor: pointer; transition: background-color .15s, color .15s; }
+.pp-ver.crit { background: #FEE2E2; color: #B42318; }
+.pp-ver.crit:hover { background: #DC2626; color: #fff; }
+.pp-ver.warn { background: #FEF3C7; color: #92400E; }
+.pp-ver.warn:hover { background: #F5B400; color: #1A1A1A; }
+.pp-ver:focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }
+.pp-nota { margin: 0; font: var(--t-caption); color: #6B6B6B; }
+
+/* Prazos por tipo: as três barras no MESMO eixo. */
+.pp-linhas { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 14px; }
+.pp-linhas li { display: grid; grid-template-columns: 96px minmax(0, 1fr) 40px; align-items: center; gap: 12px; }
+.pp-linha-rot { font: var(--t-body); color: #3A3F47; }
+.pp-linha-trilho { display: block; }
+.pp-linha-cheia { display: block; min-width: 4px; }
+.pp-linha-cheia .pp-barra { height: 18px; }
+.pp-linha-n { font: var(--t-strong); color: #1A1A1A; text-align: right; font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) { .pp-seg { transition: none; } }
+@media (forced-colors: active) { .pp-seg { border: 1px solid CanvasText; } }

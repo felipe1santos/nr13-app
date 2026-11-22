@@ -154,12 +154,13 @@ describe('Dashboard: um KPI dominante, quatro secundários, sem bloco colorido',
 
   // Cobalto (18/11/2026): layout "Indicadores" do SimplesDental — três
   // indicadores com "Ver", e conformidade/serviços no cartão Operação.
-  it('quatro indicadores no topo (vencidos, 30 dias, equipamentos, conformidade) e o cartão Operação', () => {
-    // 21/11/2026: a taxa de conformidade e o calendário vieram de Vencimentos;
-    // as sub-abas (Relatórios/Agenda/Vencimentos) saíram do topo.
+  it('quatro indicadores no topo e o PANORAMA do parque — sem nada de agenda', () => {
+    // 21/11/2026: Dashboard = visão panorâmica dos equipamentos. Sub-abas,
+    // calendário, faturamento e serviços da agenda saíram (a Agenda tem tela).
     expect(DASH.match(/className=\{?[`"]dash2-kpi[ `"]/g)).toHaveLength(4);
     expect(DASH).not.toContain('className="dash2-abas"');
-    expect(DASH).toContain('<CalendarioVencimentos itens={itens} />');
+    expect(DASH).toContain('<PanoramaParque');
+    expect(DASH).not.toMatch(/CalendarioVencimentos|listarNotas|Faturamento da agenda|CartaoRealizadoMes/);
     expect(DASH).toContain('Prazos vencidos');
     expect(DASH).toContain('Vencendo nos próximos 30 dias');
     expect(DASH).toContain('textoContador(kpis.aVencer30)');

@@ -1,22 +1,13 @@
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import ModalDetalheEquipamento from '../components/ModalDetalheEquipamento';
-import {
-  ROTULO_TIPO_NOTA,
-  dataDeISO,
-  dataISO,
-  listarNotas,
-  statusDe,
-} from '../features/agenda/notasAgenda';
-import { formatarBRL, resumoDoMes } from '../features/agenda/faturamento';
-import './agenda.css';
 import { FILTROS_PRAZO, FILTRO_PRAZO_PADRAO, noFiltroPrazo, textoPrazo } from '../services/vencimentos';
 import type { FiltroPrazo, ItemVencimento } from '../services/vencimentos';
 import { usePainelVencimentos, textoContador } from '../services/vencimentosServidor';
 import SeloPainel from '../components/SeloPainel';
-import CalendarioVencimentos from '../components/CalendarioVencimentos';
-import { CartaoPortalCliente, CartaoRealizadoMes, CartaoVencimentosMes } from '../features/dashboard/GraficosPainel';
+import { CartaoVencimentosMes } from '../features/dashboard/GraficosPainel';
+import PanoramaParque from '../features/dashboard/PanoramaParque';
 import './dashboard-novo.css';
 import { rotaEquipamento } from '../app/rotas';
 
@@ -59,10 +50,6 @@ const ORIGENS: ReadonlyArray<readonly ['' | ItemVencimento['origem'], string]> =
   ['calibracao', 'Calibrações'],
   ['certificado', 'Certificados'],
 ];
-const MESES_DASH = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-];
 
 function ChipOrigem({ origem }: { origem: ItemVencimento['origem'] }) {
   return <span className={`orig-chip orig-${origem}`}>{ROTULO_ORIGEM[origem]}</span>;
@@ -84,20 +71,6 @@ export default function Dashboard() {
   const [origem, setOrigem] = useState<'' | ItemVencimento['origem']>('');
   const painelPrazos = useRef<HTMLElement>(null);
 
-  // Fase 10A · a Agenda saiu do Dashboard e virou tela própria. O que ficou
-  // aqui é RESUMO: previsto, realizado, quantidade e os próximos compromissos.
-  // As notas são chave essencial do boot leve — não custam requisição nenhuma.
-  const notasAgenda = useMemo(() => listarNotas(), []);
-  const resumoAgenda = useMemo(() => {
-    const agora = new Date();
-    return resumoDoMes(notasAgenda, agora.getFullYear(), agora.getMonth());
-  }, [notasAgenda]);
-  const proximosServicos = useMemo(() => {
-    const hojeIso = dataISO(new Date());
-    return notasAgenda
-      .filter((n) => n.data >= hojeIso && statusDe(n) !== 'cancelado')
-      .slice(0, 3);
-  }, [notasAgenda]);
 
   // Recalcula ao montar, ao receber nr13:dados-alterados (mesma aba, ex.: relatório salvo)
   // e sempre que a janela volta ao foco (outra aba/janela).
@@ -142,17 +115,17 @@ export default function Dashboard() {
   }
 
   /** "Ver" de uma janela de prazo: filtra o quadro e rola até ele. */
-  function verJanela(j: FiltroPrazo) {
+  function verJanela(j: FiltroPrazo, o: '' | ItemVencimento['origem'] = '') {
     setFiltroPrazo(j);
-    setOrigem('');
+    setOrigem(o);
     setListaExpandida(true);
     painelPrazos.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   /** "Ver todos os vencidos": a lista já está nesta tela — filtra e rola até ela. */
-  function verVencidos() {
+  function verVencidos(o: '' | ItemVencimento['origem'] = '') {
     setFiltroPrazo('vencidos');
-    setOrigem('');
+    setOrigem(o);
     setListaExpandida(true);
     painelPrazos.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -186,7 +159,7 @@ export default function Dashboard() {
               <div className="dash2-kpi-n">
                 <b>{textoContador(nVencidos)}</b>
                 {(nVencidos ?? 0) > 0 && (
-                  <button type="button" className="dash2-ver" onClick={verVencidos}>Ver</button>
+                  <button type="button" className="dash2-ver" onClick={() => verVencidos()}>Ver</button>
                 )}
               </div>
               <div className="dash2-kpi-rot" id="dash2-venc">Prazos vencidos</div>
@@ -258,12 +231,23 @@ export default function Dashboard() {
           </section>
         </div>
 
+        {/* ===== PANORAMA DO PARQUE (21/11/2026) =====
+            O Dashboard é a visão panorâmica de TODOS os equipamentos: situação
+            de cada um e prazos por tipo, em gráficos, e logo abaixo a lista
+            dos vencidos e a vencer. A agenda saiu daqui — ela tem tela própria. */}
+        <PanoramaParque
+          itens={itens}
+          totalEquipamentos={kpis.total}
+          truncado={painel.truncado}
+          aoVer={(sit) => (sit === 'crit' ? verVencidos('inspecao') : verJanela(30, 'inspecao'))}
+        />
+
         {/* ===== PRAZOS E VENCIMENTOS ===== */}
         <section className="fj-panel pc-painel dash2-card" ref={painelPrazos} aria-labelledby="pc-prazos-tit">
           <div className="dash2-card-hd">
             {/* O título não diz "Equipamentos": a lista agrega inspeção do
                 equipamento, calibração do acessório e certificado do padrão. */}
-            <h2 id="pc-prazos-tit">Prazos e vencimentos</h2>
+            <h2 id="pc-prazos-tit">Vencidos e a vencer</h2>
           </div>
           <div className="dash2-filtro">
             <label>
@@ -371,140 +355,13 @@ export default function Dashboard() {
           )}
         </section>
 
-        {/* ===== PRÓXIMAS INSPEÇÕES (vindo de Vencimentos) ===== */}
-        <section className="fj-panel dash2-card" aria-labelledby="dash2-cal">
-          <div className="dash2-card-hd">
-            <h2 id="dash2-cal">Próximas inspeções</h2>
-            <button type="button" className="dash2-ver" onClick={() => navigate('/inspecoes')}>Nova inspeção</button>
-          </div>
-          <div className="dash2-cal">
-            <CalendarioVencimentos itens={itens} />
-          </div>
-        </section>
-
-        {/* ===== FATURAMENTO DA AGENDA (mês corrente) ===== */}
-        <section className="fj-panel dash2-card" aria-labelledby="dash2-fat">
-          <div className="dash2-card-hd">
-            <h2 id="dash2-fat">Faturamento da agenda</h2>
-            <span className="dash2-mes">{MESES_DASH[new Date().getMonth()]} {new Date().getFullYear()}</span>
-          </div>
-          <div className="dash2-fat">
-            <BarraFaturamento
-              rotulo="Realizado"
-              tom="ok"
-              valor={resumoAgenda.realizado}
-              total={resumoAgenda.realizado + resumoAgenda.previsto}
-              nota={`${resumoAgenda.concluidos} serviço${resumoAgenda.concluidos === 1 ? '' : 's'} concluído${resumoAgenda.concluidos === 1 ? '' : 's'}`}
-              extra={`Total do mês: ${formatarBRL(resumoAgenda.realizado + resumoAgenda.previsto)}`}
-            />
-            <BarraFaturamento
-              rotulo="Previsto"
-              tom="info"
-              valor={resumoAgenda.previsto}
-              total={resumoAgenda.realizado + resumoAgenda.previsto}
-              nota={`${resumoAgenda.agendados} serviço${resumoAgenda.agendados === 1 ? '' : 's'} agendado${resumoAgenda.agendados === 1 ? '' : 's'}`}
-              /* Valor não informado NÃO é zero: sem esta linha, um mês de
-                 serviços sem preço passaria por mês sem faturamento. */
-              extra={resumoAgenda.semValor > 0 ? `${resumoAgenda.semValor} sem valor informado` : undefined}
-            />
-            {resumoAgenda.cancelados > 0 && (
-              <div className="dash2-fat-canc">
-                {resumoAgenda.cancelados} serviço{resumoAgenda.cancelados === 1 ? '' : 's'} cancelado{resumoAgenda.cancelados === 1 ? '' : 's'} · fora das contas
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* ===== OPERAÇÃO ===== */}
-        <section className="fj-panel dash2-card" aria-labelledby="dash2-op">
-          <div className="dash2-card-hd">
-            <h2 id="dash2-op">Operação</h2>
-          </div>
-          <ul className="dash2-op">
-            <li>
-              <div><b>{textoContador(kpis.total)}</b><small>Equipamentos cadastrados</small></div>
-              <button type="button" className="dash2-ver" onClick={() => navigate('/equipamentos')}>Ver</button>
-            </li>
-            <li>
-              {/* Conformidade indefinida = o painel não pôde ser lido. Mostrar
-                  100 % aqui seria a mentira mais cara desta tela. O texto diz o
-                  ESCOPO: os itens COM PRAZO deste painel. */}
-              <div>
-                <b>{kpis.conformidade === undefined ? '—' : `${kpis.conformidade.toLocaleString('pt-BR')}%`}</b>
-                <small>{kpis.conformidade === undefined ? 'Taxa de conformidade · sem resposta do servidor' : 'Taxa de conformidade · prazos deste painel em dia'}</small>
-              </div>
-              <button type="button" className="dash2-ver" onClick={() => verJanela(FILTRO_PRAZO_PADRAO)}>Ver</button>
-            </li>
-            <li>
-              <div><b>{resumoAgenda.quantidade}</b><small>Serviços no mês</small></div>
-              <button type="button" className="dash2-ver" onClick={() => navigate('/agenda')}>Ver</button>
-            </li>
-          </ul>
-          <div className="dash2-prox">
-            <h3>Próximos serviços</h3>
-            {proximosServicos.length === 0 ? (
-              <div className="pc-vazio">Nada agendado daqui para frente.</div>
-            ) : (
-              <ul className="pc-agenda">
-                {proximosServicos.map((n) => {
-                  const d = dataDeISO(n.data);
-                  return (
-                    <li key={n.id}>
-                      <div className="pc-agenda-dia">
-                        <b>{d.getDate()}</b>
-                        <small>{d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</small>
-                      </div>
-                      <div className="pc-agenda-txt">{n.titulo}</div>
-                      <span className="fj-badge info2">{ROTULO_TIPO_NOTA[n.tipo]}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </section>
-
-        {/* Cobalto: os gráficos do protótipo — das MESMAS fontes da tela. */}
-        <CartaoRealizadoMes notas={notasAgenda} />
+        {/* Vencimentos por mês + conformidade — das MESMAS fontes da tela. */}
         <CartaoVencimentosMes itens={itens} conformidade={kpis.conformidade} />
-        <CartaoPortalCliente />
       </div>
 
       {modalTag && (
         <ModalDetalheEquipamento tag={modalTag} itens={itens} onClose={() => setModalTag(null)} />
       )}
-    </div>
-  );
-}
-
-/** Uma barra do faturamento: rótulo, valor e a fração do total do mês. */
-function BarraFaturamento({
-  rotulo,
-  tom,
-  valor,
-  total,
-  nota,
-  extra,
-}: {
-  rotulo: string;
-  tom: 'ok' | 'info';
-  valor: number;
-  total: number;
-  nota: string;
-  extra?: string;
-}) {
-  const pct = total > 0 ? Math.round((valor / total) * 100) : 0;
-  return (
-    <div className={`dash2-barra ${tom}`}>
-      <div className="dash2-barra-top">
-        <span className="rot">{rotulo}</span>
-        <span className="nota">{nota}</span>
-      </div>
-      <b>{formatarBRL(valor)}</b>
-      <div className="trilho" role="img" aria-label={`${rotulo}: ${pct}% do total do mês`}>
-        <i style={{ width: `${pct}%` }} />
-      </div>
-      {extra && <div className="extra">{extra}</div>}
     </div>
   );
 }
