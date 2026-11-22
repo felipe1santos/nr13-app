@@ -129,6 +129,8 @@ export default function Calibracoes() {
    * trocava de tela. `tela` continua sendo o FUNDO (histórico ou dados).
    */
   const [vendo, setVendo] = useState(false);
+  /** Dados preenchidos de uma calibração, em modal (lote e histórico). */
+  const [dadosModal, setDadosModal] = useState<DadosCalibracao | null>(null);
   const [tag, setTag] = useState('');
   const [cals, setCals] = useState<DadosCalibracao[]>([]);
   const [calAtual, setCalAtual] = useState<DadosCalibracao | null>(null);
@@ -844,10 +846,10 @@ export default function Calibracoes() {
                 setTerceiroPara({ comp: c, loteId: loteAbertoObj.id, dataLote: dataDoLote(loteAbertoObj) });
               }}
               aoRevisar={(cal) => continuarRascunho(cal, { componentes, lotes })}
-              aoVerDados={(cal) => {
-                setLoteAberto(null);
-                abrirVerDados(cal);
-              }}
+              // 22/11/2026: tudo em MODAL por cima do lote — nada leva para
+              // outra tela; fechar devolve ao lote.
+              aoVerDados={(cal) => setDadosModal(cal)}
+              aoVerCertificado={abrirVisualizador}
               aoBaixarPdf={baixarPdfCalibracao}
             />
           )}
@@ -1044,6 +1046,41 @@ export default function Calibracoes() {
             </>
           )}
           </div>
+          </CaixaCalibracao>
+        </div>
+      )}
+
+      {/* ── DADOS PREENCHIDOS EM MODAL (aberto pelo lote) ── */}
+      {dadosModal && (
+        <div className="fj-modal-overlay calv-fundo">
+          <CaixaCalibracao aoFechar={() => setDadosModal(null)}>
+            <div className="bloco-dados calv-topo">
+              <button type="button" className="calv-fechar" onClick={() => setDadosModal(null)} aria-label="Fechar">
+                <Icone nome="x" tam={16} />
+              </button>
+              <div className="calv-sub">
+                <strong>{tag}</strong>
+                <span className="breadcrumb-chevron">›</span>
+                <span>{dadosModal.nome}</span>
+              </div>
+              <div className="meta-card-header">
+                <h3 id="calv-tit">Calibração — {definicaoDe(dadosModal.tipo).rotulo} (dados preenchidos)</h3>
+                <button
+                  type="button"
+                  className="btn-secundario"
+                  onClick={() => {
+                    const cal = dadosModal;
+                    setDadosModal(null);
+                    abrirVisualizador(cal);
+                  }}
+                >
+                  <Icone nome="eye" tam={14} /> Ver certificado
+                </button>
+              </div>
+            </div>
+            <div className="calv-corpo calv-corpo-branco">
+              <VisualizadorCalibracao dados={dadosModal} />
+            </div>
           </CaixaCalibracao>
         </div>
       )}

@@ -32,7 +32,8 @@ import { artefatoDaCalibracao, nomeArquivoCalibracao } from './artefatoCalibraca
 import { definicaoDe } from './instrumentos';
 import { fotoDoComponente, type ComponenteCal, type LoteCal } from './componentesService';
 import { calibracaoDoItem, dataDoLote, itensDoLote, progressoLote } from './lote';
-import { ehEmitido, ehInterna, ehTerceiro, type DadosCalibracao } from './tipos';
+import { ehEmitido, ehOficial, ehTerceiro, type DadosCalibracao } from './tipos';
+import { paramsSomenteLeitura, travarIframeSomenteLeitura } from '../documentos/somenteLeituraDoc';
 import '../relatorios/modalFiltrosRelatorios.css';
 import './modalLote.css';
 
@@ -42,6 +43,23 @@ const ROTULO_STATUS: Record<string, string> = {
   '': 'Sem conclusão',
 };
 
+type Situacao = 'pendente' | 'rascunho' | 'concluido';
+type Filtro = '' | Situacao;
+
+function situacaoDe(cal: DadosCalibracao | null): Situacao {
+  if (!cal) return 'pendente';
+  return ehOficial(cal) ? 'concluido' : 'rascunho';
+}
+
+const ORDEM: Record<Situacao, number> = { pendente: 0, rascunho: 1, concluido: 2 };
+
+/**
+ * O lote de calibração, redesenhado em 22/11/2026 para ser entendido de
+ * relance: o progresso no topo, os três passos do fluxo escritos, e UMA linha
+ * por acessório com a ação certa em destaque (calibrar → revisar e emitir →
+ * ver certificado). Tudo abre em MODAL por cima do lote — o usuário nunca é
+ * levado para outra tela e, ao fechar, volta exatamente aqui.
+ */
 export default function ModalDetalhesLote({
   lote,
   tag,
@@ -51,6 +69,7 @@ export default function ModalDetalhesLote({
   aoRegistrarTerceiro,
   aoRevisar,
   aoVerDados,
+  aoVerCertificado,
   aoBaixarPdf,
   aoFechar,
 }: {
@@ -61,9 +80,16 @@ export default function ModalDetalhesLote({
   aoCalibrar: (c: ComponenteCal) => void;
   /** Fase 2 (D) · registrar certificado de laboratório externo para o acessório. */
   aoRegistrarTerceiro: (c: ComponenteCal) => void;
-  /** Fase 2 (C.3) · abrir o rascunho para revisar e emitir. */
+  /** Fase 2 (C.3) · abrir o rascunho para continuar o preenchimento. */
   aoRevisar: (cal: DadosCalibracao) => void;
+  /** Os dados preenchidos, em modal. */
   aoVerDados: (cal: DadosCalibracao) => void;
+  /**
+   * O certificado em modal (o mesmo da lista de calibrações): no rascunho é
+   * onde se escolhe o responsável e se EMITE. Sem ele, o lote usa o próprio
+   * visor (só leitura).
+   */
+  aoVerCertificado?: (cal: DadosCalibracao) => void;
   aoBaixarPdf: (cal: DadosCalibracao) => void | Promise<void>;
   aoFechar: () => void;
 }) {
@@ -71,9 +97,22 @@ export default function ModalDetalhesLote({
   /** A calibração cuja folha está aberta sobre o modal; `null` = nenhuma. */
   const [vendo, setVendo] = useState<DadosCalibracao | null>(null);
   const [baixando, setBaixando] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState<Filtro>('');
 
   const itens = itensDoLote(lote, componentes);
   const progresso = progressoLote(lote, componentes, calibracoes);
+  const linhas = itens
+    .map((c) => {
+      const cal = calibracaoDoItem(lote.id, c.id, calibracoes);
+      return { c, cal, sit: situacaoDe(cal) };
+    })
+    // Pendentes primeiro: é o que falta fazer.
+    .sort((a, b) => ORDEM[a.sit] - ORDEM[b.sit] || a.c.nome.localeCompare(b.c.nome, 'pt-BR'));
+  const conta = (s: Situacao) => linhas.filter((l) => l.sit === s).length;
+  const visiveis = filtro ? linhas.filter((l) => l.sit === filtro) : linhas;
+  const pct = progresso.total ? Math.round((conta('concluido') / progresso.total) * 100) : 0;
+
+  const verCertificado = (cal: DadosCalibracao) => (aoVerCertificado ? aoVerCertificado(cal) : setVendo(cal));
 
   useEffect(() => {
     function aoTeclar(e: KeyboardEvent) {
@@ -88,149 +127,218 @@ export default function ModalDetalhesLote({
     return () => document.removeEventListener('keydown', aoTeclar);
   }, [aoFechar, vendo]);
 
+  async function baixar(cal: DadosCalibracao) {
+    setBaixando(cal.id);
+    try {
+      await aoBaixarPdf(cal);
+    } finally {
+      setBaixando(null);
+    }
+  }
+
+  const pend = conta('pendente');
+  const rasc = conta('rascunho');
+  const conc = conta('concluido');
+
   return (
     <div
-      className="fj-modal-overlay"
+      className="fj-modal-overlay mlt-fundo"
       onClick={(e) => e.target === e.currentTarget && aoFechar()}
       role="dialog"
       aria-modal="true"
       aria-label={`Lote ${lote.descricao}`}
     >
-      <div className="fj-modal-box mlote-box mlote-box-larga" ref={caixa}>
-        <div className="fj-modal-head">
-          <div>
-            <div className="fj-eyebrow">Lote de calibração</div>
-            <h2>{lote.descricao}</h2>
-            <p className="mlote-sub">
-              <span>
-                <Icone nome="calendar" tam={12} /> {dataDoLote(lote)}
-              </span>
-              <span>
-                {progresso.total} {progresso.total === 1 ? 'item' : 'itens'}
-              </span>
-              <span className={`mlote-selo${progresso.completo ? ' completo' : ''}`}>
-                {progresso.completo ? 'Completo' : `${progresso.feitos}/${progresso.total} calibrados`}
-              </span>
-            </p>
+      <div className="mlt" ref={caixa}>
+        {/* ── Topo: o lote e o progresso ─────────────────────────────── */}
+        <header className="mlt-topo">
+          <div className="mlt-id">
+            <span className="mlt-ic" aria-hidden="true">
+              <Icone nome="sliders" tam={20} />
+            </span>
+            <div>
+              <h2>{lote.descricao}</h2>
+              <p>
+                <Icone nome="calendar" tam={12} /> {dataDoLote(lote)} · {progresso.total}{' '}
+                {progresso.total === 1 ? 'acessório' : 'acessórios'}
+              </p>
+            </div>
           </div>
-          <button type="button" className="fj-modal-close" onClick={aoFechar} aria-label="Fechar">
-            <Icone nome="x" tam={15} />
+          <button type="button" className="mlt-fechar" onClick={aoFechar} aria-label="Fechar">
+            <Icone nome="x" tam={16} />
           </button>
-        </div>
 
-        <div className="mlote-corpo">
+          <div className="mlt-prog">
+            <div className="mlt-prog-top">
+              <b>{progresso.completo ? 'Lote completo' : `${conc} de ${progresso.total} concluídos`}</b>
+              <span>{pct}%</span>
+            </div>
+            <div className="mlt-trilho" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+              <i style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+
+          {/* Os três passos, sempre à vista: o lote se entende sozinho. */}
+          <ol className="mlt-passos">
+            <li className={pend === 0 ? 'ok' : 'atual'}>
+              <span className="n">1</span>
+              <span className="t">Calibrar cada acessório</span>
+              <em>{pend} pendente{pend === 1 ? '' : 's'}</em>
+            </li>
+            <li className={pend === 0 && rasc === 0 ? 'ok' : pend === 0 ? 'atual' : ''}>
+              <span className="n">2</span>
+              <span className="t">Revisar e emitir o certificado</span>
+              <em>{rasc} em rascunho</em>
+            </li>
+            <li className={progresso.completo ? 'ok' : ''}>
+              <span className="n">3</span>
+              <span className="t">Lote completo</span>
+              <em>
+                {conc} concluído{conc === 1 ? '' : 's'}
+              </em>
+            </li>
+          </ol>
+
+          <div className="mlt-filtros" role="group" aria-label="Filtrar acessórios">
+            {(
+              [
+                ['', 'Todos', linhas.length],
+                ['pendente', 'Pendentes', pend],
+                ['rascunho', 'Em rascunho', rasc],
+                ['concluido', 'Concluídos', conc],
+              ] as const
+            ).map(([v, r, n]) => (
+              <button
+                key={v || 'todos'}
+                type="button"
+                aria-pressed={filtro === v}
+                className={`f-${v || 'todos'}`}
+                onClick={() => setFiltro(v)}
+              >
+                {r} <i>{n}</i>
+              </button>
+            ))}
+          </div>
+        </header>
+
+        {/* ── Acessórios: uma linha cada ─────────────────────────────── */}
+        <div className="mlt-corpo">
           {itens.length === 0 ? (
-            <p className="mlote-vazio">
-              Este lote não tem itens. Edite-o para escolher quais acessórios entram.
-            </p>
+            <p className="mlt-vazio">Este lote não tem acessórios. Edite o lote para escolher quais entram.</p>
+          ) : visiveis.length === 0 ? (
+            <p className="mlt-vazio">Nenhum acessório nesta situação.</p>
           ) : (
-            <ul className="mlote-detalhe">
-              {itens.map((c) => {
-                const cal = calibracaoDoItem(lote.id, c.id, calibracoes);
+            <ul className="mlt-lista">
+              {visiveis.map(({ c, cal, sit }) => {
+                const def = definicaoDe(c.tipo);
+                const comPdf = !!cal && (!ehTerceiro(cal) || !!cal.pdfExternoRef?.path);
                 return (
-                  <li key={c.id} className={`mlote-det-item${cal ? '' : ' pendente'}`}>
-                    <div className="mlote-det-cabeca">
-                      <span className="mlote-item-foto" aria-hidden>
-                        {fotoDoComponente(c) ? (
-                          <FotoImg foto={fotoDoComponente(c)} alt="" placeholder="" variante="thumb" />
-                        ) : (
-                          <Icone nome={definicaoDe(c.tipo).icone} tam={18} />
-                        )}
-                      </span>
-                      <div className="mlote-det-nome">
-                        <strong>{c.nome}</strong>
-                        <em>{definicaoDe(c.tipo).rotulo}</em>
-                      </div>
-                      {cal ? (
-                        <span className="mlote-selos">
-                          <span className={`mlote-selo ${cal.statusConclusao || 'sem'}`}>
-                            {ROTULO_STATUS[cal.statusConclusao] ?? 'Sem conclusão'}
-                          </span>
-                          {ehTerceiro(cal) ? (
-                            <span className="mlote-selo externo">Lab. externo</span>
-                          ) : ehEmitido(cal) ? (
-                            <span className="mlote-selo emitido">Emitido</span>
-                          ) : ehInterna(cal) && cal.status === 'rascunho' ? (
-                            <span className="mlote-selo pendente">Rascunho</span>
-                          ) : null}
-                        </span>
+                  <li key={c.id} className={`mlt-item s-${sit}`}>
+                    <span className="mlt-foto" aria-hidden="true">
+                      {fotoDoComponente(c) ? (
+                        <FotoImg foto={fotoDoComponente(c)} alt="" placeholder="" variante="thumb" />
                       ) : (
-                        <span className="mlote-selo pendente">Pendente</span>
+                        <Icone nome={def.icone} tam={18} />
+                      )}
+                    </span>
+                    <div className="mlt-nome">
+                      <b>{c.nome}</b>
+                      <small>
+                        {def.rotulo}
+                        {c.serie ? ` · SN ${c.serie}` : ''}
+                        {c.referencia ? ` · ${c.referencia}` : ''}
+                      </small>
+                    </div>
+                    <div className="mlt-info">
+                      {cal ? (
+                        <>
+                          <span>
+                            {cal.dataCalibracao || '—'}
+                            {cal.dataProxCalibracao ? ` → ${cal.dataProxCalibracao}` : ''}
+                          </span>
+                          <small>
+                            {cal.numeroCertificado || 'sem nº'}
+                            {ehTerceiro(cal) ? ` · ${cal.laboratorio || 'lab. externo'}` : ''}
+                            {cal.statusConclusao ? ` · ${ROTULO_STATUS[cal.statusConclusao] ?? ''}` : ''}
+                          </small>
+                        </>
+                      ) : (
+                        <small>ainda não calibrado</small>
                       )}
                     </div>
-
-                    <dl className="mlote-det-dados">
-                      {[
-                        ['Fabricante', c.fabricante],
-                        ['Modelo', c.modelo],
-                        ['Série', c.serie],
-                        ['Faixa', c.referencia],
-                        ['Calibração', cal?.dataCalibracao],
-                        ['Próxima', cal?.dataProxCalibracao],
-                        ['Certificado', cal?.numeroCertificado],
-                        ['Laboratório', cal && ehTerceiro(cal) ? cal.laboratorio : ''],
-                        ['Responsável', cal && ehInterna(cal) ? cal.responsavel?.nome : ''],
-                      ]
-                        .filter(([, v]) => (v ?? '').toString().trim() !== '')
-                        .map(([r, v]) => (
-                          <div key={r as string}>
-                            <dt>{r}</dt>
-                            <dd>{v}</dd>
-                          </div>
-                        ))}
-                    </dl>
-
-                    <div className="mlote-det-acoes">
-                      {cal && ehInterna(cal) && cal.status === 'rascunho' ? (
+                    <span className={`mlt-sit ${sit}`}>
+                      <Icone nome={sit === 'pendente' ? 'clock' : sit === 'rascunho' ? 'pencil' : 'checkcircle'} tam={12} />
+                      {sit === 'pendente'
+                        ? 'Pendente'
+                        : sit === 'rascunho'
+                          ? 'Rascunho'
+                          : ehTerceiro(cal)
+                            ? 'Lab. externo'
+                            : ehEmitido(cal)
+                              ? 'Emitido'
+                              : 'Concluído'}
+                    </span>
+                    <div className="mlt-acoes">
+                      {sit === 'pendente' ? (
                         <>
-                          <button type="button" className="fj-btn fj-btn-primary" onClick={() => aoRevisar(cal)}>
-                            <Icone nome="pencil" tam={13} /> Continuar calibração
-                          </button>
-                          <button type="button" className="fj-btn fj-btn-ghost" onClick={() => aoVerDados(cal)}>
-                            <Icone nome="eye" tam={13} /> Abrir calibração
-                          </button>
-                        </>
-                      ) : cal && ehTerceiro(cal) && !cal.pdfExternoRef?.path ? (
-                        <button type="button" className="fj-btn fj-btn-ghost" onClick={() => aoVerDados(cal)}>
-                          <Icone nome="eye" tam={13} /> Abrir registro
-                        </button>
-                      ) : cal ? (
-                        <>
-                          <button type="button" className="fj-btn fj-btn-ghost" onClick={() => aoVerDados(cal)}>
-                            <Icone nome="eye" tam={13} /> {ehTerceiro(cal) ? 'Abrir registro' : 'Abrir calibração'}
-                          </button>
-                          <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setVendo(cal)}>
-                            <Icone nome="filetext" tam={13} /> {ehTerceiro(cal) ? 'PDF do laboratório' : 'Visualizar PDF'}
-                          </button>
-                          <button
-                            type="button"
-                            className={`fj-btn fj-btn-ghost${baixando === cal.id ? ' is-loading' : ''}`}
-                            disabled={baixando === cal.id}
-                            onClick={async () => {
-                              setBaixando(cal.id);
-                              try {
-                                await aoBaixarPdf(cal);
-                              } finally {
-                                setBaixando(null);
-                              }
-                            }}
-                          >
-                            <Icone nome="download" tam={13} />{' '}
-                            {baixando === cal.id ? 'Gerando…' : 'Baixar PDF'}
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          {definicaoDe(c.tipo).modeloInterno && (
-                            <button type="button" className="fj-btn fj-btn-primary" onClick={() => aoCalibrar(c)}>
+                          {def.modeloInterno && (
+                            <button type="button" className="mlt-btn pri" onClick={() => aoCalibrar(c)}>
                               <Icone nome="sliders" tam={13} /> Calibrar
                             </button>
                           )}
-                          <button type="button" className="fj-btn fj-btn-ghost" onClick={() => aoRegistrarTerceiro(c)}>
-                            <Icone nome="building" tam={13} /> Laboratório externo
+                          <button
+                            type="button"
+                            className="mlt-btn"
+                            title="Registrar certificado de laboratório externo"
+                            onClick={() => aoRegistrarTerceiro(c)}
+                          >
+                            <Icone nome="building" tam={13} /> Lab. externo
                           </button>
                         </>
-                      )}
+                      ) : sit === 'rascunho' && cal ? (
+                        <>
+                          <button type="button" className="mlt-btn pri" onClick={() => verCertificado(cal)}>
+                            <Icone nome="checkcircle" tam={13} /> Revisar e emitir
+                          </button>
+                          <button
+                            type="button"
+                            className="mlt-ic-btn"
+                            title="Continuar o preenchimento"
+                            aria-label="Continuar o preenchimento"
+                            onClick={() => aoRevisar(cal)}
+                          >
+                            <Icone nome="pencil" tam={14} />
+                          </button>
+                        </>
+                      ) : cal ? (
+                        <>
+                          {comPdf && (
+                            <button type="button" className="mlt-btn azul" onClick={() => verCertificado(cal)}>
+                              <Icone nome="filetext" tam={13} /> {ehTerceiro(cal) ? 'PDF do laboratório' : 'Ver certificado'}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="mlt-ic-btn"
+                            title={ehTerceiro(cal) ? 'Abrir registro' : 'Abrir calibração'}
+                            aria-label={ehTerceiro(cal) ? 'Abrir registro' : 'Abrir calibração'}
+                            onClick={() => aoVerDados(cal)}
+                          >
+                            <Icone nome="eye" tam={14} />
+                          </button>
+                          {comPdf && (
+                            <button
+                              type="button"
+                              className={`mlt-ic-btn${baixando === cal.id ? ' is-loading' : ''}`}
+                              title="Baixar PDF"
+                              aria-label="Baixar PDF"
+                              disabled={baixando === cal.id}
+                              onClick={() => void baixar(cal)}
+                            >
+                              <Icone nome="download" tam={14} />
+                            </button>
+                          )}
+                        </>
+                      ) : null}
                     </div>
                   </li>
                 );
@@ -240,21 +348,7 @@ export default function ModalDetalhesLote({
         </div>
       </div>
 
-      {vendo && (
-        <VisorCertificado
-          cal={vendo}
-          tag={tag}
-          aoFechar={() => setVendo(null)}
-          aoBaixar={async () => {
-            setBaixando(vendo.id);
-            try {
-              await aoBaixarPdf(vendo);
-            } finally {
-              setBaixando(null);
-            }
-          }}
-        />
-      )}
+      {vendo && <VisorCertificado cal={vendo} tag={tag} aoFechar={() => setVendo(null)} aoBaixar={() => baixar(vendo)} />}
     </div>
   );
 }
@@ -283,7 +377,11 @@ export function VisorCertificado({
   const arquivo = arquivoCalibracao(cal);
   // Fase 7 · rascunho interno: a prévia vetorial (o mesmo gerador da emissão), sem palco.
   const rascunho = ehRascunhoInterno(cal);
-  const palco = usePalcoDocumento(tag, cal.id, { pular: !!arte || !arquivo || rascunho });
+  const palco = usePalcoDocumento(tag, cal.id, {
+    pular: !!arte || !arquivo || rascunho,
+    // Concluída = somente leitura: a folha não grava (mesma regra da lista).
+    somenteLeitura: ehOficial(cal),
+  });
 
   return (
     <div
@@ -320,9 +418,12 @@ export function VisorCertificado({
           <div className="cal-preview mlote-visor-folha">
             <PaginaA4>
               <iframe
-                src={`/arquivos-inspecao/${arquivo}?calibId=${cal.id}&tag=${encodeURIComponent(tag)}&page=1${palco.paramsIframe}`}
+                src={`/arquivos-inspecao/${arquivo}?calibId=${cal.id}&tag=${encodeURIComponent(tag)}&page=1${palco.paramsIframe}${paramsSomenteLeitura(ehOficial(cal))}`}
                 scrolling="no"
                 title="Certificado de calibração"
+                onLoad={(e) => {
+                  if (ehOficial(cal)) travarIframeSomenteLeitura(e.currentTarget);
+                }}
               />
             </PaginaA4>
           </div>
