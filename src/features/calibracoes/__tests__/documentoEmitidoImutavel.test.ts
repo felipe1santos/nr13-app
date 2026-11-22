@@ -224,9 +224,10 @@ describe('RASCUNHO não é calibração oficial', () => {
 
   it('Portal, detalhe do equipamento e quadro 7.1.1 filtram o rascunho', () => {
     expect(readFileSync('src/pages/portal/PortalAtivo.tsx', 'utf8')).toContain('listarCalibracoes(tag).filter(ehOficial)');
-    expect(readFileSync('src/components/ModalDetalheEquipamento.tsx', 'utf8')).toContain(
-      'listarCalibracoes(tag).filter(ehOficial)',
-    );
+    // 21/11/2026: o modal do Dashboard usa `situacaoDoAcessorio`, que só
+    // considera calibração OFICIAL (o rascunho não dá prazo nem selo).
+    expect(readFileSync('src/components/ModalDetalheEquipamento.tsx', 'utf8')).toContain('situacaoDoAcessorio(c, cals)');
+    expect(readFileSync('src/features/calibracoes/situacaoAcessorio.ts', 'utf8')).toContain('doComp.filter(ehOficial)');
     expect(readFileSync('src/features/calibracoes/quadroInstrumentos.ts', 'utf8')).toContain('selecionavel: !rascunho');
   });
 });

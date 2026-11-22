@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import ModalComponente from '../features/calibracoes/ModalComponente';
 import AjudaCalibracoes from '../features/calibracoes/AjudaCalibracoes';
@@ -252,6 +253,16 @@ export default function Calibracoes() {
     setConfirmandoId(null);
     setTela('historico');
   }
+
+  // Link direto `/calibracoes?tag=X` (21/11/2026): o atalho "ir para a
+  // calibração" do modal do Dashboard abre o equipamento já aberto aqui.
+  const [paramsUrl] = useSearchParams();
+  const tagDaUrl = paramsUrl.get('tag') ?? '';
+  useEffect(() => {
+    if (tagDaUrl) void abrirPorTag(tagDaUrl);
+    // Só quando a TAG da URL muda — abrirPorTag é recriada a cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tagDaUrl]);
 
   /**
    * Abrir a JANELA de calibração para um componente. Instrumento sem folha

@@ -1,49 +1,144 @@
-/* Panorama do parque — Dashboard (21/11/2026). Cores de ESTADO, sempre com
-   ícone + rótulo na legenda; fundo das faixas com contraste para o número. */
+/* Panorama do parque — Dashboard (21/11/2026). Status sempre com ícone +
+   rótulo; balão com setinha nas faixas; entrada animada (exceto para quem
+   pede menos movimento). */
 .pp-grade { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
 @media (max-width: 1000px) { .pp-grade { grid-template-columns: 1fr; } }
+
+.pp-card { animation: pp-sobe .42s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.pp-card + .pp-card { animation-delay: 80ms; }
+@keyframes pp-sobe { from { opacity: 0; transform: translateY(10px); } }
 
 .pp-corpo { padding: 6px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
 .pp-hero { display: flex; align-items: baseline; gap: 8px; }
 .pp-hero b { font: var(--t-display); color: #1A1A1A; font-variant-numeric: tabular-nums; }
 .pp-hero span { font: var(--t-body); color: #6B6B6B; }
 
-/* Barra segmentada: 2px de respiro entre os blocos, pontas arredondadas. */
-.pp-barra { display: flex; gap: 2px; height: 12px; border-radius: 4px; overflow: hidden; background: #EDEDED; }
-.pp-barra.alta { height: 40px; border-radius: 6px; }
+/* ── Barra segmentada com balão ──────────────────────────────────────────── */
+.pp-barra { position: relative; display: flex; gap: 2px; height: 12px; border-radius: 4px; background: #EDEDED; }
+.pp-barra.alta { height: 44px; border-radius: 6px; }
 .pp-barra.vazia { background: #F1F1F1; }
-.pp-seg { display: grid; place-items: center; min-width: 4px; transition: filter .12s; cursor: default; }
-.pp-seg:hover { filter: brightness(0.92); }
-.pp-seg b { font: 700 14px/1 var(--font); font-variant-numeric: tabular-nums; }
+.pp-seg {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 6px;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  cursor: default;
+  transform-origin: left center;
+  animation: pp-cresce .6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: filter .12s, transform .12s;
+}
+.pp-seg:first-child { border-radius: 6px 0 0 6px; }
+.pp-seg:last-child { border-radius: 0 6px 6px 0; }
+.pp-seg:only-child { border-radius: 6px; }
+.pp-seg:hover, .pp-seg:focus-visible { filter: brightness(0.93); z-index: 2; }
+.pp-seg.clicavel { cursor: pointer; }
+.pp-seg:focus-visible { outline: 2px solid #1A1A1A; outline-offset: 2px; }
+.pp-seg b { font: 700 15px/1 var(--font); font-variant-numeric: tabular-nums; }
+@keyframes pp-cresce { from { transform: scaleX(0); opacity: .3; } }
+
 .s-crit { background: #DC2626; color: #fff; }
 .s-warn { background: #F5B400; color: #1A1A1A; }
 .s-ok { background: #15803D; color: #fff; }
 .s-semPrazo { background: #C9CED6; color: #1A1A1A; }
 
+/* O balão: acima da faixa, centrado, com a setinha apontando para ela. */
+.pp-balao {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: max-content;
+  max-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #0F1631;
+  color: #fff;
+  text-align: left;
+  box-shadow: 0 10px 28px rgba(15, 22, 49, 0.32);
+  pointer-events: none;
+  animation: pp-balao .14s ease-out;
+}
+.pp-balao::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -7px;
+  border: 7px solid transparent;
+  border-top-color: #0F1631;
+}
+@keyframes pp-balao { from { opacity: 0; transform: translate(-50%, 4px); } }
+.pp-balao-tit { display: flex; align-items: center; gap: 6px; font: 700 13px/18px var(--font); }
+.pp-balao-num { font: 400 13px/18px var(--font); color: #E5E7EB; }
+.pp-balao-num b { font: 700 16px/1 var(--font); color: #fff; }
+.pp-balao-exp { font: 400 12px/16px var(--font); color: #B9C0CE; }
+.pp-balao-acao { margin-top: 2px; font: 600 12px/16px var(--font); color: #93C5FD; }
+
+/* ── Legenda ─────────────────────────────────────────────────────────────── */
 .pp-leg { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 16px; }
 .pp-leg li { display: flex; align-items: center; gap: 6px; font: var(--t-body); color: #3A3F47; }
 .pp-sw { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
 .pp-leg-rot { flex: 1; min-width: 0; }
 .pp-leg b { font: var(--t-strong); color: #1A1A1A; font-variant-numeric: tabular-nums; }
 .pp-leg small { font: var(--t-caption); color: #6B6B6B; min-width: 32px; text-align: right; }
-
-.pp-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
-.pp-ver { height: 32px; padding: 0 12px; border: 0; border-radius: 6px; font: 600 13px/1 var(--font); cursor: pointer; transition: background-color .15s, color .15s; }
-.pp-ver.crit { background: #FEE2E2; color: #B42318; }
-.pp-ver.crit:hover { background: #DC2626; color: #fff; }
-.pp-ver.warn { background: #FEF3C7; color: #92400E; }
-.pp-ver.warn:hover { background: #F5B400; color: #1A1A1A; }
-.pp-ver:focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }
 .pp-nota { margin: 0; font: var(--t-caption); color: #6B6B6B; }
 
-/* Prazos por tipo: as três barras no MESMO eixo. */
-.pp-linhas { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 14px; }
-.pp-linhas li { display: grid; grid-template-columns: 96px minmax(0, 1fr) 40px; align-items: center; gap: 12px; }
-.pp-linha-rot { font: var(--t-body); color: #3A3F47; }
-.pp-linha-trilho { display: block; }
-.pp-linha-cheia { display: block; min-width: 4px; }
-.pp-linha-cheia .pp-barra { height: 18px; }
-.pp-linha-n { font: var(--t-strong); color: #1A1A1A; text-align: right; font-variant-numeric: tabular-nums; }
+/* ── Prazos por tipo: uma cor e um ícone por família ─────────────────────── */
+.pp-linhas { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 16px; }
+.pp-linhas li { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 12px; align-items: start; }
+.t-insp { --tipo: #2F5BEA; --tipo-bg: #E3EAFF; }
+.t-cal { --tipo: #C2410C; --tipo-bg: #FFEDD5; }
+.t-cert { --tipo: #0F766E; --tipo-bg: #CCFBF1; }
+.pp-tipo-ic { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: var(--tipo-bg); color: var(--tipo); }
+.pp-tipo-corpo { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.pp-tipo-top { display: flex; justify-content: space-between; align-items: baseline; }
+.pp-linha-rot { font: 600 14px/20px var(--font); color: #1A1A1A; }
+.pp-linha-n { font: 700 18px/1 var(--font); color: var(--tipo); font-variant-numeric: tabular-nums; }
+.pp-tipo-trilho { display: block; height: 10px; border-radius: 999px; background: #F1F1F1; overflow: hidden; }
+.pp-tipo-barra { display: block; height: 100%; min-width: 4px; border-radius: 999px; background: var(--tipo); transform-origin: left center; animation: pp-cresce .7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.pp-tipo-sit { display: flex; gap: 12px; flex-wrap: wrap; font: 500 12px/16px var(--font); }
+.pp-tipo-sit span { display: inline-flex; align-items: center; gap: 4px; }
+.pp-tipo-sit .crit { color: #B42318; }
+.pp-tipo-sit .warn { color: #92400E; }
+.pp-tipo-sit .ok { color: #0B7A32; }
 
-@media (prefers-reduced-motion: reduce) { .pp-seg { transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .pp-card, .pp-seg, .pp-tipo-barra, .pp-balao { animation: none; }
+}
 @media (forced-colors: active) { .pp-seg { border: 1px solid CanvasText; } }
+
+/* Gráfico mensal e anel de conformidade: mesma entrada animada. */
+.gp-segs { transform-origin: bottom center; animation: pp-sobeBarra .7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.gp-col:nth-child(2n) .gp-segs { animation-delay: 60ms; }
+.gp-col:nth-child(3n) .gp-segs { animation-delay: 120ms; }
+@keyframes pp-sobeBarra { from { transform: scaleY(0); } }
+.gp-anel-valor { animation: pp-anel 1s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes pp-anel { from { stroke-dashoffset: 276; } }
+.dash2-kpi { animation: pp-sobe .4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.dash2-kpi:nth-child(2) { animation-delay: 50ms; }
+.dash2-kpi:nth-child(3) { animation-delay: 100ms; }
+.dash2-kpi:nth-child(4) { animation-delay: 150ms; }
+
+/* Vazio do filtro "Vencidos e a vencer" — com ilustração. */
+.dash2-vazio { padding: 24px 16px 32px; }
+.dash2-vazio span { font: var(--t-body); color: #6B6B6B; max-width: 46ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gp-segs, .gp-anel-valor, .dash2-kpi { animation: none; }
+}
+
+/* O balão não pode ser cortado pelo cartão; nas faixas das pontas ele se
+   alinha à borda da faixa, e a setinha continua apontando para ela. */
+.pp-card.fj-panel { overflow: visible; }
+.pp-balao.esq { left: 0; transform: none; animation-name: pp-balaoLado; }
+.pp-balao.esq::after { left: 22px; }
+.pp-balao.dir { left: auto; right: 0; transform: none; animation-name: pp-balaoLado; }
+.pp-balao.dir::after { left: auto; right: 15px; }
+@keyframes pp-balaoLado { from { opacity: 0; transform: translateY(4px); } }

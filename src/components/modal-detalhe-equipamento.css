@@ -1,96 +1,120 @@
-/* Modal de detalhe do equipamento (aberto pela lista de prazos do Dashboard) */
-.det-box { max-width: 640px; width: 100%; }
-.det-corpo {
-  padding: 4px 20px 12px;
-  max-height: 62vh;
-  overflow-y: auto;
-}
-.det-secao { padding: 12px 0; border-bottom: 1px solid var(--line); }
-.det-secao:last-child { border-bottom: none; }
-.det-secao-titulo {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 10px;
-}
-.det-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 18px;
-}
-.det-grid > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.det-grid span { font-size: 11px; color: var(--muted); }
-.det-grid b { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
-.det-muted { font-size: 12.5px; color: var(--muted); }
-.det-prazo { font-size: 12.5px; font-weight: 700; white-space: nowrap; }
-.det-prazo.crit { color: var(--crit); }
-.det-prazo.warn { color: #DC2626; }
-.det-prazo.ok { color: var(--ok); }
-
-/* acessórios */
-.det-acessorio {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 10px 12px;
-  margin-bottom: 10px;
-}
-.det-acessorio:last-child { margin-bottom: 0; }
-.det-ac-head { display: flex; align-items: center; gap: 10px; }
-.det-ac-ico {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--blue-bg);
-  color: var(--blue);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.det-ac-main { flex: 1; min-width: 0; }
-.det-ac-nome { font-size: 13px; font-weight: 600; }
-.det-ac-serie { color: var(--muted); font-weight: 500; font-size: 11.5px; }
-.det-ac-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-.det-ac-docs { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
-.det-doc {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11.5px;
-  color: var(--text);
-  background: var(--steel);
-  border-radius: 6px;
-  padding: 5px 8px;
-}
-.det-doc-data { margin-left: auto; color: var(--muted); }
-.det-doc-status { font-weight: 700; font-size: 10.5px; text-transform: uppercase; }
-.det-doc-status.aprovado { color: var(--ok); }
-.det-doc-status.reprovado { color: var(--crit); }
-
-.det-acoes {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 12px 20px 16px;
-  border-top: 1px solid var(--line);
-}
-
-@media (max-width: 560px) {
-  .det-grid { grid-template-columns: 1fr; }
-  .det-corpo { max-height: 68vh; }
-}
-
-
 /* ============================================================================
-   IDENTIDADE · normalização automática (1ª prévia + paleta B, 25/10/2026)
-   CLAUDE.md §15: texto em caixa normal com 12px no mínimo; selo reto (raio 4),
-   nunca pílula. Acrescentado no fim para valer sobre as regras acima.
+   Detalhe rápido do equipamento (Dashboard) — refeito em 21/11/2026.
+   Identidade Cobalto: cartão branco, Figtree, azul de destaque #0C4F9B, status
+   com ícone + texto. Mais alto que largo no uso: o corpo rola, topo e rodapé
+   ficam fixos.
    ============================================================================ */
-.det-secao-titulo,
-.det-doc-status {
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: var(--fs-12);
+.mdq-fundo { align-items: center; }
+.mdq {
+  width: min(820px, calc(100vw - 32px));
+  height: min(86vh, 820px);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 24px 64px rgba(15, 22, 49, 0.28), 0 2px 8px rgba(15, 22, 49, 0.12);
+  overflow: hidden;
+  animation: mdq-entra 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
+@keyframes mdq-entra { from { opacity: 0; transform: translateY(8px) scale(0.99); } }
+
+/* ── Topo: o equipamento em 3 linhas ─────────────────────────────────────── */
+.mdq-topo {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  padding: 18px 18px 16px 20px;
+  border-bottom: 1px solid #EDEDED;
+}
+.mdq-foto { width: 64px; height: 64px; display: block; }
+.mdq-foto .fl-mini,
+.mdq-foto .lc-ico { width: 64px; height: 64px; border-radius: 10px; }
+.mdq-foto .lc-ico svg { width: 26px; height: 26px; }
+.mdq-id { min-width: 0; }
+.mdq-linha1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mdq-linha1 h2 { margin: 0; font: 700 20px/26px var(--font); color: #1A1A1A; letter-spacing: -0.01em; }
+.mdq-desc { margin: 2px 0 8px; font: var(--t-body); color: #3A3F47; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mdq-cli { color: #6B6B6B; }
+.mdq-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.mdq-chip { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 4px; background: var(--destaque-bg); color: var(--destaque); font: 600 12px/1 var(--font); white-space: nowrap; }
+.mdq-chip.cat { background: #FEF3C7; color: #92400E; }
+.mdq-chip.claro { background: #F4F4F5; color: #3A3F47; font-weight: 500; }
+.mdq-fechar { width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: #6B6B6B; cursor: pointer; transition: background-color .15s, color .15s; }
+.mdq-fechar:hover { background: #F4F4F5; color: #1A1A1A; }
+.mdq-fechar:focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }
+
+/* ── Selo de situação (ícone + texto) ────────────────────────────────────── */
+.mdq-selo { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 999px; font: 600 12px/1 var(--font); white-space: nowrap; }
+.mdq-selo.crit { background: #FEE2E2; color: #B42318; }
+.mdq-selo.warn { background: #FEF3C7; color: #92400E; }
+.mdq-selo.ok { background: var(--aprovado-bg); color: #0B7A32; }
+.mdq-selo.neutro { background: #F4F4F5; color: #5F6B82; }
+
+/* ── Corpo rolável ───────────────────────────────────────────────────────── */
+.mdq-corpo { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 20px 16px; scrollbar-width: thin; scrollbar-color: #C9CED6 transparent; }
+.mdq-sec { padding: 14px 0 4px; }
+.mdq-sec + .mdq-sec { border-top: 1px solid #F0F0F0; margin-top: 10px; }
+.mdq-sec h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font: 600 13px/18px var(--font); color: #1A1A1A; }
+.mdq-n { min-width: 22px; height: 20px; padding: 0 7px; display: inline-grid; place-items: center; border-radius: 999px; background: #F4F4F5; color: #3A3F47; font: 600 12px/1 var(--font); }
+.mdq-vazio { margin: 0; font: var(--t-body); color: #6B6B6B; }
+.mdq-aviso { margin: 12px 0 0; padding: 10px 12px; border-radius: 6px; background: #FEF3C7; color: #92400E; font: var(--t-body); }
+
+/* Último relatório: uma faixa, 1–2 linhas. */
+.mdq-rel { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto 32px; gap: 12px; align-items: center; padding: 10px 10px 10px 12px; border-radius: 8px; background: #F8F9FA; }
+.mdq-rel-ic { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 6px; background: #FEE4E2; color: #B42318; }
+.mdq-rel-txt { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mdq-rel-txt b { font: var(--t-strong); color: #1A1A1A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mdq-rel-txt span { font: var(--t-caption); color: #5F6B82; }
+
+/* Acessórios: UMA linha por acessório. */
+.mdq-acs { margin: 0; padding: 0; list-style: none; }
+.mdq-acs li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1.15fr) minmax(0, 1.6fr) 100px 140px 32px;
+  gap: 12px;
+  align-items: center;
+  min-height: 44px;
+  padding: 4px 8px 4px 6px;
+  border-bottom: 1px solid #F0F0F0;
+  border-radius: 6px;
+  transition: background-color .12s;
+}
+.mdq-acs li:hover { background: var(--row-hover, #FFF5F4); }
+.mdq-ac-ic { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 6px; background: var(--destaque-bg); color: var(--destaque); }
+.mdq-ac-nome, .mdq-ac-cal { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--t-body); color: #1A1A1A; }
+.mdq-ac-nome b { font-weight: 600; }
+.mdq-ac-nome small, .mdq-ac-cal small { color: #6B6B6B; font: var(--t-caption); }
+.mdq-ac-cal { font-variant-numeric: tabular-nums; }
+.mdq-ac-prazo { font: var(--t-caption); color: #5F6B82; text-align: right; white-space: nowrap; }
+.mdq-acs li > .mdq-selo { justify-self: end; }
+
+/* Atalho "ir" — azul no hover, como "ver/abrir" no resto do sistema. */
+.mdq-ir { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 6px; background: #E9E9E9; color: rgba(0, 0, 0, 0.7); cursor: pointer; transition: background-color .15s, color .15s; }
+.mdq-ir:hover { background: var(--destaque); color: #fff; }
+.mdq-ir:focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }
+
+/* ── Rodapé fixo ─────────────────────────────────────────────────────────── */
+.mdq-rodape { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px; border-top: 1px solid #EDEDED; background: #fff; }
+.mdq-btn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border: 0; border-radius: 6px; font: 600 14px/1 var(--font); cursor: pointer; transition: background-color .15s, color .15s; }
+.mdq-btn.sec { background: #E9E9E9; color: #1A1A1A; }
+.mdq-btn.sec:hover { background: var(--laranja); color: #fff; }
+.mdq-btn.pri { background: var(--destaque); color: #fff; }
+.mdq-btn.pri:hover { background: #093D78; }
+.mdq-btn:focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }
+
+/* ── Celular: o acessório quebra em duas linhas, nada some ───────────────── */
+@media (max-width: 640px) {
+  .mdq { height: 92vh; width: calc(100vw - 16px); }
+  .mdq-topo { grid-template-columns: 48px minmax(0, 1fr) auto; padding: 14px 12px; }
+  .mdq-foto, .mdq-foto .fl-mini, .mdq-foto .lc-ico { width: 48px; height: 48px; }
+  .mdq-corpo { padding: 4px 12px 12px; }
+  .mdq-rel { grid-template-columns: 28px minmax(0, 1fr) 32px; }
+  .mdq-rel .mdq-selo { grid-column: 2; justify-self: start; }
+  .mdq-acs li { grid-template-columns: 28px minmax(0, 1fr) auto 32px; grid-template-areas: "ic nome selo ir" "ic cal prazo ir"; row-gap: 2px; padding: 6px; }
+  .mdq-ac-ic { grid-area: ic; } .mdq-ac-nome { grid-area: nome; } .mdq-ac-cal { grid-area: cal; }
+  .mdq-ac-prazo { grid-area: prazo; } .mdq-acs .mdq-selo { grid-area: selo; } .mdq-acs .mdq-ir { grid-area: ir; }
+  .mdq-rodape { padding: 10px 12px; }
+  .mdq-btn { flex: 1; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) { .mdq { animation: none; } }

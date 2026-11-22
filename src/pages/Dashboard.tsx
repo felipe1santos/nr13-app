@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import ModalDetalheEquipamento from '../components/ModalDetalheEquipamento';
+import { FotoListaPorTag } from '../components/FotoLista';
+import { Ilustracao } from '../components/Ilustracao';
 import { FILTROS_PRAZO, FILTRO_PRAZO_PADRAO, noFiltroPrazo, textoPrazo } from '../services/vencimentos';
 import type { FiltroPrazo, ItemVencimento } from '../services/vencimentos';
 import { usePainelVencimentos, textoContador } from '../services/vencimentosServidor';
@@ -294,11 +296,27 @@ export default function Dashboard() {
               Calcule a Vida Remanescente na ficha do equipamento, cadastre calibrações ou registre a validade dos certificados dos padrões para acompanhar os vencimentos aqui.
             </div>
           ) : tabela.length === 0 ? (
-            <div className="fj-empty">
-              <div className="fj-empty-ic"><Icone nome="filter" tam={22} /></div>
-              <div className="fj-empty-title">Nada neste filtro</div>
-              Nenhum item {filtroPrazo === 'vencidos' ? 'vencido' : `vencido ou vencendo em até ${filtroPrazo} dias`}
-              {origem ? ` entre ${ROTULO_ORIGEM[origem].toLowerCase()}s` : ''}.
+            /* Filtro sem resultado é BOA notícia: nada vencido/vencendo ali.
+               Ilustração licenciada do sistema (§15), nunca imagem de terceiros. */
+            <div className="vz-centro dash2-vazio">
+              <Ilustracao nome="aprovado" largura={220} />
+              <b>Tudo em dia por aqui</b>
+              <span>
+                Nenhum item {filtroPrazo === 'vencidos' ? 'vencido' : `vencido ou vencendo em até ${filtroPrazo} dias`}
+                {origem ? ` entre ${ROTULO_ORIGEM[origem].toLowerCase()}s` : ''}.
+              </span>
+              {(origem || filtroPrazo !== FILTRO_PRAZO_PADRAO) && (
+                <button
+                  type="button"
+                  className="dash2-ver"
+                  onClick={() => {
+                    setOrigem('');
+                    setFiltroPrazo(FILTRO_PRAZO_PADRAO);
+                  }}
+                >
+                  Limpar filtros
+                </button>
+              )}
             </div>
           ) : (
             <div className="fj-table-wrap">
@@ -322,7 +340,13 @@ export default function Dashboard() {
                     >
                       <td className="cel-titulo">
                         <div className="fj-tag-cell">
-                          <div className="fj-tag-ico"><Icone nome={ICONE_TIPO[it.tipoEquip] ?? 'box'} tam={15} /></div>
+                          {/* Equipamento (prazo de inspeção): a FOTO, com zoom no
+                              hover; acessório e certificado seguem com o ícone. */}
+                          {it.origem === 'inspecao' ? (
+                            <FotoListaPorTag tag={it.tag} />
+                          ) : (
+                            <div className="fj-tag-ico"><Icone nome={ICONE_TIPO[it.tipoEquip] ?? 'box'} tam={15} /></div>
+                          )}
                           <div>
                             <div className="fj-tag-code">{it.tag}</div>
                             <div className="fj-eq-name">
