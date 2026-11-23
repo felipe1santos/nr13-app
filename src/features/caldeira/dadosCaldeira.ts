@@ -47,6 +47,9 @@ export const GRUPOS_CALDEIRA: GrupoCaldeira[] = [
     campos: [
       { chave: 'modelo', rotulo: 'Modelo' },
       { chave: 'dataInstalacao', rotulo: 'Data da instalação' },
+      // 23/11/2026 · dados de placa exigidos pela NR-13 13.4.1.3 e) e f).
+      { chave: 'capacidadeVapor', rotulo: 'Capacidade de produção de vapor', unidade: 'kg/h' },
+      { chave: 'areaAquecimento', rotulo: 'Área de superfície de aquecimento', unidade: 'm²' },
     ],
   },
   {

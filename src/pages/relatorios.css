@@ -3427,3 +3427,10 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
 .rel-page .rel-btn-filtro { height: 36px; border-radius: 4px; background: #E9E9E9; border: 0; color: #1A1A1A; }
 .rel-page .rel-btn-filtro:hover { background: #DEDEDE; }
 .rel-page .rel-cel-acoes .btn-icone { border-radius: 4px; }
+
+/* 23/11/2026 · caldeira: "Sugerir prazo NR-13" — botão de função inteligente
+   (repouso cinza, hover pêssego; mesma linguagem da Legenda da Agenda). */
+.meta-sugerir-prazo { height: 32px; padding: 0 10px; border: 0; border-radius: 4px; background: #E9E9E9; color: #1A1A1A; font: 500 13px/1 var(--font); white-space: nowrap; cursor: pointer; }
+.meta-sugerir-prazo:hover:not(:disabled) { background: #FFEDD5; color: #C2410C; }
+.meta-sugerir-prazo:disabled { opacity: 0.55; cursor: not-allowed; }
+.meta-sugerir-prazo:focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }

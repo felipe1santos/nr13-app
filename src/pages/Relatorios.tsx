@@ -69,6 +69,8 @@ import { salvarRascunho as gravarRascunho } from '../features/relatorios/histori
 import { ehRascunhoConhecido } from '../features/relatorios/rascunhos';
 import { duplicarRelatorio } from '../features/relatorios/duplicarRelatorio';
 import { pmtaDoDocumentoMpa, tipoDaTag } from '../features/equipamento/perfilEquipamento';
+import { categoriaExibida } from '../features/caldeira/categoriaExibida';
+import { prazoMaximoCaldeira, somarMesesBr } from '../features/caldeira/prazosCaldeira';
 import { abrirRelatorio, avisoDaAbertura } from '../features/relatorios/aberturaRelatorio';
 import { ultimaLacrada, type LivroEntrada } from '../features/relatorios/livroLacre';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
@@ -1906,6 +1908,39 @@ function RelatoriosLegado() {
                       <label>Próx. Externa</label>
                       <input placeholder="DD/MM/AAAA" inputMode="numeric" name="proximaExterna" value={meta.proximaInspecaoExterna} readOnly={somenteLeitura} onChange={(e) => setCampoData('proximaInspecaoExterna', e.target.value)} />
                     </div>
+                    {/* 23/11/2026 · CALDEIRA: sugere as próximas inspeções pelo prazo
+                        MÁXIMO da NR-13 13.4.4.4 (A/B = 12 meses) a partir da execução.
+                        Só preenche — o engenheiro confere e pode mudar. */}
+                    {tipoDaTag(tag) === 'caldeira' && !somenteLeitura && (() => {
+                      const cat = categoriaExibida(tag);
+                      const prazo = prazoMaximoCaldeira(cat);
+                      const base = (meta.execucaoInspecao || meta.emissao || '').trim();
+                      const data = prazo ? somarMesesBr(base, prazo.meses) : null;
+                      return (
+                        <div className="meta-barra-campo">
+                          <label>Prazo NR-13</label>
+                          <button
+                            type="button"
+                            className="meta-sugerir-prazo"
+                            disabled={!data}
+                            title={
+                              !prazo
+                                ? 'Sem categoria A/B: informe a PMO adotada na ficha'
+                                : !data
+                                  ? 'Informe a data de execução da inspeção (DD/MM/AAAA)'
+                                  : `Categoria ${cat}: prazo máximo de ${prazo.meses} meses (NR-13 ${prazo.item})`
+                            }
+                            onClick={() => {
+                              if (!data) return;
+                              setCampoData('proximaInspecaoInterna', data);
+                              setCampoData('proximaInspecaoExterna', data);
+                            }}
+                          >
+                            {data ? `Sugerir ${data}` : 'Sugerir prazo'}
+                          </button>
+                        </div>
+                      );
+                    })()}
                     <div className="meta-barra-campo">
                       <label>Técnico</label>
                       <input name="tecnicoNome" value={meta.tecnicoNome} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('tecnicoNome', e.target.value)} />

@@ -24,6 +24,7 @@ import {
 } from './classificacaoCaldeira';
 import { carregarDadosCaldeira, comValorCaldeira, salvarDadosCaldeira, valorCaldeira, type DadosCaldeira } from './dadosCaldeira';
 import { extremosCaldeira, temMedicaoCaldeira, type MedicaoCaldeira } from './medicaoCaldeira';
+import { avaliacaoVinteECincoAnos, prazoMaximoCaldeira } from './prazosCaldeira';
 import './classificacaoCaldeira.css';
 
 const m3 = (n: number | null) => (n === null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 }));
@@ -121,6 +122,7 @@ export default function SecaoClassificacaoCaldeira({ tag, info }: { tag: string;
   );
 
   const c = classificacao;
+  const vinteCinco = avaliacaoVinteECincoAnos(info.ano, new Date().getFullYear());
   const tomResultado = c.categoria ? 'ok' : c.situacao === 'indefinida' ? 'pendente' : 'fora';
 
   return (
@@ -234,6 +236,18 @@ export default function SecaoClassificacaoCaldeira({ tag, info }: { tag: string;
             <small>{c.item} · pressão de operação = PMO adotada{c.pmoKgf !== null ? ` (${c.pmoKgf.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kgf/cm² · ${Math.round(c.pmoKpa!)} kPa)` : ''}</small>
           </div>
         </div>
+        {c.categoria && prazoMaximoCaldeira(c.categoria) && (
+          <p className="cc-dica">
+            Inspeção periódica (exames interno e externo): prazo máximo de {prazoMaximoCaldeira(c.categoria)!.meses} meses
+            (NR-13 {prazoMaximoCaldeira(c.categoria)!.item}); maior só nas condições do 13.4.4.4 c/d e do 13.4.4.5 (SPIE).
+          </p>
+        )}
+        {vinteCinco?.exige && (
+          <p className="cc-falta">
+            <Icone nome="alerttri" tam={13} /> Caldeira com {vinteCinco.idade} anos de uso: na próxima inspeção cabe a
+            avaliação de integridade com maior abrangência, para vida remanescente e novos prazos (NR-13 13.4.4.6).
+          </p>
+        )}
         {c.faltas.length > 0 && (
           <p className="cc-falta">
             <Icone nome="alerttri" tam={13} /> Falta: {c.faltas.join(' · ')}
