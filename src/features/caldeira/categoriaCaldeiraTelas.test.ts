@@ -34,6 +34,8 @@ describe('catálogo: caldeira só aceita A ou B', () => {
     expect(categoriaDoCatalogo('vaso', 'III')).toBe('III');
     expect(categoriaDoCatalogo('autoclave', 'II')).toBe('II');
     expect(categoriaDoCatalogo('vaso', '')).toBeNull();
+    // 23/11/2026 · não categorizado escrito igual à ficha.
+    expect(categoriaDoCatalogo('vaso', 'N/A (Não Enquadra)')).toBe('Não categorizado');
   });
 });
 

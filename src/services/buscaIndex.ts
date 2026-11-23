@@ -338,6 +338,8 @@ export function categoriaDoCatalogo(tipo: string | null | undefined, categoria: 
   const c = (categoria ?? '').trim();
   if (!c) return null;
   if (tipo === 'caldeira') return c === 'A' || c === 'B' ? c : null;
+  // Vaso/autoclave fora da NR-13 (13.2.1 b/c): a lista diz o que a ficha diz.
+  if (c === 'N/A (Não Enquadra)') return 'Não categorizado';
   return c;
 }
 
