@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plano — Relatório de Caldeira Flamotubular (NR-13)</title>
+<style>
+  :root{--azul:#0C4F9B;--escuro:#0F1631;--ok:#009A3D;--okbg:#DEFFE8;--crit:#DC2626;--critbg:#FEECEC;--warn:#B45309;--warnbg:#FFF6E0;--pet:#0B5F73;--cinza:#5B6475;--fio:#E3E6EC}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1B2233;background:#EBEBEB}
+  header{background:var(--escuro);color:#fff;padding:28px 20px}
+  header .in,main{max-width:1080px;margin:0 auto}
+  header h1{margin:0 0 6px;font-size:26px}
+  header p{margin:0;color:#B9C3DA}
+  main{padding:20px}
+  section{background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(15,22,49,.12);padding:22px 24px;margin:0 0 18px}
+  h2{margin:0 0 12px;font-size:20px;color:var(--escuro)}
+  h3{margin:18px 0 8px;font-size:16px;color:var(--azul)}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0}
+  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--fio);vertical-align:top}
+  th{background:#F4F6FA;font-weight:600}
+  tr:nth-child(even) td{background:#FAFBFC}
+  .tag{display:inline-block;padding:3px 9px;border-radius:4px;font-size:12px;font-weight:600;white-space:nowrap}
+  .ok{background:var(--okbg);color:var(--ok)} .crit{background:var(--critbg);color:var(--crit)} .warn{background:var(--warnbg);color:var(--warn)} .info{background:#E6EFFA;color:var(--azul)}
+  blockquote{margin:10px 0;padding:10px 14px;border-left:4px solid var(--pet);background:#F2F8FA;font-size:14px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+  .card{border:1px solid var(--fio);border-radius:4px;padding:12px 14px}
+  .card b{display:block;color:var(--escuro);margin-bottom:4px}
+  .fase{border-left:4px solid var(--azul);padding:4px 0 4px 14px;margin:14px 0}
+  .fase h3{margin-top:0}
+  ul{margin:6px 0;padding-left:20px} li{margin:3px 0}
+  code{background:#F1F3F7;padding:1px 5px;border-radius:3px;font-size:13px}
+  .pequeno{font-size:13px;color:var(--cinza)}
+  .veredito{font-size:16px;padding:12px 14px;border-radius:4px;margin:10px 0}
+  .decisao{background:#FFFBEA;border:1px solid #F2D675;border-radius:4px;padding:12px 14px;margin:10px 0}
+  .decisao b{color:#7A5A00}
+  footer{text-align:center;color:var(--cinza);font-size:13px;padding:10px 0 30px}
+</style>
+</head>
+<body>
+<header><div class="in">
+  <h1>Plano — Relatório completo de Caldeira Flamotubular</h1>
+  <p>Análise do relatório real CAL-25/5340 (63 páginas), da NR-13 vigente, do esboço do engenheiro parceiro e do Ensaio de Acumulação · 23/11/2026 · <b>aguardando aprovação</b></p>
+</div></header>
+<main>
+
+<section>
+  <h2>1. Resumo em 30 segundos</h2>
+  <ul>
+    <li><b>A boa notícia:</b> o sistema já tem mais de caldeira do que parece. Já existem o relatório próprio de caldeira (capa, prontuário, acessórios, relatório de inspeção, VE, VI, cálculos ASME I, medição de espessura, acumulação, TH, certificados, prontuário de fabricação, ART, livro), o ensaio de acumulação e a categoria A/B correta — <b>só que a categoria A/B aparece apenas dentro do PDF</b>.</li>
+    <li><b>O problema que você viu é real:</b> na <b>ficha do equipamento</b>, a caldeira ainda usa a calculadora de <b>vaso de pressão</b> (classe de fluido, P×V, grupo de risco, categoria I a V). Esse I–V aparece em cartão, filtro, Portal, prontuário e vida remanescente. Está errado para caldeira.</li>
+    <li><b>O que falta</b> para emitir igual ao relatório real: categoria A/B na ficha com o fluxo do engenheiro (volume → espessura → classificação), checklist NR-13 próprio de caldeira, relatório fotográfico grande no fim, teste de controle de nível/alimentação de água, folha do pressostato, prazos de inspeção pela regra de caldeira e alguns campos da placa.</li>
+    <li><b>Como fazer com segurança:</b> 8 fases pequenas, cada uma com teste automatizado, testada no laboratório local (nunca em produção), sem tocar em relatório já emitido e sem apagar dado antigo.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>2. A regra oficial da NR-13 para caldeira (e se o engenheiro está certo)</h2>
+  <p class="pequeno">Fonte: texto oficial da NR-13 no gov.br — redação da Portaria MTP nº 1.846/2022, atualizada pela Portaria MTP nº 4.219/2022 (versão vigente).</p>
+  <blockquote><b>13.4.1.1</b> Para os propósitos desta NR, as caldeiras devem ser categorizadas da seguinte forma:<br>
+  a) caldeiras da <b>categoria A</b> são aquelas cuja pressão de operação é <b>igual ou superior a 1.960 kPa (19,98 kgf/cm²)</b>; ou<br>
+  b) caldeiras da <b>categoria B</b> são aquelas cuja pressão de operação seja <b>superior a 60 kPa (0,61 kgf/cm²) e inferior a 1.960 kPa (19,98 kgf/cm²)</b>.</blockquote>
+  <blockquote><b>13.2.1 a)</b> Esta NR deve ser aplicada a caldeiras com pressão de operação superior a 60 kPa (0,61 kgf/cm²).<br>
+  <b>13.2.2 k)</b> Esta NR <b>não</b> se aplica a caldeiras com volume inferior a cem litros.</blockquote>
+
+  <div class="veredito ok"><b>Veredito: o engenheiro está certo</b>, com um ajuste de uma palavra.</div>
+  <table>
+    <tr><th>O que ele disse</th><th>O que a norma diz</th><th>Resultado</th></tr>
+    <tr><td>Categoria A: pressão <b>superior</b> a 19,98 kgf/cm²</td><td><b>Igual ou superior</b> a 19,98 kgf/cm² (1.960 kPa)</td><td><span class="tag ok">Certo</span> só muda o caso de exatamente 19,98, que é A</td></tr>
+    <tr><td>Categoria B: maior que 0,61 e menor que 19,98 kgf/cm²</td><td>Superior a 0,61 kgf/cm² (60 kPa) e inferior a 19,98 kgf/cm²</td><td><span class="tag ok">Certo</span></td></tr>
+    <tr><td>Calcular o volume antes de classificar</td><td>Volume não muda a categoria (A/B é só pela pressão), mas <b>decide se a NR-13 se aplica</b>: caldeira com menos de 100 L fica fora</td><td><span class="tag ok">Certo</span> o volume é o 1º filtro</td></tr>
+  </table>
+  <h3>Diferenças em relação ao vaso de pressão (por que não pode usar o método do vaso)</h3>
+  <table>
+    <tr><th></th><th>Vaso de pressão</th><th>Caldeira</th></tr>
+    <tr><td>Categorias</td><td>I, II, III, IV, V</td><td><b>A</b> e <b>B</b></td></tr>
+    <tr><td>Base do cálculo</td><td>Classe do fluido × grupo potencial (P×V)</td><td><b>Só a pressão de operação</b></td></tr>
+    <tr><td>Fluido</td><td>Decide a classe</td><td>Não entra (é vapor d'água)</td></tr>
+    <tr><td>Volume</td><td>Entra no P×V e no enquadramento P×V &gt; 8</td><td>Só o filtro de aplicação (&lt; 100 L = fora da NR-13)</td></tr>
+    <tr><td>Prazo da inspeção periódica</td><td>Por categoria (anos)</td><td>12 meses (A e B); 24 meses para A se as válvulas forem testadas aos 12; 30 meses para B com SGC (Anexo IV); maiores com SPIE</td></tr>
+  </table>
+  <h3>O que a NR-13 exige no relatório de caldeira (13.4.4.12) — usado como lista de conferência</h3>
+  <p class="pequeno">a) dados da placa · b) categoria · c) tipo da caldeira · d) tipo de inspeção · e) data de início e término · f) descrição das inspeções, exames e testes · <b>g) registros fotográficos do exame interno</b> · h) resultados · <b>i) itens da NR-13 que não estão sendo atendidos</b> · j) recomendações e providências · k) parecer conclusivo · l) data da próxima inspeção · m) nome, assinatura e registro do PLH e dos técnicos · <b>n) número do certificado de inspeção e teste da válvula de segurança</b>.</p>
+  <p class="pequeno">Ensaio de acumulação na NR-13 vigente: <b>13.4.4.9</b> — "as válvulas de segurança instaladas em caldeiras podem ser submetidas a testes de acumulação, a critério técnico do PLH". O relatório de referência (2022) cita "13.4.4.11", que é a numeração antiga de 2017; o sistema deve citar a numeração atual.</p>
+</section>
+
+<section>
+  <h2>3. O que tem no relatório real CAL-25/5340 (63 páginas)</h2>
+  <table>
+    <tr><th>Seção</th><th>Páginas</th><th>Conteúdo</th><th>No sistema hoje</th></tr>
+    <tr><td>Capa + Sumário</td><td>1–2</td><td>Foto grande, TAG, 7 seções</td><td><span class="tag ok">Existe</span></td></tr>
+    <tr><td>1.1 Prontuário</td><td>4–5</td><td>Corpo, espelhos (estaiado), fornalha, 60 tubos, nº de passes, vazão 2.720 kg/h, tipo de vapor, combustível, tiragem, tratamento de água, controles manual/automático, PMO/PMTA/PTH em 4 unidades</td><td><span class="tag warn">Quase</span> conferir campo a campo; falta área de superfície de aquecimento (placa, 13.4.1.3 f)</td></tr>
+    <tr><td>1.2 Instrumentos e acessórios</td><td>6–7</td><td>Manômetro, PSV, indicadores de nível, dreno, bombas de alimentação, abertura de inspeção, chaminé — com foto de cada</td><td><span class="tag warn">Quase</span> conferir campo a campo</td></tr>
+    <tr><td>1.3 Relatório de inspeção</td><td>8–10</td><td>Ensaios realizados (ME, TH, estanqueidade, acumulação, <b>dispositivos de alimentação de água</b>), instrumentos calibrados, exame do prontuário, perguntas SIM/NÃO por exame, laudo final, próxima inspeção</td><td><span class="tag warn">Parcial</span> falta o teste de alimentação de água e a lista de itens NR-13 não atendidos</td></tr>
+    <tr><td>1.4 Visual externo</td><td>11–16</td><td>16 itens + <b>36 fotos</b> em 5 folhas</td><td><span class="tag ok">Existe</span> (itens de caldeira já cadastrados)</td></tr>
+    <tr><td>1.5 Visual interno</td><td>17–21</td><td>11 itens (espelhos, feixes, fornalha, grelha, câmara de reversão, refratários…) + 19 fotos</td><td><span class="tag ok">Existe</span></td></tr>
+    <tr><td>1.6 Cálculos</td><td>22–24</td><td>PMTA do corpo e dos espelhos pela espessura mensurada (ASME I)</td><td><span class="tag ok">Existe</span></td></tr>
+    <tr><td>2.1 Medição de espessura</td><td>26–27</td><td>Corpo, fornalha, chaminé, parede de reversão, espelhos; mínimas e máximas</td><td><span class="tag ok">Existe</span> (grade de caldeira)</td></tr>
+    <tr><td>2.2 Ensaio de acumulação</td><td>28–29</td><td>Igual ao PDF que o engenheiro mandou + 4 fotos</td><td><span class="tag ok">Existe</span> conferir paridade e vínculo do manômetro</td></tr>
+    <tr><td>3 Teste de sobrepressão (TH)</td><td>31–32</td><td>3 etapas com pressão, horários, resultado; fotos do manômetro por etapa; certificado do manômetro</td><td><span class="tag warn">Conferir</span> se o TH aceita etapas</td></tr>
+    <tr><td>4 Certificados</td><td>33–46</td><td>PSV, manômetro, <b>2 pressostatos</b> (rearme/desarme) e os certificados RBC dos padrões</td><td><span class="tag warn">Parcial</span> pressostato não tem folha interna</td></tr>
+    <tr><td>5 Prontuário de fabricação · 6 ART</td><td>47–49</td><td>PDFs anexados</td><td><span class="tag ok">Existe</span></td></tr>
+    <tr><td>7 Livro de registro</td><td>50–62</td><td>Inspeção, uma linha por calibração, acumulação em data própria</td><td><span class="tag ok">Existe</span> sugerir as linhas automaticamente</td></tr>
+  </table>
+  <p class="pequeno">Inconsistências do próprio documento de referência (não copiar): folha 2 da acumulação com nº rastreável do visual interno; tabela de "máximas" com rótulo "MÍNIMAS"; TH aplicado a 14 kgf/cm² com PTH de 16,83 sem comentário; parâmetros do espelho com o título "corpo".</p>
+</section>
+
+<section>
+  <h2>4. O fluxo que o engenheiro pediu (esboço do Excel dele)</h2>
+  <p>"Colocar campos exibindo o resultado. Colocou os valores para calcular o volume, verifica os valores, depois entra a parte de classificação — seguindo linha de montagem."</p>
+  <div class="cards">
+    <div class="card"><b>① Volume</b>Corpo, Tampo 1, Tampo 2 → em m³ <b>e</b> em litros, com o total. Mostra o resultado ao lado de cada campo.</div>
+    <div class="card"><b>② Espessura mensurada</b>Máxima e mínima de corpo, tampo 1 e tampo 2. Vem da última medição de espessura; digitação só se não houver medição.</div>
+    <div class="card"><b>③ Classificação</b>Aplica a NR-13? (pressão &gt; 0,61 kgf/cm² e volume ≥ 100 L) → <b>Categoria A ou B</b> pela pressão de operação, com o item da norma escrito ao lado.</div>
+  </div>
+  <p class="pequeno">Esse bloco substitui, <b>só para caldeira</b>, a calculadora de vaso que hoje aparece na ficha. Vaso e autoclave continuam exatamente como estão.</p>
+</section>
+
+<section>
+  <h2>5. O que falta — lista priorizada</h2>
+  <table>
+    <tr><th>#</th><th>Falta</th><th>Por que importa</th><th>Prioridade</th></tr>
+    <tr><td>G1</td><td>Ficha da caldeira usa a categoria de vaso (I–V)</td><td>Categoria errada em cartão, filtro, Portal, prontuário e vida remanescente</td><td><span class="tag crit">Alta</span></td></tr>
+    <tr><td>G2</td><td>Bloco "Volume → Espessura → Classificação" do engenheiro</td><td>É o fluxo de trabalho dele e o filtro de aplicação da NR-13</td><td><span class="tag crit">Alta</span></td></tr>
+    <tr><td>G3</td><td>Relatório fotográfico grande no fim do relatório de caldeira</td><td>Caldeira tem muitas fotos; hoje a seção de imagens não entra no relatório completo de caldeira</td><td><span class="tag crit">Alta</span></td></tr>
+    <tr><td>G4</td><td>Checklist NR-13 próprio de caldeira + "itens da NR-13 não atendidos" no 1.3</td><td>Exigência 13.4.4.12 i); hoje o checklist não tem ramo de caldeira</td><td><span class="tag crit">Alta</span></td></tr>
+    <tr><td>G5</td><td>Paridade do Ensaio de Acumulação com o PDF do engenheiro + manômetro escolhido das calibrações</td><td>Ensaio específico de caldeira; o instrumento precisa vir do cadastro, congelado</td><td><span class="tag warn">Média</span></td></tr>
+    <tr><td>G6</td><td>Novo ensaio: controle de nível e alimentação de água (intertravamento)</td><td>Aparece no 1.3 da referência; 13.4.1.2 e) exige o intertravamento</td><td><span class="tag warn">Média</span></td></tr>
+    <tr><td>G7</td><td>Folha interna de calibração do pressostato (rearme/desarme)</td><td>A referência tem 2 pressostatos certificados</td><td><span class="tag warn">Média</span></td></tr>
+    <tr><td>G8</td><td>Prazo da próxima inspeção pela regra de caldeira (12/24/30 meses) + alerta de 25 anos</td><td>Hoje é digitado à mão; a sugestão evita erro</td><td><span class="tag warn">Média</span></td></tr>
+    <tr><td>G9</td><td>Campos da placa: área de superfície de aquecimento, data de instalação, localização</td><td>13.4.1.3 f) e 13.4.4.12 a)</td><td><span class="tag info">Baixa</span></td></tr>
+    <tr><td>G10</td><td>TH em etapas (pressão, início, término, resultado por etapa)</td><td>Formato da referência</td><td><span class="tag info">Baixa</span> conferir antes</td></tr>
+    <tr><td>G11</td><td>Livro: sugerir uma linha por calibração e a da acumulação</td><td>Poupa digitação</td><td><span class="tag info">Baixa</span></td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>6. Plano de implementação em fases</h2>
+  <p class="pequeno">Cada fase é entregue sozinha, com teste automatizado, build real (<code>npm run build</code>) e prova no laboratório local. Nenhuma fase vai para produção sem o seu OK.</p>
+
+  <div class="fase"><h3>Fase 0 — Caldeira de prova e régua de comparação</h3>
+  <ul>
+    <li>Cadastrar a CAL-25/5340 no laboratório local com os dados reais do PDF (só local, nunca em produção).</li>
+    <li>Gerar o relatório de caldeira de hoje e montar a tabela "campo do PDF real × campo do nosso PDF". Essa tabela é a régua de todas as fases seguintes.</li>
+  </ul></div>
+
+  <div class="fase"><h3>Fase 1 — Categoria da caldeira na ficha (G1 + G2)</h3>
+  <ul>
+    <li>Novo bloco na ficha, <b>só para caldeira</b>: ① Volume (corpo + tampo 1 + tampo 2, m³ e litros, total), ② Espessura mensurada máx./mín. (da última medição), ③ Classificação (aplica a NR-13? → A ou B, com o item da norma).</li>
+    <li>A categoria é <b>calculada na hora</b> a partir da PMO adotada (a função que já existe no PDF, <code>categoriaCaldeira</code>) — uma regra só, usada pela ficha e pelo PDF.</li>
+    <li>Os valores do volume entram na ficha de caldeira que já existe (<code>nr13_ficha_caldeira_</code>): <b>nenhuma chave nova</b>, nada a mais no palco.</li>
+    <li>A calculadora de vaso some da ficha da caldeira. A categoria I–V antiga gravada <b>não é apagada</b> (regra da v2); só deixa de ser exibida para caldeira.</li>
+    <li>Cartão, lista e Vida Remanescente passam a mostrar A/B para caldeira.</li>
+    <li>Testes: limites exatos (0,61 / 19,98 kgf/cm², exatamente 1.960 kPa = A), volume &lt; 100 L = fora da NR-13, vaso e autoclave inalterados.</li>
+  </ul></div>
+
+  <div class="fase"><h3>Fase 2 — Checklist NR-13 de caldeira (G4)</h3>
+  <ul>
+    <li>Perguntas tiradas da norma: dispositivos obrigatórios (13.4.1.2 a–e), placa (13.4.1.3 a–g), categoria visível (13.4.1.4), documentação (13.4.1.5 a–f), casa ou área de caldeiras (13.4.2.3/13.4.2.4), painel em sala de controle se A (13.4.2.6), manual de operação (13.4.3.1), qualidade da água (13.4.3.2), operador capacitado (13.4.3.3), teste mensal da alavanca da válvula se B (13.4.4.8).</li>
+    <li>Cada "NÃO atende" vira automaticamente a lista "Itens da NR-13 não atendidos" na folha 1.3 (13.4.4.12 i), com o número do item.</li>
+    <li>Mesmo padrão de celular dos outros ensaios: pergunta, resposta, foto com descrição.</li>
+  </ul></div>
+
+  <div class="fase"><h3>Fase 3 — Relatório fotográfico no fim do relatório de caldeira (G3)</h3>
+  <ul>
+    <li>Ligar o "Relatório de Imagens" (o mesmo da seção 8.4, foto com descrição) ao relatório completo de caldeira, como <b>última seção antes dos anexos</b> (ver decisão D4).</li>
+    <li>Sem limite de fotos; paginação automática com a descrição nunca cortada (já é assim no vaso).</li>
+    <li><b>Teste de carga:</b> relatório com 150 fotos — medir tempo de geração, tamanho do PDF e memória no celular. Se passar de um teto combinado, comprimir a imagem só no PDF (o original no cofre fica intacto).</li>
+    <li>Exigência da norma 13.4.4.12 g): sem foto no exame interno, a finalização avisa e bloqueia.</li>
+  </ul></div>
+
+  <div class="fase"><h3>Fase 4 — Ensaio de Acumulação igual ao do engenheiro (G5)</h3>
+  <ul>
+    <li>Conferir campo a campo com o PDF dele: procedimento, normas, instrumento, tempo de estabilização, início/término, pressão máxima em MPa/kPa/psi/kgf/cm²/bar, "válvulas suficientes?", "não conformidade?", justificativa, laudo, folha de fotos, assinaturas.</li>
+    <li>O manômetro passa a ser escolhido das calibrações cadastradas e entra <b>congelado</b> (mesmo modelo do quadro 7.1.1), avisando se estava vencido na data do ensaio.</li>
+    <li>Critério automático: pressão máxima ≤ PMTA × 1,06 (ASME I PG-67.2) só como <b>sugestão</b>; quem decide o laudo é o engenheiro (13.4.4.9: "a critério técnico do PLH"). Ver decisão D5.</li>
+    <li>Data própria do ensaio (na referência foi 08/06, a inspeção foi 29/03) e linha própria no livro.</li>
+  </ul></div>
+
+  <div class="fase"><h3>Fase 5 — Teste de nível/alimentação de água + pressostato (G6 + G7)</h3>
+  <ul>
+    <li>Novo ensaio só para caldeira: bombas (fabricante, capacidade, acionamento), teste do intertravamento por nível baixo (desarme do queimador), alarme, resultado, fotos.</li>
+    <li>Folha interna de calibração do pressostato: rearme e desarme, 2 ensaios, set point, inspeção visual de 9 itens, padrão usado — no mesmo motor vetorial dos certificados de manômetro e PSV.</li>
+  </ul></div>
+
+  <div class="fase"><h3>Fase 6 — Prazos de caldeira (G8)</h3>
+  <ul>
+    <li>Sugestão da próxima inspeção pela 13.4.4.4: 12 meses (A e B); 24 meses para A com teste das válvulas aos 12 meses; 30 meses para B com SGC. O engenheiro confirma ou muda — nada é imposto.</li>
+    <li>Alerta quando a caldeira passa de 25 anos (13.4.4.6) e lembrete do prazo das válvulas (13.4.4.7).</li>
+    <li>O painel de vencimentos continua lendo as datas do relatório (sem mudar a regra que já existe).</li>
+  </ul></div>
+
+  <div class="fase"><h3>Fase 7 — Ficha completa e catálogo (G9, G10, G11)</h3>
+  <ul>
+    <li>Campos que faltam: área de superfície de aquecimento, data de instalação, localização.</li>
+    <li>TH em etapas, se ainda não existir; sugestão automática das linhas do livro.</li>
+    <li>Se o catálogo (lista do servidor) precisar mostrar A/B, a mudança de SQL segue a regra do hash (§13) e roda primeiro no laboratório.</li>
+  </ul></div>
+
+  <div class="fase"><h3>Fase 8 — Prova final e publicação</h3>
+  <ul>
+    <li>Relatório completo da CAL-25/5340 no laboratório, comparado com o PDF real pela régua da Fase 0.</li>
+    <li>Prova no celular: preencher a inspeção em campo, gerar no computador.</li>
+    <li>Com o seu OK: push em <code>main</code> e deploy; teste de fumaça na organização de teste.</li>
+  </ul></div>
+</section>
+
+<section>
+  <h2>7. Garantias de segurança (o que NÃO vai acontecer)</h2>
+  <ul>
+    <li><b>Relatório já emitido não muda.</b> Documento com PDF arquivado abre sempre o arquivo; as mudanças valem só para rascunhos e emissões novas.</li>
+    <li><b>Nada é apagado.</b> A categoria I–V antiga das caldeiras fica guardada; só deixa de ser usada para caldeira.</li>
+    <li><b>Vaso e autoclave intocados.</b> Todo ramo novo é condicionado a "tipo = caldeira", com teste que quebra se o vaso mudar.</li>
+    <li><b>Produção não é laboratório.</b> Caldeira de prova e testes de carga só no banco local.</li>
+    <li><b>Nenhuma chave nova sem necessidade.</b> Onde precisar, entra com cobertura do teste de varredura do palco.</li>
+    <li><b>Nada de custo novo.</b> Nenhuma API paga envolvida.</li>
+    <li><b>Push e deploy só com a sua autorização</b>, fase por fase.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>8. Decisões que preciso de você (ou do engenheiro)</h2>
+  <div class="decisao"><b>D1 · Fórmula do volume.</b> Em caldeira flamotubular as extremidades são espelhos planos, não tampos. Os "tampo 1 / tampo 2" da planilha dele são o quê — câmara de reversão e caixa de fumaça? E o volume é o do casco inteiro ou o de água (descontando fornalha e tubos)? <i>Minha recomendação:</i> fazer como a planilha dele (corpo + 2 tampos com o tipo de cada um) e perguntar a ele a fórmula exata de cada parte antes da Fase 1; aceitar também o volume digitado da placa/manual.</div>
+  <div class="decisao"><b>D2 · Volume menor que 100 L.</b> Mostrar "fora do escopo da NR-13 (13.2.2 k)" e <b>avisar</b>, ou <b>bloquear</b> o relatório? <i>Recomendo avisar</i>, sem bloquear.</div>
+  <div class="decisao"><b>D3 · Pressão usada para classificar.</b> A norma manda usar a <b>pressão de operação</b> (no sistema: a PMO adotada da ficha), não a PMTA. Na referência: PMO 10,10 kgf/cm² → <b>B</b>. Confirmar com o engenheiro.</div>
+  <div class="decisao"><b>D4 · Onde fica o relatório fotográfico.</b> (a) depois do Livro, como último item; ou (b) antes dos anexos (certificados, prontuário de fabricação, ART). <i>Recomendo (b)</i>: as fotos ficam junto do conteúdo técnico, e os PDFs de terceiros fecham o documento.</div>
+  <div class="decisao"><b>D5 · Critério de aprovação da acumulação.</b> Hoje: pressão máxima até 6% acima da PMTA (ASME I). A NBR 12177 é paga e não consegui confirmar o número nela. O engenheiro usa 6% ou "não pode passar da PMTA"?</div>
+</section>
+
+<section>
+  <h2>9. Fontes</h2>
+  <ul class="pequeno">
+    <li>NR-13 vigente (Portarias MTP 1.846/2022 e 4.219/2022): <a href="https://www.gov.br/trabalho-e-emprego/pt-br/acesso-a-informacao/participacao-social/conselhos-e-orgaos-colegiados/comissao-tripartite-partitaria-permanente/normas-regulamentadora/normas-regulamentadoras-vigentes/nr-13-atualizada-2023-b.pdf">gov.br — NR-13 atualizada</a></li>
+    <li>Relatório de referência: CALDEIRA IMPLEMENTARA CAL-25_5340 (Downloads), 63 páginas lidas por inteiro.</li>
+    <li>Ensaio de Acumulação (Downloads), 2 páginas.</li>
+    <li>Esboço do engenheiro (WhatsApp 04/11/2026) e conversa de 04/11.</li>
+    <li>Código atual: <code>features/caldeira/categoriaCaldeira.ts</code>, <code>features/categoria/CategoriaNR13.tsx</code>, <code>features/inspecoes/acumulacao.ts</code>, <code>pdfVetorial/gerarRelatorioCaldeira.ts</code>, <code>calc/vidaRemanescente.ts</code>.</li>
+  </ul>
+</section>
+</main>
+<footer>Plano gerado em 23/11/2026 · nada foi alterado no sistema · aguardando aprovação</footer>
+</body>
+</html>

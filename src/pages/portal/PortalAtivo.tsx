@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { categoriaExibida } from '../../features/caldeira/categoriaExibida';
 import { Icone, type NomeIcone } from '../../components/Icone';
 import { Link, useParams } from 'react-router-dom';
 import { ler } from '../../services/storage';
@@ -93,7 +94,8 @@ export default function PortalAtivo() {
   // `ref` é o caminho no bucket; `src` só continua preenchido nas fotos legadas.
   const fotos = ler<(FotoArmazenada & { src?: string; isCapa?: boolean })[]>(`nr13_fotos_${tag}`) || [];
   const capa = fotos.find((f) => f.isCapa) ?? fotos[0] ?? null;
-  const cat = ler<{ catFinal?: string }>(`nr13_cat_${tag}`);
+  // Caldeira: A/B (NR-13 13.4.1.1), nunca o I–V de vaso (23/11/2026).
+  const cat = { catFinal: categoriaExibida(tag, info) ?? undefined };
   const calc = ler<{ pmta?: string; pth?: string; resultado?: string }>(`nr13_calc_${tag}`);
   const emp = ler<{ razaoSocial?: string; cidade?: string; endereco?: string }>(`nr13_emp_${tag}`);
   const livro = ler<LivroEntradaView[]>(`nr13_livro_${tag}`) || [];

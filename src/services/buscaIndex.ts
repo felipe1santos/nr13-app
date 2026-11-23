@@ -328,13 +328,26 @@ function num(v: number | string | null | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * CALDEIRA só tem categoria A ou B (NR-13 13.4.1.1, 23/11/2026). Projeção
+ * anterior a `caldeira_categoria_catalogo.sql` copiava para caldeira a categoria
+ * do método de VASO (I–V, de `nr13_cat_`) — valor que não existe para caldeira e
+ * que a tela não pode afirmar. Ele vira "sem categoria" até a projeção ser refeita.
+ */
+export function categoriaDoCatalogo(tipo: string | null | undefined, categoria: string | null | undefined): string | null {
+  const c = (categoria ?? '').trim();
+  if (!c) return null;
+  if (tipo === 'caldeira') return c === 'A' || c === 'B' ? c : null;
+  return c;
+}
+
 function daLinha(l: LinhaRpc): ItemCatalogo {
   return {
     tag: l.tag,
     descricao: l.descricao,
     tipo: l.tipo,
     subtipo: l.subtipo,
-    categoria: l.categoria,
+    categoria: categoriaDoCatalogo(l.tipo, l.categoria),
     fabricante: l.fabricante,
     numeroSerie: l.numero_serie,
     localizacao: l.localizacao,

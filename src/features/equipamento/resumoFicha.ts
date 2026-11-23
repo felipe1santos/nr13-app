@@ -39,15 +39,26 @@ export function resumoDaFicha({
   categoria,
   vida,
   unidade,
+  caldeira,
 }: {
   info: Pick<InfoEquipamento, 'fabricante' | 'pmtaAdotadaMpa'>;
   categoria: Pick<CategoriaSalva, 'catFinal' | 'volInput'> | null;
   vida: VidaResumo | null;
   unidade: SistemaUnidade;
+  /**
+   * CALDEIRA (23/11/2026): categoria A/B e volume vêm da classificação da
+   * caldeira (`classificacaoCaldeira.ts`), nunca da `nr13_cat_` — que guarda o
+   * método de VASO (I–V) e não vale para caldeira.
+   */
+  caldeira?: { categoria: string; volumeM3: number | null };
 }): ItemResumo[] {
   const pmta = parseFloat(String(info.pmtaAdotadaMpa ?? '').replace(',', '.'));
   return [
-    { chave: 'categoria', rotulo: 'Categoria NR-13', valor: categoria?.catFinal ?? '—' },
+    {
+      chave: 'categoria',
+      rotulo: 'Categoria NR-13',
+      valor: caldeira ? caldeira.categoria : categoria?.catFinal ?? '—',
+    },
     {
       chave: 'pmta',
       rotulo: 'PMTA ADOTADA',
@@ -60,6 +71,16 @@ export function resumoDaFicha({
       valor: !vida ? '—' : vida.vidaAnos == null ? 'indeterminada' : `${vida.vidaAnos.toFixed(2)} anos`,
     },
     { chave: 'fabricante', rotulo: 'Fabricante', valor: info.fabricante?.trim() || '—' },
-    { chave: 'volume', rotulo: 'Volume', valor: categoria ? `${categoria.volInput} m³` : '—' },
+    {
+      chave: 'volume',
+      rotulo: 'Volume',
+      valor: caldeira
+        ? caldeira.volumeM3 === null
+          ? '—'
+          : `${caldeira.volumeM3.toLocaleString('pt-BR', { maximumFractionDigits: 4 })} m³`
+        : categoria
+          ? `${categoria.volInput} m³`
+          : '—',
+    },
   ];
 }

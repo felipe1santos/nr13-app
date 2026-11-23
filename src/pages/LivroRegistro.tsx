@@ -1,4 +1,5 @@
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
+import { categoriaExibida } from '../features/caldeira/categoriaExibida';
 import RecusaPalco from '../components/RecusaPalco';
 import { useEffect, useMemo, useState } from 'react';
 import { Icone } from '../components/Icone';
@@ -128,13 +129,13 @@ function montarLinha(tag: string): LinhaLivro | null {
     // chegasse a esta chave por qualquer caminho, ele não entraria na contagem
     // nem na folha impressa, que é o que a projeção e o Portal enxergam.
     const entradas = somenteOficiais(ler<LivroEntrada[]>(`nr13_livro_${tag}`) ?? []);
-    const cat = ler<{ catFinal?: string }>(`nr13_cat_${tag}`);
     return {
       tag,
       nomeEquip: info.descricao?.trim() || ROTULO_TIPO[info.tipo] || 'Equipamento',
       entradas,
       ultimaData: entradas.length > 0 ? entradas[entradas.length - 1].data : '',
-      categoria: cat?.catFinal || '',
+      // Caldeira: A/B pela NR-13 13.4.1.1, nunca o I–V de vaso (23/11/2026).
+      categoria: categoriaExibida(tag, info) || '',
     };
   } catch {
     return null; // chave malformada: ignora

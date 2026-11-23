@@ -4,6 +4,7 @@
 // As chaves são hidratadas no localStorage para os templates HTML (iframes de
 // relatório/prontuário) funcionarem em modo leitura, igual no sistema interno.
 import { supabase } from '../../services/supabase';
+import { categoriaExibida } from '../caldeira/categoriaExibida';
 import type { InfoEquipamento } from '../../features/equipamento/tipos';
 import { ler, semearCachePortal } from '../../services/storage';
 import type { FotoArmazenada, RefFoto } from '../../services/fotos';
@@ -170,13 +171,13 @@ export function montarAtivos(tags: string[]): AtivoPortal[] {
     const info = ler<InfoEquipamento>(`nr13_info_${tag}`);
     const fotos = ler<{ src: string; ref?: RefFoto; isCapa: boolean }[]>(`nr13_fotos_${tag}`) || [];
     const capa = fotos.find((f) => f.isCapa) ?? fotos[0] ?? null;
-    const cat = ler<{ catFinal?: string }>(`nr13_cat_${tag}`);
     const calc = ler<{ pmta?: string; resultado?: string }>(`nr13_calc_${tag}`);
     return {
       tag,
       info,
       fotoCapa: capa ? { ref: capa.ref, base64: capa.src } : null,
-      categoria: cat?.catFinal ?? null,
+      // Caldeira: A/B (NR-13 13.4.1.1), nunca o I–V de vaso (23/11/2026).
+      categoria: categoriaExibida(tag, info),
       pmta: calc?.pmta ?? null,
       resultado: calc?.resultado ?? null,
     };

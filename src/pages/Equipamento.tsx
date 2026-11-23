@@ -11,6 +11,9 @@ import FotoIdentificacao from '../features/equipamento/FotoIdentificacao';
 import CategoriaNR13 from '../features/categoria/CategoriaNR13';
 import VidaRemanescente from '../features/equipamento/VidaRemanescente';
 import FichaCaldeira from '../features/caldeira/FichaCaldeira';
+import SecaoClassificacaoCaldeira from '../features/caldeira/SecaoClassificacaoCaldeira';
+import { classificacaoDaFicha, rotuloCurtoCategoria } from '../features/caldeira/classificacaoCaldeira';
+import { carregarDadosCaldeira } from '../features/caldeira/dadosCaldeira';
 import PressoesDocumentacao from '../features/equipamento/PressoesDocumentacao';
 import ProntuarioDoEquipamento from '../features/prontuarios/ProntuarioDoEquipamento';
 import { formatarValor, rotuloSistemaCompleto } from '../calc/unidades';
@@ -254,7 +257,20 @@ function EquipamentoView({ tag }: { tag: string }) {
           {/* RESUMO RÁPIDO — só REPETE o que as seções abaixo já mostram, das
               mesmas chaves (`resumoFicha.ts`). Nenhum cálculo, nenhuma gravação. */}
           <dl className="ficha-resumo" aria-label="Resumo do equipamento">
-            {resumoDaFicha({ info, categoria, vida: ler(`nr13_vida_${tag}`), unidade }).map((it) => (
+            {resumoDaFicha({
+              info,
+              categoria,
+              vida: ler(`nr13_vida_${tag}`),
+              unidade,
+              // Caldeira: A/B pela PMO adotada + volume da ficha da caldeira (NR-13 13.4.1.1).
+              caldeira:
+                info.tipo === 'caldeira'
+                  ? (() => {
+                      const r = classificacaoDaFicha(carregarDadosCaldeira(tag), info.pmoAdotadaMpa);
+                      return { categoria: rotuloCurtoCategoria(r.classificacao), volumeM3: r.volume.totalM3 };
+                    })()
+                  : undefined,
+            }).map((it) => (
               <div key={it.chave} className={`ficha-resumo-item ficha-resumo-${it.chave}`}>
                 <dt>{it.rotulo}</dt>
                 <dd>
@@ -293,7 +309,14 @@ function EquipamentoView({ tag }: { tag: string }) {
         {/* Categoria de risco recebe a unidade GRAVADA do equipamento (regra NR-13:
             o enquadramento exige a base de unidade própria). Desde 16/09/2026 não
             existe mais prévia de unidade na ficha — a gravada é a única. */}
-        <CategoriaNR13 tag={tag} unidade={unidade} />
+        {/* CALDEIRA tem método próprio (NR-13 13.4.1.1: A/B pela pressão de
+            operação; 13.2.2 k: fora abaixo de 100 L). A calculadora de vaso
+            (classe de fluido × P·V → I a V) não vale para ela (23/11/2026). */}
+        {info.tipo === 'caldeira' ? (
+          <SecaoClassificacaoCaldeira tag={tag} info={info} />
+        ) : (
+          <CategoriaNR13 tag={tag} unidade={unidade} />
+        )}
       </section>
 
       <section className="equipamento-secao">

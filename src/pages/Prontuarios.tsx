@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom';
+import { categoriaExibida } from '../features/caldeira/categoriaExibida';
 import { iconeDoTipo } from '../components/listaCobalto';
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 import RecusaPalco from '../components/RecusaPalco';
@@ -580,10 +581,13 @@ export default function Prontuarios() {
       pb('dataFabricacao', eq.info.ano || '');
       pb('nroSerie', eq.info.numeroSerie || eq.info.tag || eq.tag);
       pb('modelo', eq.info.fabricante || '');
-      pb('categoria', eq.categoria?.catFinal ?? '');
+      // Caldeira: A/B (NR-13 13.4.1.1); classe de fluido e grupo de risco são
+      // do método de VASO e não existem para ela (23/11/2026).
+      const ehCald = eq.info.tipo === 'caldeira';
+      pb('categoria', ehCald ? (categoriaExibida(eq.tag, eq.info) ?? '') : (eq.categoria?.catFinal ?? ''));
 
       // ─── Categoria ───
-      const cat = ler<CategoriaSalva>(`nr13_cat_${eq.tag}`);
+      const cat = ehCald ? null : ler<CategoriaSalva>(`nr13_cat_${eq.tag}`);
       if (cat) {
         pb('classeFluid', cat.fluidoInput ? cat.fluidoInput.slice(4) : cat.classe);
         pb('grupoPotencialRisco', String(cat.grupo));

@@ -1,0 +1,38 @@
+/* Classificação NR-13 da caldeira (23/11/2026). Escopo .cc — só este bloco. */
+.cc .cc-etapa { margin-top: 16px; }
+.cc .cc-etapa h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font: var(--t-heading); color: var(--texto-1); }
+.cc .cc-num { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--destaque); color: #fff; font: 700 12px/1 var(--font); }
+
+.cc .cc-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.cc .cc-form fieldset { margin: 0; padding: 10px 12px 12px; border: 1px solid var(--line); border-radius: var(--card-r); display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cc .cc-form legend { padding: 0 4px; font: var(--t-strong); color: var(--texto-1); }
+.cc .cc-campo { display: flex; flex-direction: column; gap: 4px; }
+.cc .cc-campo > span:first-child { font: var(--t-label); color: var(--texto-2); }
+.cc .cc-entrada { display: flex; align-items: center; gap: 6px; }
+.cc .cc-entrada input, .cc .cc-campo select { flex: 1; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--fio-campo); border-radius: var(--card-r); font: var(--t-body); background: #fff; color: var(--texto-1); }
+.cc .cc-entrada em { font: var(--t-caption); font-style: normal; color: var(--texto-3); min-width: 22px; }
+
+.cc .cc-tabela { width: 100%; max-width: 560px; border-collapse: collapse; font: var(--t-body); }
+.cc .cc-tabela th, .cc .cc-tabela td { padding: 8px 10px; border-bottom: 1px solid #EDF0F5; text-align: left; }
+.cc .cc-tabela thead th { font: var(--t-label); color: rgba(0, 0, 0, 0.87); border-bottom: 1px solid #DDDDDD; }
+.cc .cc-tabela tbody tr:nth-child(even) { background: var(--row-zebra); }
+.cc .cc-tabela tfoot th, .cc .cc-tabela tfoot td { font-weight: 600; border-bottom: 0; }
+.cc .cc-tabela .num { font-variant-numeric: tabular-nums; }
+.cc .cc-tabela small { color: var(--texto-3); }
+.cc .cc-origem { display: inline-block; padding: 1px 6px; border-radius: 4px; background: var(--superficie-3); color: var(--texto-3); font: 500 11px/16px var(--font); }
+
+.cc .cc-resultado { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-radius: var(--card-r); border-left: 4px solid var(--texto-3); background: var(--superficie-2); }
+.cc .cc-resultado.ok { border-left-color: var(--aprovado); background: var(--aprovado-bg); }
+.cc .cc-resultado.fora { border-left-color: var(--warn); background: var(--warn-bg); }
+.cc .cc-cat { display: flex; flex-direction: column; align-items: center; min-width: 72px; }
+.cc .cc-cat strong { font: 300 34px/40px var(--font); color: var(--texto-1); }
+.cc .cc-resultado.ok .cc-cat strong { color: var(--aprovado); font-weight: 500; }
+.cc .cc-explica p { margin: 0 0 4px; font: var(--t-body); color: var(--texto-1); }
+.cc .cc-explica small { font: var(--t-caption); color: var(--texto-3); }
+.cc .cc-falta { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; font: var(--t-caption); color: var(--warn); }
+.cc .cc-dica, .cc .cc-vazio { margin: 6px 0 0; font: var(--t-caption); color: var(--texto-3); }
+.cc .cc-erro { color: var(--crit); font: var(--t-caption); }
+@media (max-width: 600px) {
+  .cc .cc-resultado { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .cc .cc-cat { flex-direction: row; gap: 10px; align-items: baseline; }
+}
