@@ -1,6 +1,6 @@
 import { calcularErro } from './calibracaoService';
 import type { ComponenteCal } from './componentesService';
-import { definicaoDe } from './instrumentos';
+import { definicaoDe, type ModeloInterno } from './instrumentos';
 import {
   clienteDoEquipamento,
   motivoPadrao,
@@ -10,7 +10,17 @@ import {
 } from './preencherCalibracao';
 import { padraoInicial, snapshotPadrao } from './padraoCalibracao';
 import { listarResponsaveis, snapshotResponsavel } from './responsavelCalibracao';
-import type { DadosCalibracao, DadosManometro, DadosPSV } from './tipos';
+import {
+  ENSAIOS_PRESSOSTATO,
+  ITENS_INSPECAO_PRESSOSTATO,
+  type CondicaoVisual,
+  type DadosCalibracao,
+  type DadosCalibracaoInterna,
+  type DadosManometro,
+  type DadosPSV,
+  type DadosPressostato,
+  type EnsaioPressostato,
+} from './tipos';
 import type { RefFoto } from '../../services/fotos';
 
 /**
@@ -32,7 +42,7 @@ import type { RefFoto } from '../../services/fotos';
  * renovado depois — a calibração antiga continua com o que existia na data.
  */
 export interface FormDados {
-  tipo: 'manometro' | 'psv';
+  tipo: ModeloInterno;
   nome: string;
   numeroCertificado: string;
   dataEmissao: string;
@@ -71,6 +81,15 @@ export interface FormDados {
   fechamento: string;
   incerteza: string;
   coef: string;
+  /**
+   * 23/11/2026 · PRESSOSTATO. Opcionais de propósito: só existem no formulário
+   * de pressostato — o de manômetro e o de PSV seguem exatamente como eram.
+   */
+  setPoint?: string;
+  ensaios?: EnsaioPressostato[];
+  fluido?: string;
+  tempoMin?: string;
+  inspecaoVisual?: Record<string, CondicaoVisual>;
   /** id em `nr13_lista_phs` do RESPONSÁVEL PELA CALIBRAÇÃO (fase 2, C.2). */
   responsavelId: string;
   /** Esta calibração é a REVISÃO (correção) daquela emitida (fase 2, C.3). */
@@ -89,7 +108,28 @@ export function numeroCertificadoNovo(agora = Date.now()): string {
   return `CERT-${agora}`;
 }
 
-export function formPadrao(tipo: 'manometro' | 'psv' = 'manometro', tag = ''): FormDados {
+/** Os campos do pressostato, vazios — dois ensaios e os nove itens sem avaliação. */
+function camposPressostatoVazios(): Pick<FormDados, 'setPoint' | 'ensaios' | 'fluido' | 'tempoMin' | 'inspecaoVisual'> {
+  return {
+    setPoint: '',
+    ensaios: ensaiosNormalizados(undefined),
+    fluido: '',
+    tempoMin: '',
+    inspecaoVisual: Object.fromEntries(ITENS_INSPECAO_PRESSOSTATO.map((i) => [i.id, '' as CondicaoVisual])),
+  };
+}
+
+/** Exatamente `ENSAIOS_PRESSOSTATO` ensaios — falta vira vazio, excesso não se perde. */
+function ensaiosNormalizados(lista: EnsaioPressostato[] | undefined): EnsaioPressostato[] {
+  const origem = Array.isArray(lista) ? lista : [];
+  const n = Math.max(ENSAIOS_PRESSOSTATO, origem.length);
+  return Array.from({ length: n }, (_, i) => ({
+    desarme: origem[i]?.desarme ?? '',
+    rearme: origem[i]?.rearme ?? '',
+  }));
+}
+
+export function formPadrao(tipo: ModeloInterno = 'manometro', tag = ''): FormDados {
   const { empresa, endereco } = tag ? clienteDoEquipamento(tag) : { empresa: '', endereco: '' };
   const padrao = padraoInicial(tipo);
   const snap = padrao ? snapshotPadrao(padrao) : null;
@@ -138,6 +178,7 @@ export function formPadrao(tipo: 'manometro' | 'psv' = 'manometro', tag = ''): F
       const r = listarResponsaveis();
       return r.length === 1 ? r[0].id : '';
     })(),
+    ...(tipo === 'pressostato' ? camposPressostatoVazios() : {}),
   };
 }
 
@@ -168,6 +209,8 @@ export function formDoComponente(comp: ComponenteCal, tag: string, dataLote?: st
     base.decrescente = pontos.map((vc) => ({ vc, vi: '' }));
   }
   if (comp.tipo === 'psv') base.pressaoAjuste = comp.pressaoAjuste ?? '';
+  // O set point do pressostato mora no MESMO campo do cadastro ("pressão de ajuste").
+  if (comp.tipo === 'pressostato') base.setPoint = comp.pressaoAjuste ?? '';
   return base;
 }
 
@@ -186,7 +229,7 @@ export function aplicarComponente(form: FormDados, comp: ComponenteCal): FormDad
 }
 
 /** Os campos de um registro já gravado, de volta ao formulário. */
-function doRegistro(cal: DadosManometro | DadosPSV, tag: string): FormDados {
+function doRegistro(cal: DadosCalibracaoInterna, tag: string): FormDados {
   const base = formPadrao(cal.tipo, tag);
   const comum: FormDados = {
     ...base,
@@ -217,6 +260,19 @@ function doRegistro(cal: DadosManometro | DadosPSV, tag: string): FormDados {
     unidade: cal.unidade ?? base.unidade,
     responsavelId: cal.responsavel?.id ?? '',
   };
+  if (cal.tipo === 'pressostato') {
+    return {
+      ...comum,
+      setPoint: cal.setPoint ?? '',
+      ensaios: ensaiosNormalizados(cal.ensaios),
+      fluido: cal.fluido ?? '',
+      tempoMin: cal.tempoMin ?? '',
+      inspecaoVisual: {
+        ...comum.inspecaoVisual,
+        ...Object.fromEntries(Object.entries(cal.inspecaoVisual ?? {}).filter(([, v]) => v !== undefined)),
+      } as Record<string, CondicaoVisual>,
+    };
+  }
   if (cal.tipo === 'manometro') {
     return {
       ...comum,
@@ -239,7 +295,7 @@ function doRegistro(cal: DadosManometro | DadosPSV, tag: string): FormDados {
 }
 
 /** Continuar um RASCUNHO: mesmo id, mesmo número reservado. */
-export function formDeRascunho(cal: DadosManometro | DadosPSV, tag: string): FormDados {
+export function formDeRascunho(cal: DadosCalibracaoInterna, tag: string): FormDados {
   return { ...doRegistro(cal, tag), substitui: cal.substitui };
 }
 
@@ -247,7 +303,7 @@ export function formDeRascunho(cal: DadosManometro | DadosPSV, tag: string): For
  * REVISÃO de um emitido (ou de um registro antigo): registro NOVO, o emitido
  * continua intacto. O nº ganha sufixo de revisão.
  */
-export function formDeRevisao(cal: DadosManometro | DadosPSV, tag: string): FormDados {
+export function formDeRevisao(cal: DadosCalibracaoInterna, tag: string): FormDados {
   const f = doRegistro(cal, tag);
   const n = (cal.numeroCertificado || 'CERT').replace(/-R\d+$/, '');
   const rev = Number(/-R(\d+)$/.exec(cal.numeroCertificado || '')?.[1] ?? 0) + 1;
@@ -274,7 +330,9 @@ export function converterForm(form: FormDados, tag: string, id: string): DadosCa
   const base = {
     id,
     tag,
-    nome: form.nome || (form.tipo === 'manometro' ? 'Manômetro' : 'Válvula de Segurança'),
+    nome:
+      form.nome ||
+      (form.tipo === 'manometro' ? 'Manômetro' : form.tipo === 'pressostato' ? 'Pressostato' : 'Válvula de Segurança'),
     criadoEm: hoje(),
     numeroCertificado: form.numeroCertificado.trim(),
     dataEmissao: form.dataEmissao,
@@ -307,6 +365,22 @@ export function converterForm(form: FormDados, tag: string, id: string): DadosCa
     ...(form.substitui ? { substitui: form.substitui } : {}),
   };
 
+  if (form.tipo === 'pressostato') {
+    const inspecao: DadosPressostato['inspecaoVisual'] = {};
+    for (const item of ITENS_INSPECAO_PRESSOSTATO) {
+      const v = form.inspecaoVisual?.[item.id];
+      inspecao[item.id] = v === 'aprovado' || v === 'reprovado' ? v : '';
+    }
+    return {
+      ...base,
+      tipo: 'pressostato',
+      setPoint: form.setPoint ?? '',
+      ensaios: ensaiosNormalizados(form.ensaios),
+      fluido: form.fluido ?? '',
+      tempoMin: form.tempoMin ?? '',
+      inspecaoVisual: inspecao,
+    } as DadosPressostato;
+  }
   if (form.tipo === 'manometro') {
     return {
       ...base,

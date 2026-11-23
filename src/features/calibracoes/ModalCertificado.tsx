@@ -51,7 +51,9 @@ export default function ModalCertificado({
       ? 'Ex: Bloco padrão BP-01'
       : form.tipoInstrumento === 'valvula'
         ? 'Ex: Bancada de teste PSV-01'
-        : 'Ex: Manômetro padrão MP-01';
+        : form.tipoInstrumento === 'pressostato'
+          ? 'Ex: Pressostato padrão PP-01'
+          : 'Ex: Manômetro padrão MP-01';
 
   return (
     // O fundo NÃO fecha. Aqui se digita um cadastro inteiro, e um clique fora —

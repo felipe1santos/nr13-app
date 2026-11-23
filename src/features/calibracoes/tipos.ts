@@ -148,6 +148,54 @@ export interface DadosPSV extends DadosInternoBase {
   coef: string;
 }
 
+/** Condição de um item da inspeção visual do pressostato; '' = não avaliado. */
+export type CondicaoVisual = 'aprovado' | 'reprovado' | '';
+
+/**
+ * 23/11/2026 · os nove itens da inspeção visual do pressostato — os do
+ * "Relatório de Ensaio" de referência (TP.DS.0090.22), na mesma ordem.
+ */
+export const ITENS_INSPECAO_PRESSOSTATO = [
+  { id: 'corpo', rotulo: 'Corpo' },
+  { id: 'bocal', rotulo: 'Bocal' },
+  { id: 'diafragma', rotulo: 'Diafragma' },
+  { id: 'diferencial', rotulo: 'Diferencial' },
+  { id: 'guia', rotulo: 'Guia' },
+  { id: 'haste', rotulo: 'Haste' },
+  { id: 'mola', rotulo: 'Mola' },
+  { id: 'caixa', rotulo: 'Caixa' },
+  { id: 'outros', rotulo: 'Outros' },
+] as const;
+
+export type ItemInspecaoPressostato = (typeof ITENS_INSPECAO_PRESSOSTATO)[number]['id'];
+
+/** Um ensaio de atuação do pressostato: onde desarmou e onde rearmou. */
+export interface EnsaioPressostato {
+  desarme: string;
+  rearme: string;
+}
+
+/** Quantos ensaios de atuação o certificado registra (o de referência faz dois). */
+export const ENSAIOS_PRESSOSTATO = 2;
+
+/**
+ * 23/11/2026 · certificado INTERNO de pressostato. Calibrado contra um
+ * MANÔMETRO padrão (ou um padrão de pressostato cadastrado em Certificados).
+ * A unidade é a do instrumento (`unidade` da base), como na PSV.
+ */
+export interface DadosPressostato extends DadosInternoBase {
+  tipo: 'pressostato';
+  /** Set point — a pressão de ajuste do pressostato. */
+  setPoint: string;
+  /** Sempre `ENSAIOS_PRESSOSTATO` ensaios (vazios = não executados). */
+  ensaios: EnsaioPressostato[];
+  /** Fluido de ensaio (ex.: Nitrogênio). Opcional. */
+  fluido?: string;
+  /** Tempo de ensaio, em minutos. Opcional. */
+  tempoMin?: string;
+  inspecaoVisual: Partial<Record<ItemInspecaoPressostato, CondicaoVisual>>;
+}
+
 /**
  * Revisão do engenheiro, fase 2 (D) · calibração feita por LABORATÓRIO EXTERNO.
  *
@@ -169,7 +217,7 @@ export interface DadosTerceiro extends DadosCalibracaoBase {
   pdfExternoSha256?: string;
 }
 
-export type DadosCalibracaoInterna = DadosManometro | DadosPSV;
+export type DadosCalibracaoInterna = DadosManometro | DadosPSV | DadosPressostato;
 export type DadosCalibracao = DadosCalibracaoInterna | DadosTerceiro;
 
 export function ehTerceiro(c: { origem?: unknown } | null | undefined): c is DadosTerceiro {
@@ -177,7 +225,7 @@ export function ehTerceiro(c: { origem?: unknown } | null | undefined): c is Dad
 }
 
 export function ehInterna(c: DadosCalibracao | null | undefined): c is DadosCalibracaoInterna {
-  return !!c && !ehTerceiro(c) && (c.tipo === 'manometro' || c.tipo === 'psv');
+  return !!c && !ehTerceiro(c) && (c.tipo === 'manometro' || c.tipo === 'psv' || c.tipo === 'pressostato');
 }
 
 export function ehEmitido(c: DadosCalibracao | null | undefined): boolean {

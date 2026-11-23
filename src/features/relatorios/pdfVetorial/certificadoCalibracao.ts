@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import { FAMILIA, registrarCarlito } from './carlito';
 import { alturaLinha } from './documentoA4';
 import { imagemEncaixada } from './primitivas';
-import type { DadosCalibracaoInterna, LinhaResultado } from '../../calibracoes/tipos';
+import { ITENS_INSPECAO_PRESSOSTATO, type DadosCalibracaoInterna, type LinhaResultado } from '../../calibracoes/tipos';
 
 /**
  * Fase 7 · o CERTIFICADO INTERNO DE CALIBRAÇÃO em vetor.
@@ -89,10 +89,22 @@ export type ResultadosCertificado =
       fechamento: string;
       incerteza: string;
       coef: string;
+    }
+  | {
+      /** 23/11/2026 · pressostato: set point, dois ensaios e inspeção visual. */
+      tipo: 'pressostato';
+      /** Sem unidade no registro, os rótulos saem sem parênteses (como a PSV). */
+      unidade: string | null;
+      setPoint: string;
+      ensaios: { desarme: string; rearme: string }[];
+      /** `null` = não informado: a coluna não sai. */
+      fluido: string | null;
+      tempoMin: string | null;
+      inspecao: { item: string; condicao: 'APROVADO' | 'REPROVADO' | '----' }[];
     };
 
 export interface ModeloCertificado {
-  tipo: 'manometro' | 'psv';
+  tipo: 'manometro' | 'psv' | 'pressostato';
   titulo: string;
   numero: string;
   dataEmissao: string;
@@ -125,6 +137,7 @@ export interface ModeloCertificado {
 export const TITULOS = {
   manometro: 'CERTIFICADO DE CALIBRAÇÃO MANOMETRO',
   psv: 'CERTIFICADO DE CALIBRAÇÃO PSV',
+  pressostato: 'CERTIFICADO DE CALIBRAÇÃO PRESSOSTATO',
 } as const;
 
 export const TEXTO_PROCEDIMENTO =
@@ -144,6 +157,24 @@ export const DEFINICOES = [
     termo: 'Incerteza da Medição:',
     texto:
       'é o parâmetro, associado ao resultado de uma medição, que caracteriza a dispersão dos valores que podem ser fundamentalmente atribuídos a um mensurando.',
+  },
+] as const;
+
+/**
+ * 23/11/2026 · as definições do certificado de PRESSOSTATO. Ele não imprime
+ * valor nominal, incerteza nem fator k — imprime set point, desarme e rearme,
+ * e é isso que se define.
+ */
+export const DEFINICOES_PRESSOSTATO = [
+  { termo: 'Valor Convencional:', texto: 'refere-se à indicação no padrão utilizado.' },
+  { termo: 'Set Point:', texto: 'pressão de ajuste na qual o pressostato deve atuar.' },
+  {
+    termo: 'Pressão de Desarme:',
+    texto: 'pressão, lida no padrão, em que o pressostato atuou (mudou o estado do contato).',
+  },
+  {
+    termo: 'Pressão de Rearme:',
+    texto: 'pressão, lida no padrão, em que o pressostato retornou ao estado inicial.',
   },
 ] as const;
 
@@ -211,7 +242,26 @@ export function modeloCertificado(
   empresa: EmpresaCertificado | null | undefined,
 ): ModeloCertificado {
   const resultados: ResultadosCertificado =
-    c.tipo === 'psv'
+    c.tipo === 'pressostato'
+      ? {
+          tipo: 'pressostato',
+          unidade: c.unidade ? c.unidade : null,
+          setPoint: v(c.setPoint),
+          ensaios: (Array.isArray(c.ensaios) && c.ensaios.length ? c.ensaios : [{}, {}]).map((e) => ({
+            desarme: v((e as { desarme?: string }).desarme),
+            rearme: v((e as { rearme?: string }).rearme),
+          })),
+          fluido: c.fluido ? c.fluido : null,
+          tempoMin: c.tempoMin ? c.tempoMin : null,
+          inspecao: ITENS_INSPECAO_PRESSOSTATO.map((i) => {
+            const cond = c.inspecaoVisual?.[i.id];
+            return {
+              item: i.rotulo,
+              condicao: cond === 'aprovado' ? 'APROVADO' : cond === 'reprovado' ? 'REPROVADO' : VAZIO,
+            };
+          }),
+        }
+      : c.tipo === 'psv'
       ? {
           tipo: 'psv',
           unidade: c.unidade ? c.unidade : null,
@@ -246,8 +296,8 @@ export function modeloCertificado(
           };
 
   return {
-    tipo: c.tipo === 'psv' ? 'psv' : 'manometro',
-    titulo: c.tipo === 'psv' ? TITULOS.psv : TITULOS.manometro,
+    tipo: c.tipo === 'psv' ? 'psv' : c.tipo === 'pressostato' ? 'pressostato' : 'manometro',
+    titulo: c.tipo === 'psv' ? TITULOS.psv : c.tipo === 'pressostato' ? TITULOS.pressostato : TITULOS.manometro,
     numero: v(c.numeroCertificado),
     dataEmissao: v(c.dataEmissao, DATA_VAZIA),
     cliente: { empresa: v(c.empresa), endereco: v(c.endereco) },
@@ -270,7 +320,7 @@ export function modeloCertificado(
     },
     rastreabilidade: TEXTO_RASTREABILIDADE,
     resultados,
-    definicoes: DEFINICOES.map((d) => ({ ...d })),
+    definicoes: (c.tipo === 'pressostato' ? DEFINICOES_PRESSOSTATO : DEFINICOES).map((d) => ({ ...d })),
     conclusao: c.statusConclusao
       ? { status: c.statusConclusao === 'aprovado' ? 'APROVADO' : 'REPROVADO', motivo: c.textoMotivo || '' }
       : { status: '--', motivo: '' },
@@ -325,6 +375,16 @@ export function camposSemanticos(m: ModeloCertificado): Record<string, string> {
     out['resultados.coefC'] = res.coefC;
     out['resultados.incertezaD'] = res.incertezaD;
     out['resultados.coefD'] = res.coefD;
+  } else if (res.tipo === 'pressostato') {
+    out['resultados.unidade'] = res.unidade ?? '';
+    out['resultados.setPoint'] = res.setPoint;
+    res.ensaios.forEach((e, i) => {
+      out[`ensaio.${i + 1}.desarme`] = e.desarme;
+      out[`ensaio.${i + 1}.rearme`] = e.rearme;
+    });
+    if (res.fluido !== null) out['resultados.fluido'] = res.fluido;
+    if (res.tempoMin !== null) out['resultados.tempoMin'] = res.tempoMin;
+    res.inspecao.forEach((l) => (out[`inspecao.${l.item}`] = l.condicao));
   } else {
     out['resultados.unidade'] = res.unidade ?? '';
     out['resultados.abertura'] = res.abertura;
@@ -1126,6 +1186,8 @@ function desenhar(d: Desenhista, m: ModeloCertificado, img: ImagensCertificado):
       ],
       vaos: [3],
     });
+  } else if (res.tipo === 'pressostato') {
+    desenharResultadosPressostato(d, res);
   } else {
     const u = res.unidade ? ` (${res.unidade})` : '';
     d.tabela({
@@ -1219,6 +1281,102 @@ function desenhar(d: Desenhista, m: ModeloCertificado, img: ImagensCertificado):
     d.marcarFundo();
   }
   d.rodapes();
+}
+
+/**
+ * 23/11/2026 · seção 6 do PRESSOSTATO: set point (com fluido e tempo, quando
+ * informados), os ensaios de desarme/rearme e a inspeção visual dos nove itens.
+ * Mesmas células e cores das tabelas da PSV.
+ */
+function desenharResultadosPressostato(
+  d: Desenhista,
+  res: Extract<ResultadosCertificado, { tipo: 'pressostato' }>,
+): void {
+  const u = res.unidade ? ` (${res.unidade})` : '';
+
+  // (a) set point · fluido · tempo
+  const cab: Celula[] = [rotulo(`SET POINT${u}`)];
+  const val: Celula[] = [valor(res.setPoint)];
+  if (res.fluido !== null) {
+    cab.push(rotulo('FLUIDO DE ENSAIO'));
+    val.push(valor(res.fluido));
+  }
+  if (res.tempoMin !== null) {
+    cab.push(rotulo('TEMPO DE ENSAIO (MIN)'));
+    val.push(valor(res.tempoMin));
+  }
+  d.tabela({
+    colunas: cab.map(() => LARGURA / cab.length),
+    depois: 5 * PX,
+    linhas: [
+      { cabecalho: true, celulas: cab },
+      { celulas: val },
+    ],
+  });
+
+  // (b) os ensaios de atuação
+  d.tabela({
+    colunas: [0.24, 0.38, 0.38].map((f) => f * LARGURA),
+    depois: 5 * PX,
+    linhas: [
+      {
+        cabecalho: true,
+        celulas: [rotulo('ENSAIO'), rotulo(`PRESSÃO DE DESARME${u}`), rotulo(`PRESSÃO DE REARME${u}`)],
+      },
+      ...res.ensaios.map((e, i) => ({
+        celulas: [
+          { paragrafos: [{ trechos: [{ texto: `${i + 1}º ENSAIO`, negrito: true }], tamanho: F.rotulo }] },
+          valor(e.desarme),
+          valor(e.rearme),
+        ],
+      })),
+    ],
+  });
+
+  // (c) inspeção visual — três pares ITEM | CONDIÇÃO por linha, na ordem do relatório de referência
+  const porLinha = 3;
+  const cond = (t: string): Celula => ({
+    paragrafos: [
+      {
+        trechos: [{ texto: t, negrito: t !== VAZIO }],
+        tamanho: F.corpo,
+        cor: t === 'APROVADO' ? COR_CERT.aprovado : t === 'REPROVADO' ? COR_CERT.reprovado : COR_CERT.valor,
+      },
+    ],
+  });
+  const item = (t: string): Celula => ({
+    alinhamento: 'left',
+    paragrafos: [{ trechos: [{ texto: t }], tamanho: F.corpo, alinhamento: 'left' }],
+  });
+  const linhasInsp: LinhaTabela[] = [
+    {
+      cabecalho: true,
+      celulas: [
+        {
+          colspan: 2 * porLinha,
+          fundo: COR_CERT.fundoTituloResultado,
+          paragrafos: [{ trechos: [{ texto: 'INSPEÇÃO VISUAL', negrito: true }], tamanho: F.corpo }],
+        },
+      ],
+    },
+    {
+      cabecalho: true,
+      celulas: Array.from({ length: porLinha }, () => [rotulo('ITEM'), rotulo('CONDIÇÃO')]).flat(),
+    },
+  ];
+  for (let i = 0; i < res.inspecao.length; i += porLinha) {
+    const celulas: Celula[] = [];
+    for (let k = 0; k < porLinha; k++) {
+      const l = res.inspecao[i + k];
+      celulas.push(l ? item(l.item) : { paragrafos: [] }, l ? cond(l.condicao) : { paragrafos: [] });
+    }
+    linhasInsp.push({ celulas });
+  }
+  const terco = LARGURA / porLinha;
+  d.tabela({
+    colunas: Array.from({ length: porLinha }, () => [terco * 0.55, terco * 0.45]).flat(),
+    linhas: linhasInsp,
+  });
 }
 
 // ── Geração ─────────────────────────────────────────────────────────────────

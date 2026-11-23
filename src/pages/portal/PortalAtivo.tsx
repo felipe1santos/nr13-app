@@ -271,7 +271,8 @@ export default function PortalAtivo() {
       return;
     }
     const arquivo = arquivoCalibracao(cal);
-    if (!arquivo) return;
+    // Pressostato (23/11/2026) não tem template: só o arquivo emitido abre.
+    if (!arquivo || !temTemplateHtml(arquivo)) return;
     hidratarItemLocal(cal);
     setDocumentoSimples({
       titulo,
@@ -653,7 +654,7 @@ export default function PortalAtivo() {
                             <strong>{c.nome}</strong>
                             <span>{[c.fabricante, c.serie && `S/N ${c.serie}`].filter(Boolean).join(' · ') || '—'}</span>
                           </div>
-                          <span className={`badge-cal-tipo ${c.tipo}`}>{c.tipo === 'manometro' ? 'Manômetro' : 'PSV'}</span>
+                          <span className={`badge-cal-tipo ${c.tipo}`}>{c.tipo === 'manometro' ? 'Manômetro' : c.tipo === 'psv' ? 'PSV' : definicaoDe(c.tipo).curto}</span>
                           {ultima && prazo ? (
                             <span className={`fj-badge ${prazo.status}`}>
                               {prazo.status === 'crit' ? `Vencida há ${Math.abs(prazo.dias)} dia(s)` : `Próx. calibração ${ultima.dataProxCalibracao}`}

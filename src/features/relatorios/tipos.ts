@@ -46,6 +46,9 @@ export const FOLHAS_SO_VETORIAIS: ReadonlySet<string> = new Set([
   'CALD-ACESSORIOS.html',
   'CALD-RELATORIO-INSPECAO.html',
   'CALD-CALCULOS.html',
+  // 23/11/2026 · certificado interno de PRESSOSTATO: só existe emitido em
+  // vetor (bytes arquivados); não há template HTML para montar em iframe.
+  'CERTIFICADO-CAL-PRESSOSTATO.html',
 ]);
 
 /** A folha tem template HTML para montar em iframe? */

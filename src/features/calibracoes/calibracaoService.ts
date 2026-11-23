@@ -79,12 +79,18 @@ export function hidratarItemLocal(cal: DadosCalibracao): void {
 /**
  * A folha NOSSA daquela calibração — ou `null` quando ela não tem (e não pode
  * ter) uma: calibração de TERCEIRO nunca vira certificado interno, e
- * instrumento sem modelo interno (termômetro, pressostato…) também não.
+ * instrumento sem modelo interno (termômetro, transmissor…) também não.
+ *
+ * 23/11/2026 · PRESSOSTATO: a folha é só um NOME (não há template HTML — ver
+ * `FOLHAS_SO_VETORIAIS`). Toda calibração de pressostato nasce com `status`,
+ * então rascunho não entra no relatório e o emitido entra pelos BYTES
+ * arquivados; sem eles, o anexo falha NOMEADO em vez de montar um iframe.
  */
 export function arquivoCalibracao(cal: Pick<DadosCalibracao, 'tipo' | 'origem'>): string | null {
   if (ehTerceiro(cal)) return null;
   if (cal.tipo === 'manometro') return 'CERTIFICADO-CAL-MANOMETRO.html';
   if (cal.tipo === 'psv') return 'CERTIIFCADO-CAL-PSV.html';
+  if (cal.tipo === 'pressostato') return 'CERTIFICADO-CAL-PRESSOSTATO.html';
   return null;
 }
 
@@ -135,11 +141,13 @@ export function contagemParaRelatorio(certs: DadosCalibracao[]): string {
   const folhas = certs.filter((c) => folhaDoRelatorio(c) !== null);
   const man = folhas.filter((c) => c.tipo === 'manometro').length;
   const psv = folhas.filter((c) => c.tipo === 'psv').length;
+  const prs = folhas.filter((c) => c.tipo === 'pressostato').length;
   const rascunhos = certs.filter((c) => ehInterna(c) && c.status === 'rascunho').length;
   const terceiros = certs.filter((c) => ehTerceiro(c)).length;
   const partes: string[] = [];
   if (man) partes.push(`${man} manômetro${man > 1 ? 's' : ''}`);
   if (psv) partes.push(`${psv} válvula${psv > 1 ? 's' : ''}`);
+  if (prs) partes.push(`${prs} pressostato${prs > 1 ? 's' : ''}`);
   if (terceiros) partes.push(`${terceiros} de laboratório externo, citada${terceiros > 1 ? 's' : ''} no quadro`);
   if (rascunhos) partes.push(`${rascunhos} rascunho${rascunhos > 1 ? 's' : ''} — emita para anexar`);
   return partes.join(', ');

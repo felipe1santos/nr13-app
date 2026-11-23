@@ -25,8 +25,10 @@ describe('os seis instrumentos do relatório', () => {
     }
   });
 
-  it('modelo interno só onde existe folha nossa: manômetro e PSV', () => {
-    expect(TIPOS_INSTRUMENTO.filter((t) => INSTRUMENTOS[t].modeloInterno)).toEqual(['manometro', 'psv']);
+  // 23/11/2026 · o pressostato ganhou certificado interno (set point,
+  // desarme/rearme e inspeção visual) — decisão do dono, mesma emissão vetorial.
+  it('modelo interno só onde existe folha nossa: manômetro, PSV e pressostato', () => {
+    expect(TIPOS_INSTRUMENTO.filter((t) => INSTRUMENTOS[t].modeloInterno)).toEqual(['manometro', 'psv', 'pressostato']);
   });
 
   it('termômetro mede temperatura; os demais, pressão', () => {

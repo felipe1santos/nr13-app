@@ -1,4 +1,5 @@
 import type { RefFoto } from '../../services/fotos';
+import type { ModeloInterno } from './instrumentos';
 import {
   listarRastreabilidadesAtivas,
   listarRastreabilidades,
@@ -36,14 +37,23 @@ export interface SnapshotPadrao {
   padraoPdfRef?: RefFoto;
 }
 
-/** Padrões ATIVOS compatíveis com o certificado (manômetro → manômetro, PSV → válvula). */
-export function padroesCompativeis(tipoCalibracao: 'manometro' | 'psv'): Rastreabilidade[] {
+/**
+ * Padrões ATIVOS compatíveis com o certificado (manômetro → manômetro, PSV →
+ * válvula). 23/11/2026 · pressostato → o MANÔMETRO padrão (é contra ele que o
+ * pressostato é aferido) e também o "Pressostato padrão" de Certificados.
+ */
+export function padroesCompativeis(tipoCalibracao: ModeloInterno): Rastreabilidade[] {
+  if (tipoCalibracao === 'pressostato') {
+    return listarRastreabilidadesAtivas().filter(
+      (r) => r.tipoInstrumento === 'manometro' || r.tipoInstrumento === 'pressostato',
+    );
+  }
   const tipo = tipoPadraoDoCertificado(tipoCalibracao);
   return listarRastreabilidadesAtivas().filter((r) => r.tipoInstrumento === tipo);
 }
 
 /** Um só compatível: pré-selecionado. Vários: o usuário escolhe. Nenhum: nada. */
-export function padraoInicial(tipoCalibracao: 'manometro' | 'psv'): Rastreabilidade | null {
+export function padraoInicial(tipoCalibracao: ModeloInterno): Rastreabilidade | null {
   const lista = padroesCompativeis(tipoCalibracao);
   return lista.length === 1 ? lista[0] : null;
 }

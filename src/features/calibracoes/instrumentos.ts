@@ -9,7 +9,7 @@
  * | campo | o que decide |
  * |---|---|
  * | `grandeza` | quais UNIDADES o instrumento aceita (pressão ≠ temperatura) |
- * | `modeloInterno` | se existe folha NOSSA de certificado para ele — hoje só manômetro e PSV |
+ * | `modeloInterno` | se existe folha NOSSA de certificado para ele — manômetro, PSV e (23/11/2026) pressostato |
  * | `checklist` | a linha do quadro 7.1.1 (ids do formulário de checklist) |
  *
  * O que é COMUM a todos mora em `DadosCalibracaoBase` (`tipos.ts`): nº de
@@ -20,8 +20,9 @@
  *
  * Instrumento sem `modeloInterno` NÃO ganha certificado nosso inventado: a
  * calibração dele é registrada como de TERCEIRO (laboratório externo), com o
- * PDF original anexado. Criar folha interna para termômetro, pressostato ou
- * transmissor é trabalho futuro — ver PENDENCIAS.md.
+ * PDF original anexado. Criar folha interna para termômetro, vacuômetro ou
+ * transmissor é trabalho futuro — ver PENDENCIAS.md. (O pressostato ganhou a
+ * sua em 23/11/2026.)
  */
 export type TipoInstrumento =
   | 'manometro'
@@ -33,13 +34,20 @@ export type TipoInstrumento =
 
 export type Grandeza = 'pressao' | 'temperatura';
 
+/**
+ * Os modelos de certificado INTERNO. 23/11/2026 · o pressostato ganhou o seu
+ * (set point + dois ensaios de desarme/rearme + inspeção visual), emitido pelo
+ * gerador vetorial como os outros dois.
+ */
+export type ModeloInterno = 'manometro' | 'psv' | 'pressostato';
+
 export interface DefinicaoInstrumento {
   rotulo: string;
   /** Rótulo curto, para chip e selo. */
   curto: string;
   grandeza: Grandeza;
   /** A folha NOSSA que emite o certificado; `null` = só calibração de terceiro. */
-  modeloInterno: 'manometro' | 'psv' | null;
+  modeloInterno: ModeloInterno | null;
   /** Linha do quadro 7.1.1 (ids de `INSTRUMENTOS_CHECKLIST`). */
   checklist: { id: string; calId: string };
   /** Ícone do sprite (`Icone.tsx`). */
@@ -83,7 +91,7 @@ export const INSTRUMENTOS: Record<TipoInstrumento, DefinicaoInstrumento> = {
     rotulo: 'Pressostato',
     curto: 'Pressostato',
     grandeza: 'pressao',
-    modeloInterno: null,
+    modeloInterno: 'pressostato',
     checklist: { id: 'inst-press', calId: 'inst-press-cal' },
     icone: 'gauge',
   },

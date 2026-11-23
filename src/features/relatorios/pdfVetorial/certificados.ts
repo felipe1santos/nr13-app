@@ -8,6 +8,7 @@ import {
 } from '../printService';
 import { comFolhaIsolada, empresaTemLogo, logoAusenteNaFolha } from './hostCertificado';
 import { bytesArquivadosDaFolha } from '../../calibracoes/emissaoCertificado';
+import { temTemplateHtml } from '../tipos';
 
 /**
  * Fase 11 · os CERTIFICADOS dentro do relatório vetorial.
@@ -140,6 +141,14 @@ export async function anexarFolhasDeCertificado(
         console.error(`Certificado "${documentos[i]}": falha ao copiar o arquivo emitido.`, e);
         falhas.push(documentos[i]);
       }
+      continue;
+    }
+    // Folha sem template HTML (certificado de pressostato, 23/11/2026) só
+    // entra pelos bytes arquivados: sem eles, falha NOMEADA — montar o iframe
+    // fotografaria uma página de erro dentro do relatório.
+    if (!temTemplateHtml(documentos[i])) {
+      console.error(`Certificado "${documentos[i]}": sem arquivo emitido e sem template para montar.`);
+      falhas.push(documentos[i]);
       continue;
     }
     try {

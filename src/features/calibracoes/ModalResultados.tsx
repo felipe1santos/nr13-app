@@ -31,6 +31,12 @@ import {
   resumoPontos,
   type PontoCal,
 } from './resultadosCalibracao';
+import {
+  ITENS_INSPECAO_PRESSOSTATO,
+  type CondicaoVisual,
+  type EnsaioPressostato,
+} from './tipos';
+import type { ModeloInterno } from './instrumentos';
 import '../relatorios/modalFiltrosRelatorios.css';
 import './modalResultados.css';
 
@@ -40,6 +46,15 @@ export interface ValoresPsv {
   fechamento: string;
   incerteza: string;
   coef: string;
+}
+
+/** 23/11/2026 · os resultados do PRESSOSTATO. */
+export interface ValoresPressostato {
+  setPoint: string;
+  ensaios: EnsaioPressostato[];
+  fluido: string;
+  tempoMin: string;
+  inspecaoVisual: Record<string, CondicaoVisual>;
 }
 
 export interface ValoresManometro {
@@ -56,19 +71,23 @@ export default function ModalResultados({
   nome,
   manometro,
   psv,
+  pressostato,
   aoConfirmar,
   aoFechar,
 }: {
-  tipo: 'manometro' | 'psv';
+  tipo: ModeloInterno;
   unidade: string;
   nome: string;
   manometro: ValoresManometro;
   psv: ValoresPsv;
-  aoConfirmar: (v: { manometro: ValoresManometro; psv: ValoresPsv }) => void;
+  /** Só no pressostato. */
+  pressostato?: ValoresPressostato;
+  aoConfirmar: (v: { manometro: ValoresManometro; psv: ValoresPsv; pressostato?: ValoresPressostato }) => void;
   aoFechar: () => void;
 }) {
   const [man, setMan] = useState<ValoresManometro>(manometro);
   const [val, setVal] = useState<ValoresPsv>(psv);
+  const [prs, setPrs] = useState<ValoresPressostato | undefined>(pressostato);
   const caixa = useRef<HTMLDivElement>(null);
   const primeiro = useRef<HTMLInputElement>(null);
 
@@ -132,7 +151,17 @@ export default function ModalResultados({
     }
   }
 
-  const podeConfirmar = tipo === 'psv' ? true : resumo.feitos > 0 || resumo.total === 0;
+  const podeConfirmar = tipo === 'psv' || tipo === 'pressostato' ? true : resumo.feitos > 0 || resumo.total === 0;
+
+  function setEnsaio(i: number, campo: keyof EnsaioPressostato, v: string) {
+    setPrs((p) => (p ? { ...p, ensaios: p.ensaios.map((e, k) => (k === i ? { ...e, [campo]: v } : e)) } : p));
+  }
+  function setInspecao(id: string, v: CondicaoVisual) {
+    // Tocar de novo na opção marcada desmarca: "não avaliado" também é resposta.
+    setPrs((p) =>
+      p ? { ...p, inspecaoVisual: { ...p.inspecaoVisual, [id]: p.inspecaoVisual[id] === v ? '' : v } } : p,
+    );
+  }
 
   return (
     // O fundo NÃO fecha: são os pontos medidos da calibração, digitados um a
@@ -149,7 +178,7 @@ export default function ModalResultados({
           <div>
             <h3>Resultados obtidos</h3>
             <p className="mres-sub">
-              {nome || (tipo === 'manometro' ? 'Manômetro' : 'Válvula de segurança')} ·{' '}
+              {nome || (tipo === 'manometro' ? 'Manômetro' : tipo === 'pressostato' ? 'Pressostato' : 'Válvula de segurança')} ·{' '}
               <strong>{unidade}</strong>
             </p>
           </div>
@@ -325,6 +354,128 @@ export default function ModalResultados({
               </button>
             </div>
           </div>
+        ) : tipo === 'pressostato' && prs ? (
+          <div className="mres-corpo">
+            <p className="mres-ajuda">
+              Os dois ensaios de atuação do pressostato, lidos no padrão. O <strong>set point</strong> vem do
+              cadastro do componente quando já estiver preenchido lá.
+            </p>
+            <div className="mres-psv">
+              <label>
+                <span>
+                  Set point<em>{unidade}</em>
+                </span>
+                <input
+                  ref={primeiro}
+                  value={prs.setPoint}
+                  inputMode="decimal"
+                  onChange={(e) => setPrs((p) => (p ? { ...p, setPoint: e.target.value } : p))}
+                />
+              </label>
+              <label>
+                <span>Fluido de ensaio</span>
+                <input
+                  value={prs.fluido}
+                  placeholder="Ex: Nitrogênio"
+                  onChange={(e) => setPrs((p) => (p ? { ...p, fluido: e.target.value } : p))}
+                />
+              </label>
+              <label>
+                <span>
+                  Tempo de ensaio<em>min</em>
+                </span>
+                <input
+                  value={prs.tempoMin}
+                  inputMode="decimal"
+                  onChange={(e) => setPrs((p) => (p ? { ...p, tempoMin: e.target.value } : p))}
+                />
+              </label>
+            </div>
+
+            <div className="mres-prs-ensaios">
+              {prs.ensaios.map((e, i) => (
+                <div className="mres-prs-ensaio" key={i}>
+                  <span className="mres-inc-titulo">{i + 1}º ensaio</span>
+                  <div className="mres-psv mres-prs-par">
+                    <label>
+                      <span>
+                        Desarme<em>{unidade}</em>
+                      </span>
+                      <input
+                        value={e.desarme}
+                        inputMode="decimal"
+                        aria-label={`Pressão de desarme no ${i + 1}º ensaio`}
+                        onChange={(ev) => setEnsaio(i, 'desarme', ev.target.value)}
+                      />
+                    </label>
+                    <label>
+                      <span>
+                        Rearme<em>{unidade}</em>
+                      </span>
+                      <input
+                        value={e.rearme}
+                        inputMode="decimal"
+                        aria-label={`Pressão de rearme no ${i + 1}º ensaio`}
+                        onChange={(ev) => setEnsaio(i, 'rearme', ev.target.value)}
+                      />
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mres-prs-insp" role="group" aria-label="Inspeção visual">
+              <div className="mres-prs-insp-topo">
+                <span className="mres-inc-titulo">Inspeção visual</span>
+                <button
+                  type="button"
+                  className="fj-btn fj-btn-ghost"
+                  onClick={() =>
+                    setPrs((p) =>
+                      p
+                        ? {
+                            ...p,
+                            inspecaoVisual: Object.fromEntries(
+                              ITENS_INSPECAO_PRESSOSTATO.map((it) => [it.id, 'aprovado' as CondicaoVisual]),
+                            ),
+                          }
+                        : p,
+                    )
+                  }
+                >
+                  <Icone nome="check" tam={13} /> Todos aprovados
+                </button>
+              </div>
+              {ITENS_INSPECAO_PRESSOSTATO.map((it) => {
+                const atual = prs.inspecaoVisual[it.id] ?? '';
+                return (
+                  <div className="mres-prs-item" key={it.id}>
+                    <span>{it.rotulo}</span>
+                    <div className="mres-prs-opcoes">
+                      <button
+                        type="button"
+                        className={`mres-prs-opcao ok${atual === 'aprovado' ? ' on' : ''}`}
+                        aria-pressed={atual === 'aprovado'}
+                        aria-label={`${it.rotulo}: aprovado`}
+                        onClick={() => setInspecao(it.id, 'aprovado')}
+                      >
+                        Aprovado
+                      </button>
+                      <button
+                        type="button"
+                        className={`mres-prs-opcao crit${atual === 'reprovado' ? ' on' : ''}`}
+                        aria-pressed={atual === 'reprovado'}
+                        aria-label={`${it.rotulo}: reprovado`}
+                        onClick={() => setInspecao(it.id, 'reprovado')}
+                      >
+                        Reprovado
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         ) : (
           <div className="mres-corpo">
             <p className="mres-ajuda">
@@ -391,7 +542,7 @@ export default function ModalResultados({
             type="button"
             className="fj-btn fj-btn-primary"
             disabled={!podeConfirmar}
-            onClick={() => aoConfirmar({ manometro: man, psv: val })}
+            onClick={() => aoConfirmar(prs ? { manometro: man, psv: val, pressostato: prs } : { manometro: man, psv: val })}
           >
             Aplicar resultados
           </button>

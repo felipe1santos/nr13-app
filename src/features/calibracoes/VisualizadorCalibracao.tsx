@@ -1,4 +1,5 @@
-import { ehInterna, ehTerceiro, rotuloOrigem, type DadosCalibracao, type DadosManometro, type DadosPSV, type DadosTerceiro, type LinhaResultado } from './tipos';
+import { Fragment } from 'react';
+import { ITENS_INSPECAO_PRESSOSTATO, ehInterna, ehTerceiro, rotuloOrigem, type DadosCalibracao, type DadosManometro, type DadosPSV, type DadosTerceiro, type LinhaResultado } from './tipos';
 import { definicaoDe } from './instrumentos';
 import '../inspecoes/visualizador.css';
 import { UNIDADE_PADRAO } from './preencherCalibracao';
@@ -167,7 +168,34 @@ export default function VisualizadorCalibracao({ dados }: { dados: DadosCalibrac
       </Secao>
 
       <Secao titulo="Resultados Obtidos">
-        {isMano ? (
+        {dados.tipo === 'pressostato' ? (
+          // Pressostato (23/11/2026): set point, os dois ensaios e a inspeção visual.
+          <>
+            <div className="viz-grid-2">
+              <Campo label="Set point" valor={comU(dados.setPoint)} />
+              <Campo label="Fluido de ensaio" valor={dados.fluido} />
+              <Campo label="Tempo de ensaio (min)" valor={dados.tempoMin} />
+              {(dados.ensaios ?? []).map((e, i) => (
+                <Fragment key={i}>
+                  <Campo label={`${i + 1}º ensaio — desarme`} valor={comU(e.desarme)} />
+                  <Campo label={`${i + 1}º ensaio — rearme`} valor={comU(e.rearme)} />
+                </Fragment>
+              ))}
+            </div>
+            <div className="viz-grid-2" style={{ marginTop: 8 }}>
+              {ITENS_INSPECAO_PRESSOSTATO.map((it) => {
+                const c = dados.inspecaoVisual?.[it.id];
+                return (
+                  <Campo
+                    key={it.id}
+                    label={`Inspeção visual — ${it.rotulo}`}
+                    valor={c === 'aprovado' ? 'Aprovado' : c === 'reprovado' ? 'Reprovado' : ''}
+                  />
+                );
+              })}
+            </div>
+          </>
+        ) : isMano ? (
           <>
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               <TabelaResultados titulo={`Sentido Crescente (${u})`} linhas={mano.crescente} />

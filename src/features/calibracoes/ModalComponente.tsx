@@ -195,7 +195,7 @@ export default function ModalComponente({
               Só manômetro e PSV têm dado técnico além da faixa: os PONTOS
               padrão (default — cada calibração registra os que executou) e a
               pressão de ajuste da válvula. Os outros tipos não mostram nada. */}
-          {(c.tipo === 'manometro' || c.tipo === 'psv') && (
+          {(c.tipo === 'manometro' || c.tipo === 'psv' || c.tipo === 'pressostato') && (
             <div className="mcomp-bloco">
               <div className="mcomp-bloco-titulo">
                 <Icone nome="sliders" tam={13} />
@@ -218,7 +218,8 @@ export default function ModalComponente({
                   </label>
                 ) : (
                   <label className="mcomp-campo">
-                    <span>Pressão de ajuste</span>
+                    {/* Pressostato (23/11/2026): o set point mora no mesmo campo. */}
+                    <span>{c.tipo === 'pressostato' ? 'Set point (pressão de ajuste)' : 'Pressão de ajuste'}</span>
                     <input
                       value={c.pressaoAjuste ?? ''}
                       onChange={(e) => set('pressaoAjuste', e.target.value)}

@@ -58,6 +58,15 @@ const PADROES: PadraoFixo[] = [
     destino: 'Certificado de Calibração de Válvula de Segurança (PSV)',
     icone: 'valvula-psv',
   },
+  // 23/11/2026 · o pressostato ganhou certificado interno. Ele se afere contra
+  // o manômetro padrão OU contra um padrão próprio cadastrado aqui.
+  {
+    tipo: 'pressostato',
+    titulo: 'Pressostato padrão',
+    sub: 'Aferição de pressostatos',
+    destino: 'Certificado de Calibração de Pressostato',
+    icone: 'gauge',
+  },
 ];
 
 const novoRegistro = (tipo: TipoInstrumento): Rastreabilidade => ({

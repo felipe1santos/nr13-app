@@ -94,6 +94,9 @@ export default function FormularioCalibracao({
   const resumo = resumoPontos(pontos);
   const pior = maiorErro(pontos);
   const psvFeitos = [form.pressaoAbertura, form.pressaoAjuste, form.fechamento].filter((v) => v.trim() !== '').length;
+  // Pressostato (23/11/2026): as quatro pressões dos dois ensaios (desarme/rearme).
+  const prsPressoes = (form.ensaios ?? []).flatMap((e) => [e.desarme, e.rearme]);
+  const prsFeitos = prsPressoes.filter((v) => (v ?? '').trim() !== '').length;
 
   function escolherPadrao(id: string) {
     const r = padroes.find((p) => p.id === id);
@@ -348,7 +351,9 @@ export default function FormularioCalibracao({
               <p className="jcal-aviso">
                 <Icone nome="alerttri" tam={13} />
                 <span>
-                  Nenhum padrão de {form.tipo === 'psv' ? 'válvula' : 'manômetro'} cadastrado em{' '}
+                  Nenhum padrão de{' '}
+                  {form.tipo === 'psv' ? 'válvula' : form.tipo === 'pressostato' ? 'manômetro ou pressostato' : 'manômetro'}{' '}
+                  cadastrado em{' '}
                   <strong>Certificados</strong>. Cadastre-o lá uma vez e ele passa a vir preenchido em
                   toda calibração.{' '}
                   <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setPadraoManual(true)}>
@@ -397,6 +402,11 @@ export default function FormularioCalibracao({
                 <strong>{resumo.feitos}</strong> de {resumo.total || 0} pontos medidos
                 {pior !== null && ` · maior erro ${pior} ${form.unidade}`}
               </>
+            ) : form.tipo === 'pressostato' ? (
+              <>
+                <strong>{prsFeitos}</strong> de {prsPressoes.length} pressões registradas
+                {form.setPoint?.trim() ? ` · set point ${form.setPoint} ${form.unidade}` : ''}
+              </>
             ) : (
               <>
                 <strong>{psvFeitos}</strong> de 3 pressões registradas
@@ -404,7 +414,7 @@ export default function FormularioCalibracao({
             )}
           </span>
           <button type="button" className="fj-btn fj-btn-primary" onClick={() => setResultadosAbertos(true)}>
-            <Icone nome="sliders" tam={14} /> {resumo.feitos || psvFeitos ? 'Revisar resultados' : 'Preencher resultados'}
+            <Icone nome="sliders" tam={14} /> {resumo.feitos || (form.tipo === 'pressostato' ? prsFeitos : psvFeitos) ? 'Revisar resultados' : 'Preencher resultados'}
           </button>
         </div>
       </section>
@@ -473,6 +483,17 @@ export default function FormularioCalibracao({
             incerteza: form.incerteza,
             coef: form.coef,
           }}
+          pressostato={
+            form.tipo === 'pressostato'
+              ? {
+                  setPoint: form.setPoint ?? '',
+                  ensaios: form.ensaios ?? [],
+                  fluido: form.fluido ?? '',
+                  tempoMin: form.tempoMin ?? '',
+                  inspecaoVisual: form.inspecaoVisual ?? {},
+                }
+              : undefined
+          }
           aoConfirmar={(v) => {
             const linhas = paraLinhas(v.manometro.pontos);
             setForm((f) => ({
@@ -488,6 +509,15 @@ export default function FormularioCalibracao({
               fechamento: v.psv.fechamento,
               incerteza: v.psv.incerteza,
               coef: v.psv.coef,
+              ...(v.pressostato
+                ? {
+                    setPoint: v.pressostato.setPoint,
+                    ensaios: v.pressostato.ensaios,
+                    fluido: v.pressostato.fluido,
+                    tempoMin: v.pressostato.tempoMin,
+                    inspecaoVisual: v.pressostato.inspecaoVisual,
+                  }
+                : {}),
             }));
             setResultadosAbertos(false);
           }}

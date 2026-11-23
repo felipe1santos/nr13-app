@@ -70,7 +70,11 @@ export function aplicaAoEquipamento(r: Rastreabilidade, tag?: string | null): bo
   return !!tag && r.tags.includes(tag);
 }
 
-/** Tipo de padrão usado por um certificado de calibração ('manometro' | 'psv'). */
+/**
+ * Tipo de padrão usado por um certificado de calibração ('manometro' | 'psv').
+ * Pressostato (23/11/2026) cai em 'manometro' — é contra o manômetro padrão que
+ * ele se afere; o padrão EXATO (`padraoId`) é o que vale para calibração nova.
+ */
 export function tipoPadraoDoCertificado(tipoCalibracao: string): TipoInstrumento {
   return tipoCalibracao === 'psv' ? 'valvula' : 'manometro';
 }

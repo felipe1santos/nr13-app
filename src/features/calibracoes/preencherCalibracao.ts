@@ -67,7 +67,7 @@ function dataBr(v: string | undefined | null): string {
  * relatório — reusada para que o texto do bloco 5 e o PDF anexado nunca falem
  * de instrumentos diferentes.
  */
-export function padraoSugerido(tipo: 'manometro' | 'psv', tag: string): PadraoSugerido {
+export function padraoSugerido(tipo: 'manometro' | 'psv' | 'pressostato', tag: string): PadraoSugerido {
   const r = padraoDoEnsaio(tipoPadraoDoCertificado(tipo), tag);
   if (!r) return { padraoInst: '', padraoSerie: '', padraoCert: '', padraoVal: '', origem: null };
   return {

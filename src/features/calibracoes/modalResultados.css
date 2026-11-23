@@ -284,3 +284,63 @@
 .mres-pior {
   border-radius: var(--r-xs);
 }
+
+/* ============================================================================
+   PRESSOSTATO (23/11/2026) · dois ensaios desarme/rearme + inspeção visual.
+   Os campos reaproveitam `.mres-psv`; aqui só o que é novo.
+   ============================================================================ */
+.mres-prs-ensaios {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.mres-prs-ensaio {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.mres-prs-par { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mres-prs-insp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 16px;
+}
+.mres-prs-insp-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mres-prs-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  font-size: 14px;
+}
+.mres-prs-opcoes { display: flex; gap: 6px; flex-shrink: 0; }
+.mres-prs-opcao {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: var(--r-xs, 4px);
+  background: var(--surface, #fff);
+  color: var(--text, #111827);
+  font-size: 13px;
+  cursor: pointer;
+}
+.mres-prs-opcao.ok.on { background: #deffe8; border-color: #009a3d; color: #006b2b; font-weight: 600; }
+.mres-prs-opcao.crit.on { background: #fdecec; border-color: #dc2626; color: #b91c1c; font-weight: 600; }
+.mres-prs-opcao:focus-visible { outline: 2px solid var(--acento, #0c4f9b); outline-offset: 2px; }
+
+@media (max-width: 720px) {
+  .mres-prs-ensaios { grid-template-columns: 1fr; }
+  .mres-prs-par { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mres-prs-item { flex-wrap: wrap; }
+}
