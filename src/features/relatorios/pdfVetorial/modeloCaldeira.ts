@@ -11,6 +11,7 @@
  *
  * Função síncrona e sem desenho: o teste a alcança sem jsPDF.
  */
+import { itensNaoAtendidos, verificacaoNr13Preenchida, type ItemNaoAtendido } from '../../caldeira/verificacaoNr13';
 import { ler } from '../../../services/storage';
 import type { ModeloRelatorio } from './modelo';
 import { numeroDoStorage, textoOu } from './modelo';
@@ -88,6 +89,11 @@ export interface ModeloCaldeira {
   ensaios: LinhaEnsaio[];
   dispositivos: LinhaDispositivo[];
   acumulacaoFeita: boolean;
+  /**
+   * 13.4.4.12 i) — itens da NR-13 não atendidos, da Verificação NR-13 da caldeira
+   * (23/11/2026). `null` = a verificação não foi feita nesta inspeção.
+   */
+  naoAtendidos: ItemNaoAtendido[] | null;
   /** Há prontuário de fabricação anexável (PDF do fabricante ou prontuário anexado)? */
   temFabricacao: boolean;
   tipoInspecao: string | null;
@@ -329,6 +335,7 @@ export function montarModeloCaldeira(
     ensaios,
     dispositivos,
     acumulacaoFeita,
+    naoAtendidos: verificacaoNr13Preenchida(injecao.nr13_caldeira) ? itensNaoAtendidos(injecao.nr13_caldeira) : null,
     temFabricacao: false,
     tipoInspecao: textoOu(meta?.tipoInspecao ?? null, '') || null,
     dataEmissao: textoOu(meta?.emissao ?? null, '') || null,

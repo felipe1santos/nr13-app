@@ -7,6 +7,7 @@ import {
   type TipoEnsaio,
 } from './tipos';
 import { acumulacaoPreenchida, type DadosAcumulacao } from './acumulacao';
+import { resumoVerificacaoNr13 } from '../caldeira/verificacaoNr13';
 
 /**
  * O QUE UM CONTAINER DE INSPEÇÃO REALMENTE TEM DENTRO — 09/09/2026.
@@ -197,6 +198,19 @@ const LEITOR: Record<FormularioEnsaio, (d: Blob) => Omit<EnsaioResumido, 'ensaio
   },
   // 21/10/2026 · Ensaio de Acumulação (só caldeira). "Salvo" com a mesma
   // pergunta que o documento faz: há pressão, horário, tempo, resposta ou foto.
+  // 23/11/2026 · Verificação NR-13 da caldeira: "salvo" = ao menos uma resposta.
+  nr13_caldeira: (d) => {
+    const r = resumoVerificacaoNr13(d);
+    return {
+      salvo: r.respondidos > 0,
+      data: null,
+      respostas: r.respondidos,
+      medicoes: 0,
+      fotos: 0,
+      resultado: null,
+      conclusao: r.respondidos > 0 ? (r.naoAtende > 0 ? `${r.naoAtende} item(ns) não atendido(s)` : 'Todos os itens verificados atendem') : null,
+    };
+  },
   acumulacao: (d) => {
     const fotos = arr(d.fotos).length;
     return {
@@ -305,4 +319,5 @@ export const DOC_DO_ENSAIO: Record<TipoEnsaio, string | null> = {
   // Fase 5.2 · a seção 8.4 do relatório completo (só vetorial).
   relatorio_imagens: 'RELATORIO-IMAGENS.html',
   acumulacao: 'ENSAIO-ACUMULACAO.html',
+  verificacao_caldeira: 'CALD-RELATORIO-INSPECAO.html',
 };

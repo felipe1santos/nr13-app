@@ -1,4 +1,5 @@
 import type { RelatorioMeta } from './tipos';
+import { itensNaoAtendidos } from '../caldeira/verificacaoNr13';
 import { resolverValor, type MapaOverrides } from './overridesRelatorio';
 import { acumulacaoPreenchida, dadosPadraoAcumulacao, verificarAcumulacao, type DadosAcumulacao } from '../inspecoes/acumulacao';
 import { listaDeItens, precisaConfirmarSemantica } from '../inspecoes/formularios/semanticaNc';
@@ -236,6 +237,29 @@ export function validarParaFinalizar(e: EntradaValidacao): ResultadoValidacao {
     (!e.documentos?.length ||
       ['CALD-RELATORIO-INSPECAO.html', 'INSPECOES.html', 'CONCLUSAO.html'].some((f) => tem(e.documentos, f)));
   if (relatorioInspecaoCaldeira) {
+    // 23/11/2026 · VERIFICAÇÃO NR-13 DA CALDEIRA: todo "não atende" precisa da
+    // constatação — ela é o que o 13.4.4.12 i) imprime. A constatação pode vir
+    // do formulário ou do texto editado na folha 1.3.
+    const verif = bloco<Record<string, unknown>>(e.dadosContainer, 'nr13_caldeira');
+    if (verif) {
+      const naoAtendidos = itensNaoAtendidos(verif);
+      naoAtendidos.forEach((n, i) => {
+        const editado = resolverValor('', (e.overrides ?? {})[`ri.nr13-nao-atendido-${i}`]) ?? '';
+        if (!n.observacao && vazio(editado)) {
+          obrigatorios.push({
+            campo: `nr13_caldeira.${n.item}`,
+            texto: `Item ${n.item} marcado "não atende" sem a constatação`,
+            onde: 'Inspeção · Verificação NR-13 da caldeira',
+          });
+        }
+      });
+    } else {
+      opcionais.push({
+        campo: 'nr13_caldeira',
+        texto: 'Verificação NR-13 da caldeira não preenchida — a folha 1.3 dirá que os itens da NR-13 não foram verificados (13.4.4.12 i)',
+        onde: 'Inspeção · Verificação NR-13 da caldeira',
+      });
+    }
     const bruto = bloco<Partial<DadosAcumulacao>>(e.dadosContainer, 'acumulacao');
     // Mesma regra do modelo (`acumulacaoFeita`): o dado preenchido, escolhida ou não a folha.
     const feito = !!bruto && acumulacaoPreenchida(bruto);

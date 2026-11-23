@@ -5,7 +5,8 @@ export type TipoEnsaio =
   | 'visual_externo'
   | 'teste_hidrostatico'
   | 'relatorio_imagens'
-  | 'acumulacao';
+  | 'acumulacao'
+  | 'verificacao_caldeira';
 
 export const ENSAIOS_DISPONIVEIS: { value: TipoEnsaio; label: string }[] = [
   { value: 'checklist',         label: 'Checklist Completo de Inspeção (NR-13)' },
@@ -29,8 +30,23 @@ export const ENSAIO_ACUMULACAO = { value: 'acumulacao', label: 'Ensaio de Acumul
   label: string;
 };
 
+/**
+ * VERIFICAÇÃO NR-13 DA CALDEIRA (23/11/2026) — só para CALDEIRA, como a
+ * acumulação. Os itens da NR-13 de caldeira (dispositivos, placa, documentação,
+ * instalação, operação, válvulas); o "não atende" alimenta a lista do
+ * 13.4.4.12 i) no relatório. Catálogo em `features/caldeira/verificacaoNr13.ts`.
+ */
+export const ENSAIO_VERIFICACAO_CALDEIRA = { value: 'verificacao_caldeira', label: 'Verificação NR-13 da Caldeira' } as const satisfies {
+  value: TipoEnsaio;
+  label: string;
+};
+
 /** Todos os ensaios que o sistema conhece — para rótulo e leitura, nunca para oferecer. */
-export const TODOS_ENSAIOS: { value: TipoEnsaio; label: string }[] = [...ENSAIOS_DISPONIVEIS, ENSAIO_ACUMULACAO];
+export const TODOS_ENSAIOS: { value: TipoEnsaio; label: string }[] = [
+  ...ENSAIOS_DISPONIVEIS,
+  ENSAIO_ACUMULACAO,
+  ENSAIO_VERIFICACAO_CALDEIRA,
+];
 
 export type FormularioEnsaio =
   | 'ultrassom'
@@ -41,7 +57,8 @@ export type FormularioEnsaio =
   | 'manometro'
   | 'psv'
   | 'imagens'
-  | 'acumulacao';
+  | 'acumulacao'
+  | 'nr13_caldeira';
 
 export const FORM_POR_ENSAIO: Record<TipoEnsaio, FormularioEnsaio> = {
   checklist:          'checklist',
@@ -51,6 +68,7 @@ export const FORM_POR_ENSAIO: Record<TipoEnsaio, FormularioEnsaio> = {
   teste_hidrostatico: 'th',
   relatorio_imagens:  'imagens',
   acumulacao:         'acumulacao',
+  verificacao_caldeira: 'nr13_caldeira',
 };
 
 export const ROTULO_FORMULARIO: Record<FormularioEnsaio, string> = {
@@ -63,6 +81,7 @@ export const ROTULO_FORMULARIO: Record<FormularioEnsaio, string> = {
   psv:            'Calibração de Válvula de Segurança (PSV)',
   imagens:        'Relatório de Imagens',
   acumulacao:     'Ensaio de Acumulação',
+  nr13_caldeira:  'Verificação NR-13 da Caldeira',
 };
 
 // Container de inspeção: agrupa os ensaios atribuídos a um equipamento numa rodada de inspeção.
@@ -92,4 +111,7 @@ export const DOCS_POR_FORMULARIO: Record<FormularioEnsaio, string[]> = {
   imagens:        ['RELATORIO-IMAGENS.html'],
   // 21/10/2026 · só vetorial, como a 8.4: não existe template HTML.
   acumulacao:     ['ENSAIO-ACUMULACAO.html'],
+  // 23/11/2026 · só caldeira; sai dentro da folha 1.3 do relatório de caldeira
+  // (Itens da NR-13 não atendidos — 13.4.4.12 i). Sem folha HTML própria.
+  nr13_caldeira:  ['CALD-RELATORIO-INSPECAO.html'],
 };

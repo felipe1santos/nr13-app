@@ -494,6 +494,38 @@ export function folhasRelatorioInspecaoCaldeira(doc: Documento, mc: ModeloCaldei
     });
   }
 
+  // 13.4.4.12 i) — relação dos itens da NR-13 que não estão sendo atendidos
+  // (23/11/2026). Vem da Verificação NR-13 da caldeira; sem ela, o documento
+  // diz que a verificação não foi feita — nunca afirma "todos atendidos".
+  doc.garantirEspaco(26);
+  doc.faixa('ITENS DA NR-13 NÃO ATENDIDOS (13.4.4.12 i)');
+  if (mc.naoAtendidos === null) {
+    doc.tabela({
+      compacta: true,
+      colunas: [1],
+      linhas: [[{ texto: 'Verificação dos itens da NR-13 não registrada nesta inspeção.', valor: true, id: 'ri.nr13-nao-atendidos', rotuloCampo: 'Itens da NR-13 não atendidos', multilinha: true, opcional: true }]],
+    });
+  } else if (mc.naoAtendidos.length === 0) {
+    doc.tabela({
+      compacta: true,
+      colunas: [1],
+      linhas: [[{ texto: 'Todos os itens da NR-13 relativos a caldeiras verificados nesta inspeção estão sendo atendidos.', valor: true, id: 'ri.nr13-nao-atendidos', rotuloCampo: 'Itens da NR-13 não atendidos', multilinha: true, opcional: true }]],
+    });
+  } else {
+    doc.tabela({
+      compacta: true,
+      colunas: [0.16, 0.46, 0.38],
+      linhas: [
+        [rot('ITEM'), rot('REQUISITO'), rot('CONSTATAÇÃO')],
+        ...mc.naoAtendidos.map((n, i) => [
+          { texto: n.item, valor: true },
+          { texto: n.texto, valor: true, multilinha: true },
+          { texto: textoOu(n.observacao), valor: true, id: `ri.nr13-nao-atendido-${i}`, rotuloCampo: `Item ${n.item} — constatação`, multilinha: true, opcional: true },
+        ]),
+      ],
+    });
+  }
+
   doc.garantirEspaco(60);
   doc.faixa('LAUDO FINAL');
   doc.tabela({

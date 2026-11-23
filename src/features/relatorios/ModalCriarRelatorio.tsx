@@ -104,6 +104,7 @@ const ICONE_ENSAIO: Record<TipoEnsaio, NomeIcone> = {
   teste_hidrostatico: 'cylinder',
   relatorio_imagens: 'camera',
   acumulacao: 'manometro',
+  verificacao_caldeira: 'clipboard',
 };
 
 /** Item da seção de calibrações: um LOTE inteiro ou uma calibração avulsa antiga. */

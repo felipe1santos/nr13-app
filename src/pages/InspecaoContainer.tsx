@@ -21,6 +21,7 @@ const ICONE_FORMULARIO: Record<FormularioEnsaio, NomeIcone> = {
   psv: 'valvula-psv',
   imagens: 'camera',
   acumulacao: 'manometro',
+  nr13_caldeira: 'clipboard',
 };
 
 /**
@@ -37,6 +38,7 @@ const ENS_DO_FORMULARIO: Partial<Record<FormularioEnsaio, string>> = {
   th: 'teste_hidrostatico',
   imagens: 'relatorio_imagens',
   acumulacao: 'acumulacao',
+  nr13_caldeira: 'verificacao_caldeira',
 };
 
 export default function InspecaoContainer() {

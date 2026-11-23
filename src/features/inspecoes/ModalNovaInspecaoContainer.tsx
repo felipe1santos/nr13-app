@@ -48,6 +48,12 @@ const ICONES: Record<TipoEnsaio, React.ReactNode> = {
       <path d="M12 2v3"/>
     </svg>
   ),
+  verificacao_caldeira: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/>
+      <path d="m9 12 2 2 4-4"/>
+    </svg>
+  ),
 };
 
 interface Props {

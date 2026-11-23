@@ -1,4 +1,5 @@
 import type { FormularioEnsaio } from './tipos';
+import { GRUPOS_NR13_CALDEIRA, normalizarVerificacaoNr13 } from '../caldeira/verificacaoNr13';
 import { dadosPadraoAcumulacao, instrumentoDoEnsaio, pressaoNasCincoUnidades, type DadosAcumulacao } from './acumulacao';
 import FotoImg from '../../components/FotoImg';
 import { normalizarFotos, rotuloFoto } from './fotosDescritas';
@@ -561,6 +562,27 @@ export default function VisualizadorFormulario({ formulario, dados, tag }: Props
       return <ViewTH dados={dados as DadosTH} />;
     case 'acumulacao':
       return <ViewAcumulacao dados={dados as DadosAcumulacao} />;
+    case 'nr13_caldeira': {
+      const d = normalizarVerificacaoNr13(dados);
+      const rot = { sim: 'Atende', nao: 'Não atende', na: 'N.A.' } as const;
+      return (
+        <>
+          {GRUPOS_NR13_CALDEIRA.map((g) => (
+            <SecaoViz key={g.id} titulo={g.titulo}>
+              {g.itens.map((it) => {
+                const r = d.respostas[it.id];
+                return (
+                  <p key={it.id} style={{ fontSize: 13, margin: '0 0 6px' }}>
+                    <b>{it.item}</b> {it.texto} — <b style={{ color: r === 'nao' ? 'var(--crit)' : r === 'sim' ? 'var(--ok)' : 'var(--texto-3)' }}>{r ? rot[r] : 'não verificado'}</b>
+                    {d.observacoes[it.id] && <span style={{ display: 'block', color: 'var(--texto-2)' }}>{d.observacoes[it.id]}</span>}
+                  </p>
+                );
+              })}
+            </SecaoViz>
+          ))}
+        </>
+      );
+    }
     case 'imagens': {
       const d = dados as { dataRegistro?: string; observacoes?: string; fotos?: unknown };
       return (
