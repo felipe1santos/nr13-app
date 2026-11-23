@@ -48,3 +48,6 @@
 .cc .cc-nao-cat .icone { flex: none; margin-top: 3px; }
 .cc .cc-resultado.fora { border-left-color: var(--vermelho-padrao); background: var(--vermelho-padrao-claro); }
 .cc .cc-desconto th, .cc .cc-desconto td { color: var(--texto-2); }
+.cc .cc-base-leitura strong { font: 600 14px/20px var(--font); color: var(--texto-1); }
+.cc .cc-base-leitura small { font: var(--t-caption); color: var(--texto-3); }
+.cc .cc-base-aviso { font: var(--t-caption); color: var(--warn); font-weight: 600; }

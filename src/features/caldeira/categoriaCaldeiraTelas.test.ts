@@ -79,6 +79,16 @@ describe('as portas usam a regra', () => {
     expect(s).toMatch(/info\.tipo === 'caldeira' \?\s*\(\s*<SecaoClassificacaoCaldeira/);
     expect(s).toContain('<CategoriaNR13 tag={tag} unidade={unidade} />');
   });
+  it('a pressão de classificação só se troca no modo edição e só vale ao Salvar', () => {
+    const s = fonte('src/features/caldeira/SecaoClassificacaoCaldeira.tsx');
+    // seletor só dentro de `editando ? (...)`, sem gravar no clique
+    expect(s).toMatch(/\{editando \? \(\s*<div className="cc-base" role="radiogroup"/);
+    expect(s).toContain('onClick={() => setBaseLocal(b)}');
+    expect(s).not.toMatch(/onClick=\{\(\) => void escolherBase/);
+    // a gravação acontece no salvar(), relendo o nr13_info_
+    expect(s).toMatch(/if \(baseLocal !== baseGravada\) \{[\s\S]{0,200}await salvarInfo\(novoInfo\)/);
+  });
+
   it('Portal, Livro e Prontuário passam por categoriaExibida', () => {
     for (const p of ['src/features/portal/portalService.ts', 'src/pages/portal/PortalAtivo.tsx', 'src/pages/LivroRegistro.tsx', 'src/pages/Prontuarios.tsx']) {
       expect(fonte(p), p).toContain('categoriaExibida(');

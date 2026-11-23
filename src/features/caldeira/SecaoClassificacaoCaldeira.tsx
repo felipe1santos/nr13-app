@@ -83,26 +83,17 @@ export default function SecaoClassificacaoCaldeira({
 
   const fonte = editando ? local : dados;
   const calc = useMemo(() => lerCalculoPmta(tag), [tag]);
-  const { volume, classificacao } = classificacaoDaFicha(fonte, info, calc);
-  const [gravandoBase, setGravandoBase] = useState(false);
-
-  // A escolha PMO × PMTA mora no `nr13_info_` (mudar a chave reprojeta o catálogo).
-  // Relê antes de gravar: outra seção da ficha pode ter gravado a mesma chave.
-  async function escolherBase(base: BasePressao) {
-    if (gravandoBase || (info.pressaoClassificacao ?? 'pmo') === base) return;
-    setGravandoBase(true);
-    try {
-      const atual = carregarInfo(tag) ?? info;
-      const novo: InfoEquipamento = { ...atual, pressaoClassificacao: base };
-      await salvarInfo(novo);
-      onInfo?.(novo);
-      emitirDadosAlterados();
-    } catch (e) {
-      setErro(`Não foi possível salvar a escolha da pressão: ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      setGravandoBase(false);
-    }
-  }
+  // A pressão de classificação é DECISÃO GRAVADA (23/11/2026, pedido do dono):
+  // muda TUDO (cartões, catálogo, relatório). Só se escolhe no modo edição (lápis)
+  // e só vale depois de "Salvar"; na leitura é texto. Mora no `nr13_info_` —
+  // gravar a chave reprojeta o catálogo no servidor.
+  const baseGravada: BasePressao = info.pressaoClassificacao === 'pmta' ? 'pmta' : 'pmo';
+  const [baseLocal, setBaseLocal] = useState<BasePressao>(baseGravada);
+  const { volume, classificacao } = classificacaoDaFicha(
+    fonte,
+    editando ? { ...info, pressaoClassificacao: baseLocal } : info,
+    calc,
+  );
   const medicao = useMemo(() => ultimaMedicao(tag), [tag]);
   const extremos = medicao ? extremosCaldeira(medicao.medicao).filter((e) => e.leituras > 0) : [];
 
@@ -116,6 +107,14 @@ export default function SecaoClassificacaoCaldeira({
       await salvarDadosCaldeira(tag, novo);
       setDados(novo);
       setLocal(novo);
+      // A pressão de classificação, se mudou. Relê o `nr13_info_` antes: outra
+      // seção da ficha grava a mesma chave.
+      if (baseLocal !== baseGravada) {
+        const infoAtual = carregarInfo(tag) ?? info;
+        const novoInfo: InfoEquipamento = { ...infoAtual, pressaoClassificacao: baseLocal };
+        await salvarInfo(novoInfo);
+        onInfo?.(novoInfo);
+      }
       setEditando(false);
       emitirDadosAlterados();
     } catch (e) {
@@ -187,10 +186,11 @@ export default function SecaoClassificacaoCaldeira({
               const atual = carregarDadosCaldeira(tag);
               setDados(atual);
               setLocal(atual);
+              setBaseLocal(baseGravada);
               setEditando(true);
             }}
-            title="Editar volume da caldeira"
-            aria-label="Editar volume da caldeira"
+            title="Editar volume e pressão de classificação"
+            aria-label="Editar volume e pressão de classificação"
           >
             <Icone nome="pencil" tam={14} />
           </button>
@@ -290,23 +290,33 @@ export default function SecaoClassificacaoCaldeira({
       {/* ③ CLASSIFICAÇÃO */}
       <section className="cc-etapa">
         <h4><span className="cc-num">3</span> Classificação</h4>
-        <div className="cc-base" role="radiogroup" aria-label="Pressão usada para classificar">
-          <span className="cc-base-rot">Pressão para classificar</span>
-          {(['pmo', 'pmta'] as BasePressao[]).map((b) => (
-            <button
-              key={b}
-              type="button"
-              role="radio"
-              aria-checked={c.base === b}
-              className={`cc-base-op${c.base === b ? ' on' : ''}`}
-              disabled={gravandoBase}
-              onClick={() => void escolherBase(b)}
-              title={b === 'pmo' ? 'Pressão de operação — a que a NR-13 13.4.1.1 usa' : 'PMTA — adotada, ou a calculada no memorial'}
-            >
-              {b === 'pmo' ? 'PMO (norma)' : 'PMTA'}
-            </button>
-          ))}
-        </div>
+        {editando ? (
+          <div className="cc-base" role="radiogroup" aria-label="Pressão usada para classificar">
+            <span className="cc-base-rot">Pressão para classificar</span>
+            {(['pmo', 'pmta'] as BasePressao[]).map((b) => (
+              <button
+                key={b}
+                type="button"
+                role="radio"
+                aria-checked={baseLocal === b}
+                className={`cc-base-op${baseLocal === b ? ' on' : ''}`}
+                onClick={() => setBaseLocal(b)}
+                title={b === 'pmo' ? 'Pressão de operação — a que a NR-13 13.4.1.1 usa' : 'PMTA — adotada, ou a calculada no memorial'}
+              >
+                {b === 'pmo' ? 'PMO (norma)' : 'PMTA'}
+              </button>
+            ))}
+            {baseLocal !== baseGravada && (
+              <span className="cc-base-aviso">Muda a categoria em todo o sistema depois de salvar.</span>
+            )}
+          </div>
+        ) : (
+          <p className="cc-base cc-base-leitura">
+            <span className="cc-base-rot">Pressão de classificação</span>
+            <strong>{baseGravada === 'pmo' ? 'PMO (norma)' : 'PMTA'}</strong>
+            <small>— para trocar, use o lápis da seção</small>
+          </p>
+        )}
         {c.naoCategorizado && (
           <p className="cc-nao-cat" role="alert">
             <Icone nome="alerttri" tam={14} /> {c.naoCategorizado}
@@ -354,13 +364,14 @@ export default function SecaoClassificacaoCaldeira({
           {erro && <p role="alert" className="cc-erro">{erro}</p>}
           <div className="ficha-acoes-edicao">
             <button type="button" className="btn-primario" onClick={() => void salvar()} disabled={salvando}>
-              {salvando ? 'Salvando...' : 'Salvar volume'}
+              {salvando ? 'Salvando...' : 'Salvar'}
             </button>
             <button
               type="button"
               className="btn-secundario"
               onClick={() => {
                 setLocal(dados);
+                setBaseLocal(baseGravada);
                 setEditando(false);
                 setErro('');
               }}
