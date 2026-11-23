@@ -35,7 +35,8 @@ export function calcularCategoriaNR13(volumeM3: number, pressaoMpa: number, flui
 
   const pKpa = pressaoMpa * 1000;
   const pvEnq = pKpa * volumeM3;
-  const isEnquadrado = pvEnq > 8;
+  // NR-13 13.2.1 b) P·V > 8; c) fluido classe A, INDEPENDENTE do P·V (23/11/2026).
+  const isEnquadrado = pvEnq > 8 || classe === 'A';
 
   const pvCat = pressaoMpa * volumeM3;
   const grupo = grupoPorPV(pvCat);

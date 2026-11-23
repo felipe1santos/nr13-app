@@ -136,3 +136,7 @@
 /* Identidade (25/10/2026): categoria é DADO — cor do texto, não acento. */
 .bloco-categoria h3 { color: var(--texto-1); }
 .categoria-valor-grande.accent { color: var(--texto-1); }
+
+/* 23/11/2026 · vaso não categorizado — mesmo aviso vermelho da caldeira. */
+.categoria-nao-cat { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 10px; padding: 10px 12px; border-radius: 4px; border-left: 4px solid var(--vermelho-padrao); background: var(--vermelho-padrao-claro); color: var(--vermelho-padrao-texto); font: 600 14px/20px var(--font); }
+.categoria-nao-cat .icone { flex: none; margin-top: 3px; }

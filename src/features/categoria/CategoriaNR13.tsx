@@ -5,6 +5,7 @@ import { FATORES_CONVERSAO, paraExibicao, paraMpa, type SistemaUnidade } from '.
 import type { CalculoSalvo, CategoriaSalva } from '../equipamento/tipos';
 import { ler } from '../../services/storage';
 import { emitirDadosAlterados } from '../../services/eventos';
+import { motivoVasoNaoCategorizado, precisaRecalcularClasseA } from './naoCategorizadoVaso';
 import Campo from '../memorial/Campo';
 import '../equipamento/equipamento.css';
 import './categoria.css';
@@ -157,6 +158,18 @@ export default function CategoriaNR13({ tag, unidade }: { tag: string; unidade: 
       </div>
       )}
 
+      {/* 23/11/2026 · vaso NÃO CATEGORIZADO: o motivo em vermelho (13.2.1 b/c). */}
+      {salva && !editando && motivoVasoNaoCategorizado(salva) && (
+        <p className="categoria-nao-cat" role="alert">
+          <Icone nome="alerttri" tam={14} /> {motivoVasoNaoCategorizado(salva)}
+        </p>
+      )}
+      {salva && !editando && precisaRecalcularClasseA(salva) && (
+        <p className="categoria-nao-cat" role="alert">
+          <Icone nome="alerttri" tam={14} /> Fluido classe A: a NR-13 se aplica independentemente do P×V (item 13.2.1 c).
+          Clique no lápis e em "Calcular Categoria" para atualizar.
+        </p>
+      )}
       {salva && !editando && (
         <div className="categoria-resultado">
           <div className={`categoria-enquadramento ${salva.isEnquadrado ? 'ok' : 'nao'}`}>

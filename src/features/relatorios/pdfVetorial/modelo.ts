@@ -1,4 +1,6 @@
 import { ler } from '../../../services/storage';
+import { ROTULO_NAO_CATEGORIZADO, motivoVasoNaoCategorizado } from '../../categoria/naoCategorizadoVaso';
+import type { CategoriaSalva } from '../../equipamento/tipos';
 import {
   CASAS_POR_UNIDADE,
   rotuloPressao,
@@ -202,7 +204,14 @@ export interface ModeloRelatorio {
   unidade: SistemaUnidade;
   /** O rótulo impresso da unidade acima — `MPa`, `kgf/cm²` ou `bar`. */
   unidadeLabel: string;
-  categoria: { catFinal: string | null; grupo: string | null; volume: string | null; enquadramento: string | null };
+  categoria: {
+    catFinal: string | null;
+    grupo: string | null;
+    volume: string | null;
+    enquadramento: string | null;
+    /** 23/11/2026 · "Equipamento não categorizado pela NR-13, pois …" (13.2.1 b/c), em vermelho. */
+    naoCategorizado?: string | null;
+  };
   /**
    * Bloco 1 · os parâmetros de cada componente, como a referência os imprime.
    *
@@ -1024,7 +1033,8 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
       'CLASSE DO FLUIDO': rotuloClasseFluido(txt(cat.classe)),
       'VOLUME (m³)': numeroBr(info.volume) ?? numeroBr(cat.volInput),
       'GRUPO DE RISCO': txt(cat.grupo),
-      'CATEGORIA DO VASO': txt(cat.catFinal),
+      // Não categorizado (13.2.1 b/c) sai escrito, não "N/A (Não Enquadra)".
+      'CATEGORIA DO VASO': motivoVasoNaoCategorizado(cat as unknown as CategoriaSalva) ? ROTULO_NAO_CATEGORIZADO : txt(cat.catFinal),
       'LOCAL DA INSTALAÇÃO': txt(info.localizacao),
     },
     unidade,
@@ -1035,7 +1045,8 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
       { rotulo: 'PTH — Pressão de Teste Hidrostático', ...pth },
     ],
     categoria: {
-      catFinal: txt(cat.catFinal),
+      catFinal: motivoVasoNaoCategorizado(cat as unknown as CategoriaSalva) ? ROTULO_NAO_CATEGORIZADO : txt(cat.catFinal),
+      naoCategorizado: motivoVasoNaoCategorizado(cat as unknown as CategoriaSalva),
       grupo: txt(cat.grupo),
       volume: numeroBr(info.volume) ?? numeroBr(cat.volInput),
       // O ENQUADRAMENTO é lido, não recalculado: a base é kPa × m³ > 8 (§4) e

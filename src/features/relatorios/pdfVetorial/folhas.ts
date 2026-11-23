@@ -1104,13 +1104,26 @@ export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
     ],
   ]);
 
+  // 23/11/2026 · vaso NÃO CATEGORIZADO: o motivo em vermelho (13.2.1 b/c).
+  if (m.categoria.naoCategorizado) {
+    doc.y += 2;
+    doc.texto(m.categoria.naoCategorizado, {
+      cor: COR.textoAbaixoMinima,
+      negrito: true,
+      id: 'categoria.nao-categorizado',
+      rotuloCampo: 'Equipamento não categorizado — motivo',
+    });
+  }
+
   doc.y += 3.4;
   doc.texto(`Matriz de categoria conforme a Tabela 1 do subitem ${NR13_ITENS.categoriaVaso} da NR-13.`, {
     tamanho: FONTE.nota,
     cor: COR.nota,
   });
   doc.y += 1.4;
-  matrizCategorizacao(doc, m.equipamento['CLASSE DO FLUIDO'], m.categoria.grupo);
+  // Não categorizado: a matriz sai SEM célula destacada — destacar "V" afirmaria
+  // uma categoria que o vaso não tem (23/11/2026).
+  matrizCategorizacao(doc, m.equipamento['CLASSE DO FLUIDO'], m.categoria.naoCategorizado ? null : m.categoria.grupo);
 
   doc.y += 3.4;
   doc.faixa('OPERAÇÃO DO VASO DE PRESSÃO');
