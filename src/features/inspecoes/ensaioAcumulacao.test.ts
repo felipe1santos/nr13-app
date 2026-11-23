@@ -112,16 +112,18 @@ describe('validações', () => {
     expect(avisos.map((a) => a.campo)).not.toContain('pressaoMaxima');
   });
 
-  it('acima de 1,06 × PMTA ALERTA (nunca erro), citando o PG-67.2 e o PLH', () => {
-    const avisos = verificarAcumulacao(ensaio({ pressaoMaxima: '11,7', pressaoUnidade: 'bar' }), { pmtaMpa: PMTA });
-    const a = avisos.find((x) => x.campo === 'pressaoMaxima')!;
-    expect(a.nivel).toBe('alerta');
-    expect(a.texto).toContain('PG-67.2');
-    expect(a.texto).toContain('Profissional Legalmente Habilitado');
+  it('LIMITE = PMTA (decisão do PLH, 23/11/2026): acima dela, aprovado = ERRO; sem resultado = alerta', () => {
+    const aprovado = verificarAcumulacao(ensaio({ pressaoMaxima: '11,2', pressaoUnidade: 'bar', resultado: 'aprovado' }), { pmtaMpa: PMTA });
+    const a = aprovado.find((x) => x.campo === 'pressaoMaxima')!;
+    expect(a.nivel).toBe('erro');
+    expect(a.texto).toContain('passou da PMTA');
+    const semResultado = verificarAcumulacao(ensaio({ pressaoMaxima: '11,2', pressaoUnidade: 'bar', resultado: '' }), { pmtaMpa: PMTA });
+    expect(semResultado.find((x) => x.campo === 'pressaoMaxima')!.nivel).toBe('alerta');
   });
 
-  it('exatamente 1,06 × PMTA não alerta; um pouco acima, alerta — comparação numérica em MPa', () => {
-    const limiteMpa = PMTA * FATOR_LIMITE_ACUMULACAO; // 1,166 MPa
+  it('exatamente a PMTA não avisa; um pouco acima, avisa — comparação numérica em MPa', () => {
+    expect(FATOR_LIMITE_ACUMULACAO).toBe(1);
+    const limiteMpa = PMTA * FATOR_LIMITE_ACUMULACAO;
     const igual = verificarAcumulacao(ensaio({ pressaoMaxima: String(limiteMpa), pressaoUnidade: 'MPa' }), { pmtaMpa: PMTA });
     expect(igual.map((x) => x.campo)).not.toContain('pressaoMaxima');
     const acima = verificarAcumulacao(ensaio({ pressaoMaxima: String(limiteMpa + 0.0001), pressaoUnidade: 'MPa' }), { pmtaMpa: PMTA });
@@ -255,6 +257,18 @@ describe('finalização', () => {
       pmtaMpa: 1.1,
     });
     expect(v.obrigatorios.map((p) => p.campo)).toContain('acumulacao.horaTermino');
+    // Limite = PMTA (23/11/2026): acima dela com resultado APROVADO é erro.
+    expect(v.obrigatorios.map((p) => p.campo)).toContain('acumulacao.pressaoMaxima');
+  });
+
+  it('acima da PMTA sem resultado só avisa', () => {
+    const v = validarParaFinalizar({
+      meta,
+      documentos: ['ENSAIO-ACUMULACAO.html'],
+      laudo: null,
+      dadosContainer: { acumulacao: ensaio({ pressaoMaxima: '13', resultado: '' }) },
+      pmtaMpa: 1.1,
+    });
     expect(v.opcionais.map((p) => p.campo)).toContain('acumulacao.pressaoMaxima');
     expect(v.obrigatorios.map((p) => p.campo)).not.toContain('acumulacao.pressaoMaxima');
   });

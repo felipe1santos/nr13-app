@@ -9,6 +9,12 @@
  * - 13.4.1.1 categoria A = pressão de operação IGUAL OU SUPERIOR a 1.960 kPa
  *   (19,98 kgf/cm²); B = superior a 60 kPa e inferior a 1.960 kPa.
  *
+ * PRESSÃO DE CLASSIFICAÇÃO = PMTA (decisão do engenheiro parceiro, PLH,
+ * 23/11/2026: "a pressão usada para classificar é sempre a PMTA"). O texto da
+ * 13.4.1.1 fala em "pressão de operação"; como PMO ≤ PMTA, classificar pela PMTA
+ * é o lado conservador. PMTA = adotada na ficha ?? calculada no memorial — a
+ * mesma precedência oficial do resto do sistema.
+ *
  * O volume NÃO muda a categoria — decide se a norma se aplica. Por isso ele vem
  * primeiro. A categoria em si é a de `categoriaCaldeira` (a mesma função que o
  * PDF usa): uma regra só, nenhuma cópia.
@@ -163,11 +169,20 @@ export interface ClassificacaoCaldeira {
 /** A classificação a partir do que a ficha guarda: o volume da ficha da caldeira e a PMO adotada (texto em MPa). */
 export function classificacaoDaFicha(
   dados: DadosCaldeira | null | undefined,
-  pmoAdotadaMpa: string | undefined | null,
+  pmtaAdotadaMpa: string | undefined | null,
+  pmtaCalculadaMpa?: string | number | null,
 ): { volume: VolumeCaldeira; classificacao: ClassificacaoCaldeira } {
   const volume = volumeCaldeira(dados);
-  const pmo = parseFloat(String(pmoAdotadaMpa ?? '').replace(',', '.'));
-  return { volume, classificacao: classificarCaldeira(Number.isFinite(pmo) ? pmo : null, volume.totalM3) };
+  return { volume, classificacao: classificarCaldeira(pressaoDeClassificacaoMpa(pmtaAdotadaMpa, pmtaCalculadaMpa), volume.totalM3) };
+}
+
+/** PMTA adotada ?? calculada, em MPa (texto do storage, vírgula ou ponto). */
+export function pressaoDeClassificacaoMpa(adotada: string | undefined | null, calculada?: string | number | null): number | null {
+  for (const v of [adotada, calculada]) {
+    const n = parseFloat(String(v ?? '').replace(',', '.'));
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
 }
 
 /** O texto curto da categoria para cartão/resumo: "A", "B", "Fora da NR-13" ou "—". */
@@ -197,7 +212,7 @@ export function classificarCaldeira(pmoMpa: number | null, volumeM3: number | nu
   };
   const faltas: string[] = [];
   if (volumeL === null) faltas.push('Volume interno da caldeira');
-  if (pmo === null) faltas.push('Pressão de operação (PMO adotada em "Pressões da Documentação")');
+  if (pmo === null) faltas.push('PMTA (adotada em "Pressões da Documentação" ou calculada no memorial)');
 
   if (volumeL !== null && volumeL < VOLUME_MINIMO_L) {
     return {
@@ -210,7 +225,7 @@ export function classificarCaldeira(pmoMpa: number | null, volumeM3: number | nu
     };
   }
   if (pmo === null) {
-    return { ...base, situacao: 'indefinida', categoria: null, item: 'NR-13 13.4.1.1', explicacao: 'Informe a pressão de operação para classificar.', faltas };
+    return { ...base, situacao: 'indefinida', categoria: null, item: 'NR-13 13.4.1.1', explicacao: 'Informe a PMTA para classificar.', faltas };
   }
   const cat = categoriaCaldeira(pmo);
   if (cat === 'FORA' || cat === null) {
@@ -219,14 +234,14 @@ export function classificarCaldeira(pmoMpa: number | null, volumeM3: number | nu
       situacao: 'fora-pressao',
       categoria: null,
       item: 'NR-13 13.2.1 a)',
-      explicacao: `Pressão de operação de ${fmt(pmo * 1000, 0)} kPa, não superior a 60 kPa (0,61 kgf/cm²): a NR-13 não se aplica.`,
+      explicacao: `PMTA de ${fmt(pmo * 1000, 0)} kPa, não superior a 60 kPa (0,61 kgf/cm²): a NR-13 não se aplica.`,
       faltas: [],
     };
   }
   const kgf = fmt(pmo * KGF_POR_MPA);
   const explicacao =
     cat === 'A'
-      ? `Pressão de operação de ${kgf} kgf/cm², igual ou superior a 19,98 kgf/cm² (1.960 kPa): categoria A.`
-      : `Pressão de operação de ${kgf} kgf/cm², acima de 0,61 e abaixo de 19,98 kgf/cm²: categoria B.`;
+      ? `PMTA de ${kgf} kgf/cm², igual ou superior a 19,98 kgf/cm² (1.960 kPa): categoria A.`
+      : `PMTA de ${kgf} kgf/cm², acima de 0,61 e abaixo de 19,98 kgf/cm²: categoria B.`;
   return { ...base, situacao: 'aplica', categoria: cat, item: 'NR-13 13.4.1.1', explicacao, faltas };
 }

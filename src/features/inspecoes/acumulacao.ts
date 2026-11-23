@@ -78,8 +78,12 @@ export interface DadosAcumulacao {
 export const PROCEDIMENTO_PADRAO = 'POP-TP-003';
 export const NORMAS_PADRAO = 'NBR 12177 / NR-13';
 export const LAUDO_PADRAO = 'Equipamento aprovado no ensaio de acumulação.';
-/** ASME Seção I, PG-67.2: acumulação de no máximo 6% acima da PMTA. */
-export const FATOR_LIMITE_ACUMULACAO = 1.06;
+/**
+ * LIMITE DA ACUMULAÇÃO = a PMTA (decisão do engenheiro parceiro, PLH,
+ * 23/11/2026: "o limite é a PMTA; 6% é brecha na norma"). Antes era 1,06 ×
+ * PMTA (ASME Seção I, PG-67.2).
+ */
+export const FATOR_LIMITE_ACUMULACAO = 1;
 
 /** AAAA-MM-DD no fuso do APARELHO (toISOString daria o dia UTC: depois das 21h no Brasil, amanhã). */
 function hojeLocal(): string {
@@ -299,14 +303,15 @@ export function verificarAcumulacao(d: DadosAcumulacao, ctx: ContextoAcumulacao)
     const limite = ctx.pmtaMpa * FATOR_LIMITE_ACUMULACAO;
     if (pMax > limite) {
       const u: UnidadePressao = ehUnidadePressao(d.pressaoUnidade) ? d.pressaoUnidade : 'bar';
+      // Acima da PMTA: com resultado APROVADO o laudo sairia contraditório → erro
+      // (bloqueia a finalização); sem resultado ou reprovado, alerta.
       avisos.push({
         campo: 'pressaoMaxima',
-        nivel: 'alerta',
+        nivel: d.resultado === 'aprovado' ? 'erro' : 'alerta',
         texto:
-          `A pressão máxima atingida (${formatarPressao(deMpaPara(pMax, u), u)} ${u}) passou de 106% da PMTA ` +
-          `(limite ${formatarPressao(deMpaPara(limite, u), u)} ${u}). O ASME Seção I, PG-67.2, limita a ` +
-          'acumulação a 6% acima da PMTA. A decisão sobre a suficiência das válvulas é do Profissional ' +
-          'Legalmente Habilitado.',
+          `A pressão máxima atingida (${formatarPressao(deMpaPara(pMax, u), u)} ${u}) passou da PMTA ` +
+          `(${formatarPressao(deMpaPara(limite, u), u)} ${u}). O limite do ensaio de acumulação é a PMTA` +
+          (d.resultado === 'aprovado' ? ': o ensaio não pode sair aprovado.' : '.'),
       });
     }
   }

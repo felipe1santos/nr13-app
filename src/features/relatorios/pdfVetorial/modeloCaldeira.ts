@@ -339,7 +339,8 @@ export function montarModeloCaldeira(
     pmo: pressao(pmoMpa),
     pmta: pressao(pmtaMpa),
     pth: pressao(pthMpa),
-    categoria: rotuloCategoriaCaldeira(categoriaCaldeira(pmoMpa)),
+    // Classificação pela PMTA (critério do PLH, 23/11/2026) — não pela PMO.
+    categoria: rotuloCategoriaCaldeira(categoriaCaldeira(pmtaMpa)),
     medicao,
     extremos: extremosCaldeira(medicao),
     calculos,

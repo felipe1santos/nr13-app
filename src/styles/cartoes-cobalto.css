@@ -298,6 +298,10 @@
 .ens-teste_hidrostatico { --ens: var(--e-th); --ens-bg: var(--e-th-bg); }
 .ens-relatorio_imagens { --ens: var(--e-imagens); --ens-bg: var(--e-imagens-bg); }
 .ens-acumulacao { --ens: var(--e-acum); --ens-bg: var(--e-acum-bg); }
+/* 23/11/2026 · ensaios só de caldeira: verificação NR-13 (petróleo) e
+   alimentação de água / nível (ciano, "água"). */
+.ens-verificacao_caldeira { --ens: #0B5F73; --ens-bg: #E8F2F5; }
+.ens-alimentacao_agua { --ens: #0E7490; --ens-bg: #CFFAFE; }
 .badge-item-ensaio[class*="ens-"] { background: var(--ens-bg); color: var(--ens); border: 0; border-left: 3px solid var(--ens); border-radius: var(--card-r); }
 .radio-card.ens-opcao { border: 1px solid #E0E0E0; border-radius: var(--card-r); background: #fff; color: #555; transition: background-color 0.15s, border-color 0.15s, color 0.15s; }
 .radio-card.ens-opcao .ens-ic { color: #9E9E9E; }

@@ -40,16 +40,21 @@ describe('catálogo: caldeira só aceita A ou B', () => {
 describe('categoriaExibida (cache)', () => {
   beforeEach(() => cache.clear());
 
-  it('caldeira com PMO 0,99 MPa = B, mesmo com nr13_cat_ dizendo III', () => {
-    cache.set('nr13_info_CAL', { tipo: 'caldeira', pmoAdotadaMpa: '0.99' });
+  it('caldeira com PMTA 1,10 MPa = B, mesmo com nr13_cat_ dizendo III', () => {
+    cache.set('nr13_info_CAL', { tipo: 'caldeira', pmoAdotadaMpa: '0.99', pmtaAdotadaMpa: '1.10' });
     cache.set('nr13_cat_CAL', { catFinal: 'III' });
     expect(categoriaExibida('CAL')).toBe('B');
   });
-  it('caldeira com PMO 2,0 MPa = A', () => {
-    cache.set('nr13_info_CAL', { tipo: 'caldeira', pmoAdotadaMpa: '2' });
+  it('classifica pela PMTA, não pela PMO (critério do PLH): PMO 1,5 + PMTA 2,0 = A', () => {
+    cache.set('nr13_info_CAL', { tipo: 'caldeira', pmoAdotadaMpa: '1.5', pmtaAdotadaMpa: '2' });
     expect(categoriaExibida('CAL')).toBe('A');
   });
-  it('caldeira sem PMO = sem categoria (nunca cai no I–V)', () => {
+  it('sem PMTA adotada usa a calculada do memorial', () => {
+    cache.set('nr13_info_CAL', { tipo: 'caldeira' });
+    cache.set('nr13_calc_CAL', { pmta: '2.1' });
+    expect(categoriaExibida('CAL')).toBe('A');
+  });
+  it('caldeira sem PMTA = sem categoria (nunca cai no I–V)', () => {
     cache.set('nr13_info_CAL', { tipo: 'caldeira' });
     cache.set('nr13_cat_CAL', { catFinal: 'III' });
     expect(categoriaExibida('CAL')).toBeNull();
@@ -77,9 +82,10 @@ describe('as portas usam a regra', () => {
       expect(fonte(p), p).toContain('categoriaExibida(');
     }
   });
-  it('projeção SQL calcula A/B para caldeira pela PMO adotada', () => {
+  it('projeção SQL calcula A/B para caldeira pela PMTA (adotada ?? calculada)', () => {
     const sql = fonte('supabase/busca_manutencao.sql');
-    expect(sql).toMatch(/= 'caldeira' then[\s\S]{0,200}pmoAdotadaMpa[\s\S]{0,40}>= 1\.96 then 'A'/);
+    expect(sql).toMatch(/= 'caldeira' then[\s\S]{0,200}coalesce\(public\.f9_num\(replace\(v_info ->> 'pmtaAdotadaMpa'[\s\S]{0,80}v_calc ->> 'pmta'\)\) >= 1\.96 then 'A'/);
+    expect(sql).not.toMatch(/pmoAdotadaMpa[\s\S]{0,40}>= 1\.96/);
     expect(sql).toMatch(/> 0\.06 then 'B'/);
   });
 });

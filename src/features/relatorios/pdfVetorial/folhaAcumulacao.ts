@@ -11,7 +11,7 @@
  * relatório + "/EA") e vale para as duas folhas — o laudo de referência
  * imprimia na de fotos o rastreável de outro ensaio.
  *
- * Os ALERTAS (acumulação acima de 1,06 × PMTA, calibração vencida) não são
+ * Os ALERTAS (acumulação acima da PMTA, calibração vencida) não são
  * impressos: são informação para o engenheiro na tela e na finalização. O
  * documento registra o que foi medido e o laudo que o PLH assinou.
  */

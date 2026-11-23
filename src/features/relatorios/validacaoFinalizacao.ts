@@ -69,7 +69,7 @@ export interface EntradaValidacao {
   overrides?: MapaOverrides;
   /**
    * 21/10/2026 · PMTA do documento (adotada ?? calculada), em MPa — só o Ensaio
-   * de Acumulação a usa, para o ALERTA de 1,06 × PMTA. Ausente = sem alerta.
+   * de Acumulação a usa, para o aviso de acumulação acima da PMTA. Ausente = sem alerta.
    */
   pmtaMpa?: number | null;
   /**

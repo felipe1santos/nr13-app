@@ -25,7 +25,16 @@ import {
 import { carregarDadosCaldeira, comValorCaldeira, salvarDadosCaldeira, valorCaldeira, type DadosCaldeira } from './dadosCaldeira';
 import { extremosCaldeira, temMedicaoCaldeira, type MedicaoCaldeira } from './medicaoCaldeira';
 import { avaliacaoVinteECincoAnos, prazoMaximoCaldeira } from './prazosCaldeira';
+import { ler } from '../../services/storage';
 import './classificacaoCaldeira.css';
+
+function lerCalculoPmta(tag: string): string | null {
+  try {
+    return ler<{ pmta?: string }>(`nr13_calc_${tag}`)?.pmta ?? null;
+  } catch {
+    return null;
+  }
+}
 
 const m3 = (n: number | null) => (n === null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 }));
 const litros = (n: number | null) =>
@@ -61,7 +70,8 @@ export default function SecaoClassificacaoCaldeira({ tag, info }: { tag: string;
   const [erro, setErro] = useState('');
 
   const fonte = editando ? local : dados;
-  const { volume, classificacao } = classificacaoDaFicha(fonte, info.pmoAdotadaMpa);
+  const calc = useMemo(() => lerCalculoPmta(tag), [tag]);
+  const { volume, classificacao } = classificacaoDaFicha(fonte, info.pmtaAdotadaMpa, calc);
   const medicao = useMemo(() => ultimaMedicao(tag), [tag]);
   const extremos = medicao ? extremosCaldeira(medicao.medicao).filter((e) => e.leituras > 0) : [];
 
@@ -233,7 +243,7 @@ export default function SecaoClassificacaoCaldeira({ tag, info }: { tag: string;
           </div>
           <div className="cc-explica">
             <p>{c.explicacao}</p>
-            <small>{c.item} · pressão de operação = PMO adotada{c.pmoKgf !== null ? ` (${c.pmoKgf.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kgf/cm² · ${Math.round(c.pmoKpa!)} kPa)` : ''}</small>
+            <small>{c.item} · classificada pela PMTA (critério do PLH){c.pmoKgf !== null ? ` (${c.pmoKgf.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kgf/cm² · ${Math.round(c.pmoKpa!)} kPa)` : ''}</small>
           </div>
         </div>
         {c.categoria && prazoMaximoCaldeira(c.categoria) && (
@@ -254,8 +264,9 @@ export default function SecaoClassificacaoCaldeira({ tag, info }: { tag: string;
           </p>
         )}
         <p className="cc-dica">
-          A NR-13 se aplica a caldeiras com pressão de operação acima de 0,61 kgf/cm² (13.2.1 a) e volume a partir de 100 L
-          (13.2.2 k). Categoria A: igual ou acima de 19,98 kgf/cm²; B: abaixo disso (13.4.1.1).
+          A NR-13 se aplica a caldeiras acima de 0,61 kgf/cm² (13.2.1 a) e com volume a partir de 100 L (13.2.2 k).
+          Categoria A: igual ou acima de 19,98 kgf/cm²; B: abaixo disso (13.4.1.1). A pressão usada é a PMTA (adotada
+          ou, sem ela, a calculada no memorial).
         </p>
       </section>
 

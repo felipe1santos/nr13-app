@@ -262,11 +262,11 @@ function EquipamentoView({ tag }: { tag: string }) {
               categoria,
               vida: ler(`nr13_vida_${tag}`),
               unidade,
-              // Caldeira: A/B pela PMO adotada + volume da ficha da caldeira (NR-13 13.4.1.1).
+              // Caldeira: A/B pela PMTA (adotada ?? calculada) + volume da ficha da caldeira.
               caldeira:
                 info.tipo === 'caldeira'
                   ? (() => {
-                      const r = classificacaoDaFicha(carregarDadosCaldeira(tag), info.pmoAdotadaMpa);
+                      const r = classificacaoDaFicha(carregarDadosCaldeira(tag), info.pmtaAdotadaMpa, calculo?.pmta);
                       return { categoria: rotuloCurtoCategoria(r.classificacao), volumeM3: r.volume.totalM3 };
                     })()
                   : undefined,
