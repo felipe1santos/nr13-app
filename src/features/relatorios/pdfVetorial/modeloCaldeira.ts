@@ -11,6 +11,7 @@
  *
  * Função síncrona e sem desenho: o teste a alcança sem jsPDF.
  */
+import { classificacaoDaFicha, type PressoesDaFicha } from '../../caldeira/classificacaoCaldeira';
 import { alimentacaoPreenchida, normalizarAlimentacao, type DadosAlimentacao } from '../../caldeira/alimentacaoAgua';
 import { itensNaoAtendidos, verificacaoNr13Preenchida, type ItemNaoAtendido } from '../../caldeira/verificacaoNr13';
 import { ler } from '../../../services/storage';
@@ -18,7 +19,6 @@ import type { ModeloRelatorio } from './modelo';
 import { numeroDoStorage, textoOu } from './modelo';
 import { carregarDadosCaldeira, type DadosCaldeira } from '../../caldeira/dadosCaldeira';
 import { extremosCaldeira, minimaDaRegiao, temMedicaoCaldeira, type ExtremosRegiao, type MedicaoCaldeira } from '../../caldeira/medicaoCaldeira';
-import { categoriaCaldeira, rotuloCategoriaCaldeira } from '../../caldeira/categoriaCaldeira';
 import {
   pmtaCorpoPelaEspessura,
   pmtaEspelhoPelaEspessura,
@@ -84,6 +84,8 @@ export interface ModeloCaldeira {
   pmta: PressaoQuatro;
   pth: PressaoQuatro;
   categoria: string | null;
+  /** "Equipamento não categorizado pela NR-13, pois …" (fora da NR-13), em vermelho na 1.3. */
+  naoCategorizado: string | null;
   medicao: MedicaoCaldeira | null;
   extremos: ExtremosRegiao[];
   calculos: EtapaVerificacao[];
@@ -201,6 +203,7 @@ export function montarModeloCaldeira(
   const pmtaMpa = numeroDoStorage(info.pmtaAdotadaMpa) ?? numeroDoStorage(calc.pmta);
   const pthMpa = numeroDoStorage(info.pthAdotadaMpa) ?? numeroDoStorage(calc.pth);
   const pmoMpa = numeroDoStorage(info.pmoAdotadaMpa);
+  const { classificacao } = classificacaoDaFicha(dados, info as PressoesDaFicha, calc.pmta as string | undefined);
 
   const us = (injecao.ultrassom ?? {}) as { caldeira?: MedicaoCaldeira; resultado?: unknown; medidas?: unknown };
   const medicao = us.caldeira && temMedicaoCaldeira(us.caldeira) ? us.caldeira : null;
@@ -339,8 +342,10 @@ export function montarModeloCaldeira(
     pmo: pressao(pmoMpa),
     pmta: pressao(pmtaMpa),
     pth: pressao(pthMpa),
-    // Classificação pela PMTA (critério do PLH, 23/11/2026) — não pela PMO.
-    categoria: rotuloCategoriaCaldeira(categoriaCaldeira(pmtaMpa)),
+    // Pressão de classificação ESCOLHIDA na ficha (PMO = norma; PMTA = opção do
+    // PLH) + volume da ficha da caldeira — a mesma regra da tela.
+    categoria: classificacao.categoria ?? (classificacao.naoCategorizado ? 'NÃO CATEGORIZADO' : null),
+    naoCategorizado: classificacao.naoCategorizado,
     medicao,
     extremos: extremosCaldeira(medicao),
     calculos,

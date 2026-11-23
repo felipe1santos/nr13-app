@@ -262,11 +262,11 @@ function EquipamentoView({ tag }: { tag: string }) {
               categoria,
               vida: ler(`nr13_vida_${tag}`),
               unidade,
-              // Caldeira: A/B pela PMTA (adotada ?? calculada) + volume da ficha da caldeira.
+              // Caldeira: A/B pela pressão escolhida na ficha (PMO ou PMTA) + volume.
               caldeira:
                 info.tipo === 'caldeira'
                   ? (() => {
-                      const r = classificacaoDaFicha(carregarDadosCaldeira(tag), info.pmtaAdotadaMpa, calculo?.pmta);
+                      const r = classificacaoDaFicha(carregarDadosCaldeira(tag), info, calculo?.pmta);
                       return { categoria: rotuloCurtoCategoria(r.classificacao), volumeM3: r.volume.totalM3 };
                     })()
                   : undefined,
@@ -313,7 +313,7 @@ function EquipamentoView({ tag }: { tag: string }) {
             operação; 13.2.2 k: fora abaixo de 100 L). A calculadora de vaso
             (classe de fluido × P·V → I a V) não vale para ela (23/11/2026). */}
         {info.tipo === 'caldeira' ? (
-          <SecaoClassificacaoCaldeira tag={tag} info={info} />
+          <SecaoClassificacaoCaldeira tag={tag} info={info} onInfo={setInfo} />
         ) : (
           <CategoriaNR13 tag={tag} unidade={unidade} />
         )}

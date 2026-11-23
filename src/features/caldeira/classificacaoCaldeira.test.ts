@@ -99,3 +99,54 @@ describe('classificarCaldeira (NR-13 13.2.1 a, 13.2.2 k, 13.4.1.1)', () => {
     expect(c.faltas.length).toBe(1);
   });
 });
+
+// ── 23/11/2026 · pressão escolhida, não categorizado e desconto dos tubos ──
+import { classificacaoDaFicha, pressaoDeClassificacao } from './classificacaoCaldeira';
+
+describe('pressão de classificação escolhida pelo usuário', () => {
+  it('sem escolha = PMO (a norma)', () => {
+    expect(pressaoDeClassificacao({ pmoAdotadaMpa: '0.99', pmtaAdotadaMpa: '1.1' })).toEqual({ base: 'pmo', mpa: 0.99 });
+  });
+  it('PMTA = adotada ?? calculada', () => {
+    expect(pressaoDeClassificacao({ pressaoClassificacao: 'pmta', pmtaAdotadaMpa: '1,1' }, '1.23')).toEqual({ base: 'pmta', mpa: 1.1 });
+    expect(pressaoDeClassificacao({ pressaoClassificacao: 'pmta' }, '1.23')).toEqual({ base: 'pmta', mpa: 1.23 });
+  });
+  it('PMO não cai na calculada (não existe PMO calculada)', () => {
+    expect(pressaoDeClassificacao({}, '1.23').mpa).toBeNull();
+  });
+});
+
+describe('não categorizado — o motivo escrito', () => {
+  it('por volume < 100 L', () => {
+    const { classificacao } = classificacaoDaFicha({ volume: { totalLitros: '80' } }, { pmoAdotadaMpa: '1' });
+    expect(classificacao.naoCategorizado).toMatch(/^Equipamento não categorizado pela NR-13, pois o volume interno da caldeira \(80,00 L\) é inferior a 100 L/);
+  });
+  it('por pressão ≤ 60 kPa, citando qual pressão', () => {
+    const { classificacao } = classificacaoDaFicha({}, { pmoAdotadaMpa: '0.05' });
+    expect(classificacao.naoCategorizado).toMatch(/pois a PMO .* não é superior a 60 kPa/);
+  });
+  it('categorizada = sem aviso', () => {
+    expect(classificacaoDaFicha({}, { pmoAdotadaMpa: '1' }).classificacao.naoCategorizado).toBeNull();
+  });
+});
+
+describe('volume desconta os tubos (engenheiro)', () => {
+  it('soma corpo + tampos − tubos − fornalha', () => {
+    const v = volumeCaldeira({
+      volume: {
+        corpoDiametro: '1000', corpoComprimento: '1000',
+        tubosQuantidade: '10', tubosDiametroExterno: '50',
+        fornalhaDiametroExterno: '400', fornalhaComprimento: '1000',
+      },
+    });
+    const corpo = Math.PI / 4;
+    const tubos = 10 * (Math.PI * 0.05 ** 2) / 4 * 1; // comprimento vazio = o do corpo
+    const fornalha = (Math.PI * 0.4 ** 2) / 4;
+    expect(v.tubos.m3).toBeCloseTo(tubos, 6);
+    expect(v.totalM3).toBeCloseTo(corpo - tubos - fornalha, 6);
+  });
+  it('desconto maior que o casco = sem volume (nunca negativo)', () => {
+    const v = volumeCaldeira({ volume: { corpoLitros: '10', tubosQuantidade: '100', tubosDiametroExterno: '100', tubosComprimento: '1000' } });
+    expect(v.totalM3).toBeNull();
+  });
+});

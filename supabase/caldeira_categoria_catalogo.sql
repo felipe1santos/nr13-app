@@ -15,9 +15,9 @@
 --   equipamento. Para caldeira esse valor é o método de VASO (classe de fluido
 --   × P·V → I a V), que a NR-13 não usa para caldeira. Caldeira é A ou B pela
 --   pressão (13.4.1.1): >= 1.960 kPa (1,96 MPa) → A; > 60 kPa e < 1.960 kPa → B.
---   A pressão usada é a PMTA (critério do PLH): adotada na ficha
---   (`nr13_info_<TAG>.pmtaAdotadaMpa`) ?? calculada no memorial
---   (`nr13_calc_<TAG>.pmta`), em MPa. Mesma regra do front
+--   A pressão é a ESCOLHIDA na ficha (`nr13_info_<TAG>.pressaoClassificacao`):
+--   'pmta' → PMTA adotada ?? calculada (`nr13_calc_<TAG>.pmta`); ausente ou
+--   'pmo' → PMO adotada (a norma). Em MPa. Mesma regra do front
 --   (`src/features/caldeira/classificacaoCaldeira.ts`).
 --
 -- POR QUE UM BACKFILL DIRIGIDO (mesmo motivo de `prontuario_anexado_badge.sql`)
@@ -49,10 +49,14 @@ with regra as (
      and c.chave  = 'nr13_calc_' || e.tag
      and c.deletado_em is null
     cross join lateral (
-      select coalesce(
-        public.f9_num(replace(public.f9_json(s.valor) ->> 'pmtaAdotadaMpa', ',', '.')),
-        public.f9_num(public.f9_json(c.valor) ->> 'pmta')
-      ) as pmta
+      select case
+               when public.f9_json(s.valor) ->> 'pressaoClassificacao' = 'pmta' then
+                 coalesce(
+                   public.f9_num(replace(public.f9_json(s.valor) ->> 'pmtaAdotadaMpa', ',', '.')),
+                   public.f9_num(public.f9_json(c.valor) ->> 'pmta')
+                 )
+               else public.f9_num(replace(public.f9_json(s.valor) ->> 'pmoAdotadaMpa', ',', '.'))
+             end as pmta
     ) p
    where e.tipo = 'caldeira'
 )

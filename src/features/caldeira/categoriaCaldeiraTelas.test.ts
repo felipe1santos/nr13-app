@@ -40,21 +40,21 @@ describe('catálogo: caldeira só aceita A ou B', () => {
 describe('categoriaExibida (cache)', () => {
   beforeEach(() => cache.clear());
 
-  it('caldeira com PMTA 1,10 MPa = B, mesmo com nr13_cat_ dizendo III', () => {
-    cache.set('nr13_info_CAL', { tipo: 'caldeira', pmoAdotadaMpa: '0.99', pmtaAdotadaMpa: '1.10' });
+  it('padrão = PMO (a norma): PMO 0,99 MPa = B, mesmo com nr13_cat_ dizendo III', () => {
+    cache.set('nr13_info_CAL', { tipo: 'caldeira', pmoAdotadaMpa: '0.99', pmtaAdotadaMpa: '2.5' });
     cache.set('nr13_cat_CAL', { catFinal: 'III' });
     expect(categoriaExibida('CAL')).toBe('B');
   });
-  it('classifica pela PMTA, não pela PMO (critério do PLH): PMO 1,5 + PMTA 2,0 = A', () => {
-    cache.set('nr13_info_CAL', { tipo: 'caldeira', pmoAdotadaMpa: '1.5', pmtaAdotadaMpa: '2' });
+  it('o usuário escolhe a PMTA: PMO 1,5 + PMTA 2,0 = A', () => {
+    cache.set('nr13_info_CAL', { tipo: 'caldeira', pmoAdotadaMpa: '1.5', pmtaAdotadaMpa: '2', pressaoClassificacao: 'pmta' });
     expect(categoriaExibida('CAL')).toBe('A');
   });
-  it('sem PMTA adotada usa a calculada do memorial', () => {
-    cache.set('nr13_info_CAL', { tipo: 'caldeira' });
+  it('PMTA escolhida sem adotada usa a calculada do memorial', () => {
+    cache.set('nr13_info_CAL', { tipo: 'caldeira', pressaoClassificacao: 'pmta' });
     cache.set('nr13_calc_CAL', { pmta: '2.1' });
     expect(categoriaExibida('CAL')).toBe('A');
   });
-  it('caldeira sem PMTA = sem categoria (nunca cai no I–V)', () => {
+  it('caldeira sem a pressão escolhida = sem categoria (nunca cai no I–V)', () => {
     cache.set('nr13_info_CAL', { tipo: 'caldeira' });
     cache.set('nr13_cat_CAL', { catFinal: 'III' });
     expect(categoriaExibida('CAL')).toBeNull();
@@ -62,7 +62,7 @@ describe('categoriaExibida (cache)', () => {
   it('caldeira com volume < 100 L = fora da NR-13', () => {
     cache.set('nr13_info_CAL', { tipo: 'caldeira', pmoAdotadaMpa: '1' });
     cache.set('nr13_ficha_caldeira_CAL', { volume: { totalLitros: '80' } });
-    expect(categoriaExibida('CAL')).toBe('Fora da NR-13');
+    expect(categoriaExibida('CAL')).toBe('Não categorizado');
   });
   it('vaso continua lendo nr13_cat_', () => {
     cache.set('nr13_info_VP', { tipo: 'vaso' });
@@ -82,10 +82,9 @@ describe('as portas usam a regra', () => {
       expect(fonte(p), p).toContain('categoriaExibida(');
     }
   });
-  it('projeção SQL calcula A/B para caldeira pela PMTA (adotada ?? calculada)', () => {
+  it('projeção SQL: pressão escolhida (pmta → adotada ?? calculada; senão PMO)', () => {
     const sql = fonte('supabase/busca_manutencao.sql');
-    expect(sql).toMatch(/= 'caldeira' then[\s\S]{0,200}coalesce\(public\.f9_num\(replace\(v_info ->> 'pmtaAdotadaMpa'[\s\S]{0,80}v_calc ->> 'pmta'\)\) >= 1\.96 then 'A'/);
-    expect(sql).not.toMatch(/pmoAdotadaMpa[\s\S]{0,40}>= 1\.96/);
-    expect(sql).toMatch(/> 0\.06 then 'B'/);
+    expect(sql).toMatch(/x\.p >= 1\.96 then 'A' when x\.p > 0\.06 then 'B'/);
+    expect(sql).toMatch(/pressaoClassificacao' = 'pmta'[\s\S]{0,40}then coalesce\(public\.f9_num\(replace\(v_info ->> 'pmtaAdotadaMpa'[\s\S]{0,80}v_calc ->> 'pmta'\)\)[\s\S]{0,40}else public\.f9_num\(replace\(v_info ->> 'pmoAdotadaMpa'/);
   });
 });

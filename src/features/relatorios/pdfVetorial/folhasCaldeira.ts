@@ -407,6 +407,10 @@ export function folhasRelatorioInspecaoCaldeira(doc: Documento, mc: ModeloCaldei
       [rot('CATEGORIA'), val(mc.categoria, 'ri.categoria', 'Categoria (NR-13 13.4.1.1)'), rot('LOCALIZAÇÃO DO EQUIPAMENTO'), val(e['LOCAL DA INSTALAÇÃO'], 'ri.local', 'Localização', true)],
     ],
   });
+  // Fora da NR-13 (13.2.1 a / 13.2.2 k): o motivo, em vermelho, logo abaixo.
+  if (mc.naoCategorizado) {
+    doc.texto(mc.naoCategorizado, { cor: COR.textoAbaixoMinima, negrito: true, espacoAntes: 1, id: 'ri.nao-categorizado', rotuloCampo: 'Equipamento não categorizado — motivo' });
+  }
   tabelaPressoes(doc, mc, 'ri');
 
   doc.faixa('ENSAIOS REALIZADOS');

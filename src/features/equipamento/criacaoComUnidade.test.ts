@@ -231,6 +231,8 @@ describe('REGRA GLOBAL · quem cria equipamento, e todos gravam a unidade', () =
       .map((a) => a.arq)
       .sort();
     expect(chamadores).toEqual([
+      // 23/11/2026 · caldeira: a escolha da pressão de classificação (PMO × PMTA).
+      'src/features/caldeira/SecaoClassificacaoCaldeira.tsx',
       'src/features/equipamento/DadosEquipamento.tsx',
       'src/features/equipamento/PressoesDocumentacao.tsx',
     ]);

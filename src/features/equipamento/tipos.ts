@@ -31,6 +31,12 @@ export interface InfoEquipamento {
   pmtaAdotadaMpa?: string;
   pmoAdotadaMpa?: string;
   pthAdotadaMpa?: string;
+  /**
+   * CALDEIRA (23/11/2026): qual pressão classifica a caldeira em A/B. A NR-13
+   * 13.4.1.1 usa a pressão de OPERAÇÃO (PMO); o PLH pode adotar a PMTA. Ausente =
+   * 'pmo' (a norma). O usuário escolhe na ficha — o sistema não restringe.
+   */
+  pressaoClassificacao?: 'pmo' | 'pmta';
   // Placa de identificação: ocultar células EXECUÇÃO DA INSPEÇÃO / VALIDADE (default false).
   placaOcultarDatas?: boolean;
 }

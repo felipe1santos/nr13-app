@@ -14,12 +14,15 @@
 import { useMemo, useState } from 'react';
 import { Icone } from '../../components/Icone';
 import { emitirDadosAlterados } from '../../services/eventos';
+import { carregarInfo, salvarInfo } from '../equipamento/equipamentoService';
 import type { InfoEquipamento } from '../equipamento/tipos';
 import { listarContainers } from '../inspecoes/inspecaoService';
 import {
   CAMPOS_VOLUME,
   TIPOS_TAMPO_CALDEIRA,
+  ROTULO_BASE,
   classificacaoDaFicha,
+  type BasePressao,
   type VolumeParte,
 } from './classificacaoCaldeira';
 import { carregarDadosCaldeira, comValorCaldeira, salvarDadosCaldeira, valorCaldeira, type DadosCaldeira } from './dadosCaldeira';
@@ -62,7 +65,16 @@ function Origem({ p }: { p: VolumeParte }) {
   return null;
 }
 
-export default function SecaoClassificacaoCaldeira({ tag, info }: { tag: string; info: InfoEquipamento }) {
+export default function SecaoClassificacaoCaldeira({
+  tag,
+  info,
+  onInfo,
+}: {
+  tag: string;
+  info: InfoEquipamento;
+  /** A ficha recebe o `nr13_info_` regravado (a escolha da pressão mora nele). */
+  onInfo?: (i: InfoEquipamento) => void;
+}) {
   const [dados, setDados] = useState<DadosCaldeira>(() => carregarDadosCaldeira(tag));
   const [local, setLocal] = useState<DadosCaldeira>(dados);
   const [editando, setEditando] = useState(false);
@@ -71,7 +83,26 @@ export default function SecaoClassificacaoCaldeira({ tag, info }: { tag: string;
 
   const fonte = editando ? local : dados;
   const calc = useMemo(() => lerCalculoPmta(tag), [tag]);
-  const { volume, classificacao } = classificacaoDaFicha(fonte, info.pmtaAdotadaMpa, calc);
+  const { volume, classificacao } = classificacaoDaFicha(fonte, info, calc);
+  const [gravandoBase, setGravandoBase] = useState(false);
+
+  // A escolha PMO × PMTA mora no `nr13_info_` (mudar a chave reprojeta o catálogo).
+  // Relê antes de gravar: outra seção da ficha pode ter gravado a mesma chave.
+  async function escolherBase(base: BasePressao) {
+    if (gravandoBase || (info.pressaoClassificacao ?? 'pmo') === base) return;
+    setGravandoBase(true);
+    try {
+      const atual = carregarInfo(tag) ?? info;
+      const novo: InfoEquipamento = { ...atual, pressaoClassificacao: base };
+      await salvarInfo(novo);
+      onInfo?.(novo);
+      emitirDadosAlterados();
+    } catch (e) {
+      setErro(`Não foi possível salvar a escolha da pressão: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setGravandoBase(false);
+    }
+  }
   const medicao = useMemo(() => ultimaMedicao(tag), [tag]);
   const extremos = medicao ? extremosCaldeira(medicao.medicao).filter((e) => e.leituras > 0) : [];
 
@@ -131,6 +162,15 @@ export default function SecaoClassificacaoCaldeira({ tag, info }: { tag: string;
     </tr>
   );
 
+  const linhaDesconto = (rotulo: string, p: VolumeParte) => (
+    <tr className="cc-desconto">
+      <th scope="row">{rotulo}</th>
+      <td className="num">− {m3(p.m3)} <small>m³</small></td>
+      <td className="num">− {litros(p.m3)} <small>L</small></td>
+      <td><small className="cc-origem">desconto</small></td>
+    </tr>
+  );
+
   const c = classificacao;
   const vinteCinco = avaliacaoVinteECincoAnos(info.ano, new Date().getFullYear());
   const tomResultado = c.categoria ? 'ok' : c.situacao === 'indefinida' ? 'pendente' : 'fora';
@@ -181,6 +221,18 @@ export default function SecaoClassificacaoCaldeira({ tag, info }: { tag: string;
               {campo(CAMPOS_VOLUME.tampo2Litros, 'ou volume', 'L')}
             </fieldset>
             <fieldset>
+              <legend>Tubos de gases (desconto)</legend>
+              {campo(CAMPOS_VOLUME.tubosQuantidade, 'Quantidade', 'un')}
+              {campo(CAMPOS_VOLUME.tubosDiametroExterno, 'Ø externo', 'mm')}
+              {campo(CAMPOS_VOLUME.tubosComprimento, 'Comprimento', 'mm')}
+              <p className="cc-dica">Comprimento vazio = o do corpo.</p>
+            </fieldset>
+            <fieldset>
+              <legend>Fornalha (desconto, opcional)</legend>
+              {campo(CAMPOS_VOLUME.fornalhaDiametroExterno, 'Ø externo', 'mm')}
+              {campo(CAMPOS_VOLUME.fornalhaComprimento, 'Comprimento', 'mm')}
+            </fieldset>
+            <fieldset>
               <legend>Total</legend>
               {campo(CAMPOS_VOLUME.totalLitros, 'Volume total informado', 'L')}
               <p className="cc-dica">Da placa ou do manual. Quando preenchido, vale no lugar da soma.</p>
@@ -195,6 +247,8 @@ export default function SecaoClassificacaoCaldeira({ tag, info }: { tag: string;
             {linhaVolume('Corpo', volume.corpo)}
             {linhaVolume('Tampo 1', volume.tampo1)}
             {linhaVolume('Tampo 2', volume.tampo2)}
+            {volume.tubos.m3 !== null && linhaDesconto('Tubos (desconto)', volume.tubos)}
+            {volume.fornalha.m3 !== null && linhaDesconto('Fornalha (desconto)', volume.fornalha)}
           </tbody>
           <tfoot>
             <tr>
@@ -236,14 +290,39 @@ export default function SecaoClassificacaoCaldeira({ tag, info }: { tag: string;
       {/* ③ CLASSIFICAÇÃO */}
       <section className="cc-etapa">
         <h4><span className="cc-num">3</span> Classificação</h4>
+        <div className="cc-base" role="radiogroup" aria-label="Pressão usada para classificar">
+          <span className="cc-base-rot">Pressão para classificar</span>
+          {(['pmo', 'pmta'] as BasePressao[]).map((b) => (
+            <button
+              key={b}
+              type="button"
+              role="radio"
+              aria-checked={c.base === b}
+              className={`cc-base-op${c.base === b ? ' on' : ''}`}
+              disabled={gravandoBase}
+              onClick={() => void escolherBase(b)}
+              title={b === 'pmo' ? 'Pressão de operação — a que a NR-13 13.4.1.1 usa' : 'PMTA — adotada, ou a calculada no memorial'}
+            >
+              {b === 'pmo' ? 'PMO (norma)' : 'PMTA'}
+            </button>
+          ))}
+        </div>
+        {c.naoCategorizado && (
+          <p className="cc-nao-cat" role="alert">
+            <Icone nome="alerttri" tam={14} /> {c.naoCategorizado}
+          </p>
+        )}
         <div className={`cc-resultado ${tomResultado}`}>
           <div className="cc-cat">
             <span className="lbl-view">Categoria</span>
-            <strong>{c.categoria ?? (c.situacao === 'indefinida' ? '—' : 'Fora')}</strong>
+            <strong>{c.categoria ?? (c.situacao === 'indefinida' ? '—' : 'N/C')}</strong>
           </div>
           <div className="cc-explica">
             <p>{c.explicacao}</p>
-            <small>{c.item} · classificada pela PMTA (critério do PLH){c.pmoKgf !== null ? ` (${c.pmoKgf.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kgf/cm² · ${Math.round(c.pmoKpa!)} kPa)` : ''}</small>
+            <small>
+              {c.item} · classificada pela {ROTULO_BASE[c.base]}
+              {c.pressaoKgf !== null ? ` (${c.pressaoKgf.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kgf/cm² · ${Math.round(c.pressaoKpa!)} kPa)` : ''}
+            </small>
           </div>
         </div>
         {c.categoria && prazoMaximoCaldeira(c.categoria) && (
@@ -265,8 +344,8 @@ export default function SecaoClassificacaoCaldeira({ tag, info }: { tag: string;
         )}
         <p className="cc-dica">
           A NR-13 se aplica a caldeiras acima de 0,61 kgf/cm² (13.2.1 a) e com volume a partir de 100 L (13.2.2 k).
-          Categoria A: igual ou acima de 19,98 kgf/cm²; B: abaixo disso (13.4.1.1). A pressão usada é a PMTA (adotada
-          ou, sem ela, a calculada no memorial).
+          Categoria A: igual ou acima de 19,98 kgf/cm²; B: abaixo disso (13.4.1.1). A norma classifica pela pressão de
+          operação (PMO); o engenheiro pode adotar a PMTA.
         </p>
       </section>
 

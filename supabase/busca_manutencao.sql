@@ -349,19 +349,21 @@ begin
     nullif(btrim(coalesce(v_info ->> 'descricao', '')), ''),
     nullif(btrim(coalesce(v_info ->> 'tipo', '')), ''),
     nullif(btrim(coalesce(v_info ->> 'subtipo', '')), ''),
-    -- CALDEIRA (23/11/2026): categoria A/B pela NR-13 13.4.1.1, classificada
-    -- pela PMTA (critério do PLH): adotada ?? calculada (MPa) >= 1,96 → A;
-    -- > 0,06 → B; senão sem categoria.
+    -- CALDEIRA (23/11/2026): categoria A/B pela NR-13 13.4.1.1, pela pressão
+    -- ESCOLHIDA na ficha (`pressaoClassificacao`): 'pmta' → PMTA adotada ??
+    -- calculada; ausente/'pmo' → PMO adotada (a norma). >= 1,96 MPa → A;
+    -- > 0,06 → B; senão sem categoria. Mesma regra de classificacaoCaldeira.ts.
     -- Nunca o `catFinal` de `nr13_cat_`, que é o método de VASO (I–V). Mesma
     -- regra de `src/features/caldeira/categoriaCaldeira.ts`; o volume (13.2.2 k)
     -- não entra aqui — o "fora da NR-13" por volume aparece só na ficha.
     case
       when nullif(btrim(coalesce(v_info ->> 'tipo', '')), '') = 'caldeira' then
-        case
-          when coalesce(public.f9_num(replace(v_info ->> 'pmtaAdotadaMpa', ',', '.')), public.f9_num(v_calc ->> 'pmta')) >= 1.96 then 'A'
-          when coalesce(public.f9_num(replace(v_info ->> 'pmtaAdotadaMpa', ',', '.')), public.f9_num(v_calc ->> 'pmta')) > 0.06 then 'B'
-          else null
-        end
+        (select case when x.p >= 1.96 then 'A' when x.p > 0.06 then 'B' else null end
+           from (select case
+                          when v_info ->> 'pressaoClassificacao' = 'pmta'
+                            then coalesce(public.f9_num(replace(v_info ->> 'pmtaAdotadaMpa', ',', '.')), public.f9_num(v_calc ->> 'pmta'))
+                          else public.f9_num(replace(v_info ->> 'pmoAdotadaMpa', ',', '.'))
+                        end as p) x)
       else nullif(btrim(coalesce(v_cat  ->> 'catFinal', '')), '')
     end,
     nullif(btrim(coalesce(v_info ->> 'fabricante', '')), ''),
