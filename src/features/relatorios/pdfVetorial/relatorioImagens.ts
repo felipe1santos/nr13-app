@@ -249,11 +249,16 @@ export const TITULO_SECAO_IMAGENS = '8.4 RELATÓRIO DE IMAGENS';
  * paginação GLOBAIS do `Documento` do relatório. O desenho das fotos é o MESMO
  * `desenharFotosDescritas` do avulso — muda só o título da seção.
  */
-export function secaoRelatorioImagens(doc: Documento, fotos: FotoParaDocumento[]): CelulaDesenhada[] {
+export function secaoRelatorioImagens(
+  doc: Documento,
+  fotos: FotoParaDocumento[],
+  /** Caldeira (23/11/2026): a mesma seção, como "8 REGISTRO FOTOGRÁFICO" no fim do relatório. */
+  titulo: string = TITULO_SECAO_IMAGENS,
+): CelulaDesenhada[] {
   if (fotos.length === 0) return [];
   doc.novaFolha();
-  doc.banner(TITULO_SECAO_IMAGENS);
-  return desenharFotosDescritas(doc, fotos, () => doc.banner(`${TITULO_SECAO_IMAGENS} (continuação)`));
+  doc.banner(titulo);
+  return desenharFotosDescritas(doc, fotos, () => doc.banner(`${titulo} (continuação)`));
 }
 
 export interface EntradaRelatorioImagens {

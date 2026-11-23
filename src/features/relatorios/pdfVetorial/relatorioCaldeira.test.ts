@@ -270,3 +270,45 @@ describe('anexo ilegível (PDF cifrado/truncado que passou pela assinatura)', ()
     }
   }, 120_000);
 });
+
+// ── 23/11/2026 · seção 8 (registro fotográfico) e itens NR-13 não atendidos ──
+describe('caldeira: registro fotográfico no fim e 13.4.4.12 i)', () => {
+  let pags: string[] = [];
+  beforeAll(async () => {
+    montarCal25();
+    const dados = JSON.parse(localStorage.getItem('nr13_injecao_atual')!);
+    dados.imagens = {
+      dataRegistro: '2022-03-29',
+      observacoes: '',
+      fotos: Array.from({ length: 9 }, (_, i) => ({ id: `img${i}`, ordem: i, base64: PIXEL, descricao: `FOTO-CALDEIRA-${i + 1}` })),
+    };
+    dados.nr13_caldeira = {
+      respostas: { disp_valvula: 'sim', disp_nivel: 'nao', op_manual: 'na' },
+      observacoes: { disp_nivel: 'INTERTRAVAMENTO-NIVEL-NAO-DESARMA' },
+    };
+    gravar('nr13_inspecao_atual', dados);
+    gravar('nr13_injecao_atual', dados);
+    const r = await gerarRelatorioVetorial(TAG, { documentos: [...DOCUMENTOS_CALDEIRA], certificados: true, modo: 'final' });
+    pags = await textos(r.bytes);
+  }, 300_000);
+  const pg = (t: string) => pags.findIndex((p) => p.includes(t));
+
+  it('seção 8 depois do livro (7), com todas as fotos e descrições', () => {
+    const livro = pg('7.2');
+    expect(livro).toBeGreaterThan(0);
+    const s8 = pags.findIndex((p, i) => i > livro && p.includes('8 REGISTRO FOTOGRÁFICO'));
+    expect(s8).toBeGreaterThan(livro);
+    // A seção 8 é a última coisa do documento.
+    expect(pags.slice(s8).every((p) => p.includes('8 REGISTRO FOTOGRÁFICO'))).toBe(true);
+    const corpo = pags.slice(s8).join(' ');
+    for (let i = 1; i <= 9; i++) expect(corpo).toContain(`FOTO-CALDEIRA-${i}`);
+    expect(pags[pg('SUMÁRIO')]).toContain('REGISTRO FOTOGRÁFICO');
+  });
+
+  it('1.3 lista o item não atendido com a constatação', () => {
+    const p = pags.slice(pg('1.3 RELATÓRIO DE INSPEÇÃO'), pg('1.4 EXAME VISUAL EXTERNO')).join(' ');
+    expect(p).toContain('ITENS DA NR-13 NÃO ATENDIDOS');
+    expect(p).toContain('13.4.1.2 e)');
+    expect(p).toContain('INTERTRAVAMENTO-NIVEL-NAO-DESARMA');
+  });
+});

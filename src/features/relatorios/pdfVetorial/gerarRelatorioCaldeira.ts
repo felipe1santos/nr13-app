@@ -17,6 +17,7 @@
  * Anexar NUNCA altera documento emitido: isto só roda para rascunho, prévia e
  * emissão NOVA. Relatório já emitido abre pelos bytes arquivados (§7-quater).
  */
+import { prepararFotosDescritas, secaoRelatorioImagens } from './relatorioImagens';
 import { PDFDocument } from 'pdf-lib';
 import type { jsPDF } from 'jspdf';
 import { registrarCarlito } from './carlito';
@@ -67,6 +68,8 @@ export const FOLHAS_CALDEIRA = {
   acumulacao: ['ENSAIO-ACUMULACAO.HTML'],
   th: ['TESTE-HIDROSTATICO.HTML'],
   livro: ['LIVRO-REGISTRO.HTML'],
+  // 23/11/2026 · o Relatório de Imagens da inspeção, no FIM do relatório (seção 8).
+  imagens: ['RELATORIO-IMAGENS.HTML'],
 } as const;
 
 export type SecaoCaldeira = keyof typeof FOLHAS_CALDEIRA;
@@ -313,7 +316,18 @@ function emitirCaldeira(
       ensaiosExtras: mc.acumulacaoFeita ? [`Ensaio de acumulação (${mc.rastreavel('EA')})`] : [],
     });
   }
+
+  // 8 · REGISTRO FOTOGRÁFICO (23/11/2026) — o Relatório de Imagens da inspeção,
+  // anexado no FIM, como pediu o dono ("caldeira tem muitas imagens"). Mesmo
+  // desenho da 8.4 do vaso (`desenharFotosDescritas`: 2 colunas, descrição
+  // nunca cortada, paginação automática); sem foto, a seção não existe.
+  if (tem.imagens && b.relatorioImagens.desenho.length > 0) {
+    anotar('8');
+    secaoRelatorioImagens(doc, b.relatorioImagens.desenho, TITULO_FOTOS_CALDEIRA);
+  }
 }
+
+export const TITULO_FOTOS_CALDEIRA = '8 REGISTRO FOTOGRÁFICO';
 
 export interface ContextoCaldeira {
   tag: string;
@@ -339,6 +353,14 @@ export async function gerarCorpoCaldeira(ctx: ContextoCaldeira): Promise<{
   const mc = montarModeloCaldeira(ctx.tag, ctx.modelo, ctx.meta, ctx.injecao);
   const tem = secoesCaldeira(ctx.documentos);
   const anexos = await prepararAnexos(ctx.tag, ctx.documentos, ctx.meta, ctx.certificados);
+  // As fotos da seção 8 só são preparadas se ela foi escolhida — mesma porta da
+  // 8.4 do vaso (`prepararFotosDescritas`): foto que não carrega PARA a geração, nomeada.
+  if (tem.imagens && ctx.modelo.relatorioImagens.fotos.length > 0 && ctx.modelo.relatorioImagens.desenho.length === 0) {
+    ctx.modelo.relatorioImagens = {
+      ...ctx.modelo.relatorioImagens,
+      desenho: await prepararFotosDescritas(ctx.modelo.relatorioImagens.fotos),
+    };
+  }
   mc.temFabricacao = anexos.temFabricacao;
   // Finalizar com anexo da caldeira faltando gravaria um documento imutável sem
   // ele: a emissão NÃO sai (a prévia segue, listando a falha).

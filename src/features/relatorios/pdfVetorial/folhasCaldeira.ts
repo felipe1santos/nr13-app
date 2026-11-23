@@ -225,6 +225,7 @@ export const SUMARIO_CALDEIRA: ItemSumarioCaldeira[] = [
   { numero: '5', titulo: 'Prontuário de Fabricação' },
   { numero: '6', titulo: 'ART' },
   { numero: '7', titulo: 'Livro de Registro de Segurança' },
+  { numero: '8', titulo: 'Registro fotográfico' },
 ];
 
 export function folhaSumarioCaldeira(doc: Documento, paginas: Map<string, number>, itens: ItemSumarioCaldeira[]): void {

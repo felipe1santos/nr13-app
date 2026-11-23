@@ -47,6 +47,8 @@ export const DOCUMENTOS_CALDEIRA: readonly string[] = [
   FOLHA_ACUMULACAO,
   'TESTE-HIDROSTATICO.html',
   'LIVRO-REGISTRO.html',
+  // 23/11/2026 · seção 8, no fim: o Relatório de Imagens da inspeção.
+  'RELATORIO-IMAGENS.html',
 ];
 
 export function ehCaldeira(tipo: TipoEquipamento | string | null | undefined): boolean {
