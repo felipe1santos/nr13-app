@@ -14,6 +14,7 @@ import FichaCaldeira from '../features/caldeira/FichaCaldeira';
 import SecaoClassificacaoCaldeira from '../features/caldeira/SecaoClassificacaoCaldeira';
 import { classificacaoDaFicha, rotuloCurtoCategoria } from '../features/caldeira/classificacaoCaldeira';
 import { carregarDadosCaldeira } from '../features/caldeira/dadosCaldeira';
+import { volumeCaldeira } from '../features/caldeira/classificacaoCaldeira';
 import PressoesDocumentacao from '../features/equipamento/PressoesDocumentacao';
 import ProntuarioDoEquipamento from '../features/prontuarios/ProntuarioDoEquipamento';
 import { formatarValor, rotuloSistemaCompleto } from '../calc/unidades';
@@ -96,6 +97,8 @@ function EquipamentoView({ tag }: { tag: string }) {
   const [, setReleitura] = useState(0);
   useEffect(() => assinarDadosAlterados(() => setReleitura((n) => n + 1)), []);
   const categoria = ler<CategoriaSalva>(`nr13_cat_${tag}`);
+  // Caldeira: o volume do cartão do memorial é o da classificação (ficha da caldeira).
+  const volumeCaldeiraM3 = volumeCaldeira(carregarDadosCaldeira(tag)).totalM3;
   const fotos = ler<FotoEquipamento[]>(`nr13_fotos_${tag}`) || [];
   const fotoCapa = fotos.find((f) => f.isCapa) || fotos[0] || null;
 
@@ -319,6 +322,30 @@ function EquipamentoView({ tag }: { tag: string }) {
         )}
       </section>
 
+      {info.tipo === 'caldeira' ? (
+        <>
+          {/* CALDEIRA (23/11/2026): ficha organizada por hierarquia — dados do
+              equipamento logo abaixo da classificação; depois pressões, memorial
+              e os blocos técnicos RECOLHIDOS; empresa no fim. Nada saiu da ficha:
+              "Dados da Caldeira" virou quatro blocos (placa, construção,
+              operação, acessórios). Vaso e autoclave seguem na ordem de sempre. */}
+          <section className="equipamento-secao" data-secao="dados">
+            <div className="bloco-dados">
+              <DadosEquipamento info={info} onSalvo={setInfo} />
+              <div className="ficha-cald-placa">
+                <FichaCaldeira tag={tag} bloco="placa" />
+              </div>
+            </div>
+          </section>
+          <section className="equipamento-secao" data-secao="pressoes">
+        {/* Pressões adotadas da documentação — logo abaixo do card Memorial. Exibe/edita na
+            unidade do equipamento; grava em MPa dentro de nr13_info_<TAG>. Este bloco
+            RECEBE o número que o engenheiro digita e o converte para MPa antes de
+            gravar — por isso a unidade de ENTRADA tem de ser a gravada do
+            equipamento, a mesma que a Categoria NR-13 recebe na linha acima. */}
+        <PressoesDocumentacao tag={tag} info={info} unidade={unidade} onSalvo={setInfo} />
+      </section>
+
       <section className="equipamento-secao">
         <div className="bloco-dados bloco-memorial-resumo">
           <div className="bloco-header-acoes">
@@ -337,7 +364,107 @@ function EquipamentoView({ tag }: { tag: string }) {
               </span>
             </div>
             <div className="resultado-item">
-              <span className="lbl-view">{info.tipo === 'caldeira' ? 'PTH (1,5×PMTA)' : 'PTH (1,3×PMTA)'}</span>
+              <span className="lbl-view">PTH (1,5×PMTA)</span>
+              <span className="val-view">
+                {calculo?.pth ? formatarValor(parseFloat(calculo.pth), unidade) : '—'}
+              </span>
+            </div>
+            <div className="resultado-item">
+              <span className="lbl-view">Resultado</span>
+              <span className={`val-view ${calculo?.resultado === 'REPROVADO' ? 'val-erro' : ''}`}>
+                {calculo?.resultado ?? '—'}
+              </span>
+            </div>
+            <div className="resultado-item">
+              <span className="lbl-view">Volume</span>
+              <span className="val-view">
+                {/* Caldeira: o volume da classificação, não o da calculadora de vaso. */}
+                {volumeCaldeiraM3 !== null ? `${volumeCaldeiraM3.toLocaleString('pt-BR', { maximumFractionDigits: 4 })} m³` : '—'}
+              </span>
+            </div>
+            <div className="resultado-item">
+              <span className="lbl-view">Esp. Mín. Casco</span>
+              <span className="val-view">{calculo?.ecasco ? `${calculo.ecasco} mm` : '—'}</span>
+            </div>
+            <div className="resultado-item">
+              <span className="lbl-view">Esp. Mín. Tampo</span>
+              <span className="val-view">{calculo?.etampo ? `${calculo.etampo} mm` : '—'}</span>
+            </div>
+              </div>
+
+              {/* Hierarquia (Fase 4): com memorial salvo, ABRIR é a ação comum e
+                  ganha o destaque; editar o cálculo fica discreto. Sem memorial, a
+                  única ação possível é calcular — e ela vira a principal. O
+                  fluxo não mudou: o mesmo modal e a mesma rota. */}
+              <div className="ficha-memorial-acoes">
+                {calculo?.memorialHTML || calculoGv?.memorialHTML ? (
+                  <>
+                    {/* 22/11/2026: só ícone + "Ver" — o cartão já diz que é o memorial. */}
+                    <button
+                      type="button"
+                      className="btn-ver-memorial"
+                      onClick={abrirMemorialCompleto}
+                      title="Ver Memorial Salvo"
+                      aria-label="Ver Memorial Salvo"
+                    >
+                      <Icone nome="filetext" tam={14} /> Ver
+                    </button>
+                    <Link to={rotaMemorial(tag)} className="btn-mem-edit">
+                      <Icone nome="sigma" tam={13} /> Editar Memorial
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <span className="ficha-memorial-vazio">Nenhum memorial salvo ainda.</span>
+                    <Link to={rotaMemorial(tag)} className="btn-mem-edit btn-mem-edit-principal">
+                      <Icone nome="sigma" tam={13} /> Calcular Memorial
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+          {(['construcao', 'operacao', 'acessorios'] as const).map((b) => (
+            <section key={b} className="equipamento-secao" data-secao={`caldeira-${b}`}>
+              <div className="bloco-dados">
+                <FichaCaldeira tag={tag} bloco={b} recolhivel />
+              </div>
+            </section>
+          ))}
+      <section className="equipamento-secao" data-secao="vida">
+        <VidaRemanescente tag={tag} info={info} />
+      </section>
+
+          <section className="equipamento-secao" data-secao="empresa">
+            <div className="bloco-dados">
+              <DadosEmpresa tag={tag} />
+            </div>
+          </section>
+        </>
+      ) : (
+        <>
+      <section className="equipamento-secao">
+        <div className="bloco-dados bloco-memorial-resumo">
+          <div className="bloco-header-acoes">
+            <h3>Memorial de Cálculo</h3>
+            <span className="ficha-natureza ficha-natureza-calculado" title="Resultado do cálculo técnico">
+              Calculado
+            </span>
+          </div>
+          <div className="memorial-body">
+            <div className="mem-stats-wrap">
+              <div className="memorial-resumo-grid">
+            <div className="resultado-item">
+              <span className="lbl-view">PMTA Calculada</span>
+              <span className="val-view accent" style={{ fontSize: 16 }}>
+                {pmtaMpa != null ? formatarValor(pmtaMpa, unidade) : '—'}
+              </span>
+            </div>
+            <div className="resultado-item">
+              <span className="lbl-view">PTH (1,3×PMTA)</span>
               <span className="val-view">
                 {calculo?.pth ? formatarValor(parseFloat(calculo.pth), unidade) : '—'}
               </span>
@@ -406,15 +533,6 @@ function EquipamentoView({ tag }: { tag: string }) {
         <PressoesDocumentacao tag={tag} info={info} unidade={unidade} onSalvo={setInfo} />
       </section>
 
-      {/* 22/10/2026 · só CALDEIRA: construção, operação, controles e acessórios. */}
-      {info.tipo === 'caldeira' && (
-        <section className="equipamento-secao" data-secao="caldeira">
-          <div className="bloco-dados">
-            <FichaCaldeira tag={tag} />
-          </div>
-        </section>
-      )}
-
       <section className="equipamento-secao" data-secao="vida">
         <VidaRemanescente tag={tag} info={info} />
       </section>
@@ -432,6 +550,9 @@ function EquipamentoView({ tag }: { tag: string }) {
           </div>
         </div>
       </section>
+
+        </>
+      )}
 
       {modalMemorial && (calculo || calculoGv) && (
         <div className="modal-memorial-overlay" onClick={() => setModalMemorial(false)}>

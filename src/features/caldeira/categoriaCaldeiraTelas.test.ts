@@ -100,3 +100,32 @@ describe('as portas usam a regra', () => {
     expect(sql).toMatch(/pressaoClassificacao' = 'pmta'[\s\S]{0,40}then coalesce\(public\.f9_num\(replace\(v_info ->> 'pmtaAdotadaMpa'[\s\S]{0,80}v_calc ->> 'pmta'\)\)[\s\S]{0,40}else public\.f9_num\(replace\(v_info ->> 'pmoAdotadaMpa'/);
   });
 });
+
+describe('ficha da caldeira organizada (23/11/2026)', () => {
+  const s = fonte('src/pages/Equipamento.tsx');
+  const cald = s.slice(s.indexOf("{info.tipo === 'caldeira' ? (\n        <>"), s.indexOf(') : (\n        <>\n'));
+  it('ordem: dados (+placa) → pressões → memorial → construção/operação/acessórios → vida → empresa', () => {
+    const pos = [
+      'data-secao="dados"',
+      'bloco="placa"',
+      'data-secao="pressoes"',
+      'Memorial de Cálculo',
+      "['construcao', 'operacao', 'acessorios']",
+      'data-secao="vida"',
+      'data-secao="empresa"',
+    ].map((m) => cald.indexOf(m));
+    expect(pos.every((p) => p >= 0)).toBe(true);
+    expect([...pos].sort((a, b) => a - b)).toEqual(pos);
+  });
+  it('nada saiu: empresa e vida continuam na ficha da caldeira', () => {
+    expect(cald).toContain('<DadosEmpresa tag={tag} />');
+    expect(cald).toContain('<VidaRemanescente tag={tag} info={info} />');
+    expect(cald).toContain('<DadosEquipamento info={info} onSalvo={setInfo} />');
+  });
+  it('todos os grupos da ficha da caldeira pertencem a algum bloco', async () => {
+    const { BLOCOS_CALDEIRA } = await import('./FichaCaldeira');
+    const { GRUPOS_CALDEIRA } = await import('./dadosCaldeira');
+    const nosBlocos = Object.values(BLOCOS_CALDEIRA).flatMap((b) => [...b.grupos]);
+    for (const g of GRUPOS_CALDEIRA) expect(nosBlocos, g.id).toContain(g.id);
+  });
+});

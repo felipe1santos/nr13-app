@@ -51,3 +51,12 @@
 .cc .cc-base-leitura strong { font: 600 14px/20px var(--font); color: var(--texto-1); }
 .cc .cc-base-leitura small { font: var(--t-caption); color: var(--texto-3); }
 .cc .cc-base-aviso { font: var(--t-caption); color: var(--warn); font-weight: 600; }
+
+/* Ficha da caldeira em blocos (23/11/2026). */
+.ficha-cald-placa { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+.ficha-cald-toggle { display: flex; align-items: baseline; gap: 8px; flex: 1; min-width: 0; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
+.ficha-cald-toggle h3 { margin: 0; }
+.ficha-cald-toggle small { font: var(--t-caption); color: var(--texto-3); }
+.ficha-cald-toggle .icone { align-self: center; color: var(--texto-3); flex: none; }
+.ficha-cald-toggle:hover h3 { color: var(--destaque); }
+.ficha-cald-toggle:focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; border-radius: 4px; }
