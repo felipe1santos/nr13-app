@@ -21,7 +21,7 @@ describe('o botão "Ver documento" no container', () => {
     // preenchido" também aparece no comentário que explica a ordem, e casar por
     // texto encontraria o comentário primeiro.
     const doc = CONTAINER.indexOf('setDocumentoAberto(f)');
-    const preenchido = CONTAINER.indexOf('?visualizar=1');
+    const preenchido = CONTAINER.indexOf('setPreenchidoAberto(f)');
     expect(doc).toBeGreaterThan(0);
     expect(preenchido).toBeGreaterThan(doc);
   });
@@ -44,6 +44,13 @@ describe('o botão "Ver documento" no container', () => {
  * abrir `manometro?documento=1` apagava a meta de um relatório em montagem noutra
  * aba. Calibração não é ensaio de container — o caminho saiu.
  */
+describe('"Ver preenchido" também abre em modal (22/11/2026)', () => {
+  it('abre o modal no centro, sem navegar', () => {
+    expect(CONTAINER).toContain('setPreenchidoAberto(f)');
+    expect(CONTAINER).toContain('<ModalPreenchidoEnsaio');
+  });
+});
+
 describe('a prévia do ensaio é leitura pura', () => {
   it('não grava meta, injeção nem nada pelo storage', () => {
     expect(PREVIEW).not.toMatch(/gravarInspecaoOrigemAtual\s*\(/);

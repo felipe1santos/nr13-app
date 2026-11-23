@@ -449,3 +449,29 @@
    colorido à esquerda (âmbar para pendente, verde para preenchido). */
 .item-container-row,
 .item-container-row.preenchido { border-left: 1px solid var(--fio); }
+
+/* ── "Ver documento" / "Ver preenchido" (22/11/2026) ────────────────────────
+   Cada ação com a sua cor no hover: documento azul de destaque, preenchido
+   verde padrão. "Ver preenchido" abre em modal, como o documento: corpo
+   branco (são respostas, não folha) e largura de leitura. */
+.item-container-acoes .btn-visualizar { transition: background-color .15s, color .15s, border-color .15s; }
+.item-container-acoes .btn-visualizar.ver-doc:hover { background: var(--destaque, #0C4F9B); border-color: var(--destaque, #0C4F9B); color: #fff; }
+.item-container-acoes .btn-visualizar.ver-preenchido:hover { background: var(--verde-padrao, #0F766E); border-color: var(--verde-padrao, #0F766E); color: #fff; }
+.item-container-acoes .btn-visualizar:focus-visible { outline: 2px solid var(--destaque, #0C4F9B); outline-offset: 2px; }
+.doc-modal.doc-modal-preenchido { max-width: 860px; }
+.doc-corpo.doc-corpo-preenchido { background: #fff; }
+.doc-rodape .btn-primario { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Rodapé e "×" do modal: as regras moravam só em certificados.css, que é CSS
+   de rota preguiçosa — sem visitar Certificados antes, o modal do ensaio saía
+   sem rodapé estilizado. Cópia local, mesmos valores. */
+.doc-x { flex: 0 0 auto; width: 36px; height: 36px; border: 0; border-radius: 8px; background: transparent; color: var(--muted, #7A8790); font-size: 22px; line-height: 1; cursor: pointer; }
+.doc-x:hover { background: var(--menu-hover, #F2EFE7); color: var(--ink, #14181C); }
+.doc-rodape { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line, #E4E1D8); background: var(--bg-faint, #FBFAF7); }
+.doc-espaco { flex: 1 1 auto; }
+
+/* ── Cor de cada ensaio dentro do container (22/11/2026) ────────────────────
+   A mesma do selo no cartão da lista (/inspecoes): faixa à esquerda e ícone
+   na cor do ensaio. A situação continua no selo Preenchido/Pendente. */
+.item-container-row[class*="ens-"] { border-left: 3px solid var(--ens); }
+.item-container-row[class*="ens-"] .item-form-ico { background: var(--ens-bg); color: var(--ens); }

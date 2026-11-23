@@ -3,6 +3,7 @@ import { Icone } from '../components/Icone';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { carregarContainer, formulariosDoContainer } from '../features/inspecoes/inspecaoService';
 import ModalDocumentoEnsaio from '../features/inspecoes/ModalDocumentoEnsaio';
+import ModalPreenchidoEnsaio from '../features/inspecoes/ModalPreenchidoEnsaio';
 import { ROTULO_FORMULARIO } from '../features/inspecoes/tipos';
 import type { FormularioEnsaio } from '../features/inspecoes/tipos';
 import type { NomeIcone } from '../components/Icone';
@@ -22,12 +23,30 @@ const ICONE_FORMULARIO: Record<FormularioEnsaio, NomeIcone> = {
   acumulacao: 'manometro',
 };
 
+/**
+ * Cor do ensaio (22/11/2026): a MESMA dos selos do cartão do container em
+ * /inspecoes (`.ens-<tipo>` em cartoes-cobalto.css). O tipo de ensaio e o
+ * formulário têm nomes diferentes em dois casos (TH e Relatório de Imagens).
+ * Manômetro/PSV não têm cor própria e ficam neutros.
+ */
+const ENS_DO_FORMULARIO: Partial<Record<FormularioEnsaio, string>> = {
+  ultrassom: 'ultrassom',
+  checklist: 'checklist',
+  visual_externo: 'visual_externo',
+  visual_interno: 'visual_interno',
+  th: 'teste_hidrostatico',
+  imagens: 'relatorio_imagens',
+  acumulacao: 'acumulacao',
+};
+
 export default function InspecaoContainer() {
   const { tag = '', containerId = '' } = useParams<{ tag: string; containerId: string }>();
   const navigate = useNavigate();
   const container = carregarContainer(tag, containerId);
   /** Qual ensaio está com a folha aberta no modal. `null` = nenhum. */
   const [documentoAberto, setDocumentoAberto] = useState<FormularioEnsaio | null>(null);
+  /** Qual ensaio está com o "Ver preenchido" aberto no modal. */
+  const [preenchidoAberto, setPreenchidoAberto] = useState<FormularioEnsaio | null>(null);
 
   useEffect(() => {
     if (!container) navigate(rotaInspecoes(tag));
@@ -59,7 +78,10 @@ export default function InspecaoContainer() {
           {formularios.map((f) => {
             const preenchido = container.dados[f] != null;
             return (
-              <li key={f} className={`item-container-row${preenchido ? ' preenchido' : ''}`}>
+              <li
+                key={f}
+                className={`item-container-row${preenchido ? ' preenchido' : ''}${ENS_DO_FORMULARIO[f] ? ` ens-${ENS_DO_FORMULARIO[f]}` : ''}`}
+              >
                 <div className="item-container-info">
                   <span className={`item-form-ico ${preenchido ? 'ok' : 'pendente'}`}>
                     <Icone nome={ICONE_FORMULARIO[f]} tam={17} />
@@ -80,7 +102,7 @@ export default function InspecaoContainer() {
                        custa o lugar na lista de ensaios. */
                     <button
                       type="button"
-                      className="btn-visualizar"
+                      className="btn-visualizar ver-doc"
                       onClick={() => setDocumentoAberto(f)}
                       title="Ver como este ensaio sai no relatório"
                     >
@@ -88,7 +110,14 @@ export default function InspecaoContainer() {
                     </button>
                   )}
                   {preenchido && (
-                    <button type="button" className="btn-visualizar" onClick={() => navigate(`${base}/${f}?visualizar=1`)}>
+                    <button
+                      type="button"
+                      className="btn-visualizar ver-preenchido"
+                      // Modal no centro, como o "Ver documento" (22/11/2026). A rota
+                      // `?visualizar=1` segue existindo para links antigos.
+                      onClick={() => setPreenchidoAberto(f)}
+                      title="Ver o que foi respondido neste ensaio"
+                    >
                       <Icone nome="eye" tam={14} /> Ver preenchido
                     </button>
                   )}
@@ -101,6 +130,16 @@ export default function InspecaoContainer() {
           })}
         </ul>
       </div>
+
+      {preenchidoAberto && (
+        <ModalPreenchidoEnsaio
+          tag={tag}
+          containerId={containerId}
+          formulario={preenchidoAberto}
+          onEditar={() => navigate(`${base}/${preenchidoAberto}`)}
+          onFechar={() => setPreenchidoAberto(null)}
+        />
+      )}
 
       {documentoAberto && (
         <ModalDocumentoEnsaio
