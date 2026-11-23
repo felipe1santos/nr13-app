@@ -99,6 +99,15 @@ function parteInformada(litros: string): VolumeParte | null {
   return l === null ? null : { m3: l / 1000, fonte: 'informado' };
 }
 
+/** "2\"" / "2 pol" → 50,8 mm; "50,8" → 50,8 (mm). */
+export function mmOuPolegada(v: string | null | undefined): number | null {
+  const s = String(v ?? '').trim();
+  if (!s) return null;
+  const pol = /("|”|pol|in)\s*$/i.test(s);
+  const n = numeroBr(s.replace(/("|”|pol|in)\s*$/i, '').trim());
+  return n === null ? null : pol ? n * 25.4 : n;
+}
+
 /** Os campos do grupo `volume` da ficha. */
 export const CAMPOS_VOLUME = {
   corpoDiametro: 'volume.corpoDiametro',
@@ -154,10 +163,18 @@ export function volumeCaldeira(d: DadosCaldeira | null | undefined): VolumeCalde
   // tira água do casco). Comprimento vazio = o do corpo.
   const cilindro = (d: number | null, l: number | null): number | null =>
     d !== null && l !== null ? (Math.PI * d ** 2 * l) / 4 / MM3_POR_M3 : null;
-  const qtd = numeroBr(v(CAMPOS_VOLUME.tubosQuantidade));
-  const umTubo = cilindro(numeroBr(v(CAMPOS_VOLUME.tubosDiametroExterno)), numeroBr(v(CAMPOS_VOLUME.tubosComprimento)) ?? corpoL);
+  // Campo vazio = o dado da própria ficha da caldeira (quantidade e Ø dos tubos,
+  // Ø da fornalha) — a fornalha ENTRA SEMPRE (engenheiro, 23/11/2026).
+  const qtd = numeroBr(v(CAMPOS_VOLUME.tubosQuantidade)) ?? numeroBr(v('tubos.quantidade'));
+  const umTubo = cilindro(
+    numeroBr(v(CAMPOS_VOLUME.tubosDiametroExterno)) ?? mmOuPolegada(v('tubos.diametro')),
+    numeroBr(v(CAMPOS_VOLUME.tubosComprimento)) ?? corpoL,
+  );
   const tubos: VolumeParte = qtd !== null && umTubo !== null ? { m3: qtd * umTubo, fonte: 'calculado' } : { m3: null, fonte: null };
-  const forn = cilindro(numeroBr(v(CAMPOS_VOLUME.fornalhaDiametroExterno)), numeroBr(v(CAMPOS_VOLUME.fornalhaComprimento)) ?? corpoL);
+  const forn = cilindro(
+    numeroBr(v(CAMPOS_VOLUME.fornalhaDiametroExterno)) ?? numeroBr(v('fornalha.diametro')),
+    numeroBr(v(CAMPOS_VOLUME.fornalhaComprimento)) ?? corpoL,
+  );
   const fornalha: VolumeParte = forn !== null ? { m3: forn, fonte: 'calculado' } : { m3: null, fonte: null };
 
   const totalInf = numeroBr(v(CAMPOS_VOLUME.totalLitros));

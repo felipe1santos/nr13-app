@@ -25,7 +25,7 @@
 import type { CelulaDoc, Documento } from './documento';
 import { COR, FONTE } from './documentoA4';
 import { textoOu, type ModeloRelatorio } from './modelo';
-import { assinaturas, folhasExameExterno, folhasExameInterno, folhasTesteHidrostatico, folhaUltrassom } from './folhas';
+import { assinaturas, blocoPlaca, folhasExameExterno, folhasExameInterno, folhasTesteHidrostatico, folhaUltrassom } from './folhas';
 import { folhasAcumulacao } from './folhaAcumulacao';
 import { rotuloLaudo } from './rotulos';
 import { destaqueDaMedida, extremosDaRegiao } from './destaqueMedida';
@@ -33,6 +33,7 @@ import { GRUPOS_CALDEIRA, valorCaldeira, type GrupoCaldeira } from '../../caldei
 import { REGIOES_CALDEIRA, valorCelula } from '../../caldeira/medicaoCaldeira';
 import { UNIDADES_QUATRO, type ModeloCaldeira, type PressaoQuatro } from './modeloCaldeira';
 import { NORMA_REFERENCIA_CALDEIRA } from './normaCaldeira';
+import type { FileiraPlaca } from '../placaIdentificacao';
 import { PERGUNTAS_ALIMENTACAO } from '../../caldeira/alimentacaoAgua';
 
 // ── utilidades de célula ────────────────────────────────────────────────────
@@ -772,4 +773,55 @@ export function folhaAlimentacaoCaldeira(doc: Documento, mc: ModeloCaldeira): bo
   doc.y += 3;
   assinaturas(doc, mc.base);
   return true;
+}
+
+// ── PLACA DE IDENTIFICAÇÃO DA CALDEIRA (23/11/2026) ─────────────────────────
+/**
+ * Pedido do engenheiro parceiro: "como no vaso, na placa de identificação da
+ * caldeira devem aparecer PMTA, PTH e PMO". Os campos são os da NR-13
+ * 13.4.1.3 (fabricante, nº de ordem, ano, PMTA, capacidade de vapor, área de
+ * superfície de aquecimento, código e edição) + 13.4.1.4 (categoria e
+ * identificação). Mesmo desenho da placa do vaso (`blocoPlaca`); a foto da
+ * placa real, quando há, continua valendo no lugar da reconstrução.
+ */
+export function fileirasPlacaCaldeira(mc: ModeloCaldeira): FileiraPlaca[] {
+  const b = mc.base;
+  const e = b.equipamento;
+  const pressao = (inicio: string): { unidade: string; valor: string | null }[] => {
+    const p = b.pressoes.find((x) => x.rotulo.toUpperCase().startsWith(inicio));
+    return [{ unidade: b.unidadeLabel ?? 'MPa', valor: p?.valor ?? null }];
+  };
+  const campo = (rotulo: string, valor: string | null | undefined, peso: number) =>
+    ({ tipo: 'campo' as const, rotulo, valor: valor && valor.trim() ? valor : null, peso });
+  const edicao = e['EDIÇÃO / ADENDA'] || null;
+  const codigo = [e['CÓDIGO DE PROJETO'], edicao].filter(Boolean).join(' / ') || null;
+  const capacidade = valorCaldeira(mc.dados, 'capacidadeVapor') || valorCaldeira(mc.dados, 'vazao');
+  return [
+    { celulas: [campo('IDENTIFICAÇÃO DO EQUIPAMENTO', b.tag, 1)] },
+    { celulas: [campo('TIPO DE EQUIPAMENTO', mc.tipoTexto, 1)] },
+    { celulas: [campo('FABRICANTE', e['FABRICANTE'], 1)] },
+    { celulas: [campo('Nº DE ORDEM / SÉRIE', e['NÚMERO DE SÉRIE'], 0.66), campo('ANO DE FABRICAÇÃO', e['ANO DE FABRICAÇÃO'], 0.34)] },
+    { celulas: [campo('CÓDIGO DE CONSTRUÇÃO / EDIÇÃO', codigo, 1)] },
+    {
+      celulas: [
+        campo('CAPACIDADE DE VAPOR (kg/h)', capacidade, 0.5),
+        campo('ÁREA DE AQUECIMENTO (m²)', valorCaldeira(mc.dados, 'areaAquecimento'), 0.5),
+      ],
+    },
+    {
+      fator: 1.5,
+      celulas: [
+        { tipo: 'pressao', rotulo: 'PMO', peso: 1 / 3, colunas: pressao('PMO') },
+        { tipo: 'pressao', rotulo: 'PMTA', peso: 1 / 3, colunas: pressao('PMTA') },
+        { tipo: 'pressao', rotulo: 'PTH', peso: 1 / 3, colunas: pressao('PTH') },
+      ],
+    },
+    { fator: 2.1, celulas: [campo('CATEGORIA', mc.categoria, 1)] },
+  ];
+}
+
+export function folhaPlacaCaldeira(doc: Documento, mc: ModeloCaldeira): void {
+  doc.novaFolha();
+  doc.banner('1.1 PRONTUÁRIO — PLACA DE IDENTIFICAÇÃO');
+  blocoPlaca(doc, mc.base, fileirasPlacaCaldeira(mc));
 }

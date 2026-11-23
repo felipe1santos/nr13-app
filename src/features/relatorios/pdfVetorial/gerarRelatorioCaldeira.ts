@@ -41,6 +41,7 @@ import {
   folhasRelatorioInspecaoCaldeira,
   folhasSobrepressaoCaldeira,
   folhaAlimentacaoCaldeira,
+  folhaPlacaCaldeira,
 } from './folhasCaldeira';
 import { folhasExameExterno, folhasExameInterno } from './folhas';
 import { secaoLivroRegistro } from './livroRegistro';
@@ -247,6 +248,8 @@ function emitirCaldeira(
   if (tem.prontuario) {
     anotar('1.1');
     folhasProntuarioCaldeira(doc, mc);
+    // 23/11/2026 · placa com PMO, PMTA e PTH (pedido do engenheiro).
+    folhaPlacaCaldeira(doc, mc);
   }
   if (tem.acessorios) {
     anotar('1.2');

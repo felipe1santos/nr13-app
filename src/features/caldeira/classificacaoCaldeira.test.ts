@@ -150,3 +150,16 @@ describe('volume desconta os tubos (engenheiro)', () => {
     expect(v.totalM3).toBeNull();
   });
 });
+
+describe('desconto usa a ficha da caldeira quando o campo está vazio', () => {
+  it('fornalha e tubos da ficha (Ø em polegadas)', () => {
+    const v = volumeCaldeira({
+      volume: { corpoDiametro: '1000', corpoComprimento: '1000' },
+      fornalha: { diametro: '400' },
+      tubos: { quantidade: '10', diametro: '2"' },
+    });
+    const d = 2 * 0.0254;
+    expect(v.tubos.m3).toBeCloseTo(10 * (Math.PI * d ** 2) / 4, 6);
+    expect(v.fornalha.m3).toBeCloseTo((Math.PI * 0.4 ** 2) / 4, 6);
+  });
+});

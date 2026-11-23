@@ -225,10 +225,10 @@ export default function SecaoClassificacaoCaldeira({
               {campo(CAMPOS_VOLUME.tubosQuantidade, 'Quantidade', 'un')}
               {campo(CAMPOS_VOLUME.tubosDiametroExterno, 'Ø externo', 'mm')}
               {campo(CAMPOS_VOLUME.tubosComprimento, 'Comprimento', 'mm')}
-              <p className="cc-dica">Comprimento vazio = o do corpo.</p>
+              <p className="cc-dica">Vazio = os dados da ficha da caldeira; comprimento vazio = o do corpo.</p>
             </fieldset>
             <fieldset>
-              <legend>Fornalha (desconto, opcional)</legend>
+              <legend>Fornalha (desconto)</legend>
               {campo(CAMPOS_VOLUME.fornalhaDiametroExterno, 'Ø externo', 'mm')}
               {campo(CAMPOS_VOLUME.fornalhaComprimento, 'Comprimento', 'mm')}
             </fieldset>

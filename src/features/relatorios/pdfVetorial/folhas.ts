@@ -8,7 +8,7 @@ import { alturaDoCroqui, desenharCroquiEspessura, modeloCroqui } from './croquiE
 export { extremosDaRegiao } from './destaqueMedida';
 import { foto, imagemEncaixada } from './primitivas';
 import { FAMILIA } from './carlito';
-import { PROPORCAO_PLACA, layoutDaPlaca } from '../placaIdentificacao';
+import { PROPORCAO_PLACA, layoutDaPlaca, type FileiraPlaca } from '../placaIdentificacao';
 import type { CelulaDoc, Documento } from './documento';
 import { rotuloLaudo } from './rotulos';
 import { DESCRICAO_VARIAVEL, prepararFormula, variaveisDaFormula } from './formulaMatematica';
@@ -562,7 +562,12 @@ export const ALTURA_PLACA = 62;
  * sistema faz da ficha. Quando as duas existissem juntas, a foto é a que um
  * fiscal confere.
  */
-export function blocoPlaca(doc: Documento, m: ModeloRelatorio): void {
+export function blocoPlaca(
+  doc: Documento,
+  m: ModeloRelatorio,
+  /** Caldeira (23/11/2026): fileiras próprias. Ausente = a placa de sempre (vaso/autoclave). */
+  fileirasProntas?: FileiraPlaca[],
+): void {
   doc.faixa('PLACA DE IDENTIFICAÇÃO');
   doc.secao('Registro fotográfico da placa de identificação');
   doc.garantirEspaco(ALTURA_PLACA + 2);
@@ -585,7 +590,7 @@ export function blocoPlaca(doc: Documento, m: ModeloRelatorio): void {
     // altura, não da largura do papel. Esticá-la de margem a margem produzia
     // uma faixa achatada que não se parece com placa de equipamento nenhuma.
     const larguraPlaca = Math.min(CAIXA.largura * 0.86, altura * PROPORCAO_PLACA);
-    desenharPlacaReconstruida(doc, m, topo, altura, larguraPlaca);
+    desenharPlacaReconstruida(doc, m, topo, altura, larguraPlaca, fileirasProntas);
   }
 
   // A ÁREA INTEIRA da placa é clicável (13D-bis, tipo imagem): o usuário troca
@@ -633,8 +638,9 @@ function desenharPlacaReconstruida(
   topo: number,
   alturaTotal: number,
   largura: number,
+  fileirasProntas?: FileiraPlaca[],
 ): void {
-  const fileiras = layoutDaPlaca(
+  const fileiras = fileirasProntas ?? layoutDaPlaca(
     m.equipamento,
     m.pressoes,
     { execucao: m.execucao, validade: m.validade },
