@@ -54,6 +54,11 @@ const ICONES: Record<TipoEnsaio, React.ReactNode> = {
       <path d="m9 12 2 2 4-4"/>
     </svg>
   ),
+  alimentacao_agua: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>
+    </svg>
+  ),
 };
 
 interface Props {

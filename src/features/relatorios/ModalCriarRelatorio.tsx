@@ -105,6 +105,7 @@ const ICONE_ENSAIO: Record<TipoEnsaio, NomeIcone> = {
   relatorio_imagens: 'camera',
   acumulacao: 'manometro',
   verificacao_caldeira: 'clipboard',
+  alimentacao_agua: 'gauge',
 };
 
 /** Item da seção de calibrações: um LOTE inteiro ou uma calibração avulsa antiga. */

@@ -33,6 +33,7 @@ import { GRUPOS_CALDEIRA, valorCaldeira, type GrupoCaldeira } from '../../caldei
 import { REGIOES_CALDEIRA, valorCelula } from '../../caldeira/medicaoCaldeira';
 import { UNIDADES_QUATRO, type ModeloCaldeira, type PressaoQuatro } from './modeloCaldeira';
 import { NORMA_REFERENCIA_CALDEIRA } from './normaCaldeira';
+import { PERGUNTAS_ALIMENTACAO } from '../../caldeira/alimentacaoAgua';
 
 // ── utilidades de célula ────────────────────────────────────────────────────
 const rot = (texto: string): CelulaDoc => ({ texto, rotulo: true });
@@ -220,6 +221,7 @@ export const SUMARIO_CALDEIRA: ItemSumarioCaldeira[] = [
   { numero: '2', titulo: 'Relatórios de END' },
   { numero: '2.1', titulo: 'Medição de espessura' },
   { numero: '2.2', titulo: 'Ensaio de acumulação' },
+  { numero: '2.3', titulo: 'Alimentação de água e controle de nível' },
   { numero: '3', titulo: 'Teste de Sobrepressão' },
   { numero: '4', titulo: 'Certificados de Calibração' },
   { numero: '5', titulo: 'Prontuário de Fabricação' },
@@ -717,4 +719,53 @@ export function folhasSobrepressaoCaldeira(doc: Documento, m: ModeloRelatorio): 
     banner: '3. TESTE DE SOBREPRESSÃO — TESTE HIDROSTÁTICO',
     fotos: '3.1 REGISTRO FOTOGRÁFICO — TESTE DE SOBREPRESSÃO',
   });
+}
+
+// ── 2.3 ALIMENTAÇÃO DE ÁGUA E CONTROLE DE NÍVEL (23/11/2026) ────────────────
+/**
+ * O "Ensaio de Dispositivos de Alimentação de Água" que a folha 1.3 da
+ * referência lista. Perguntas do teste, resultado e laudo; as fotos saem na
+ * seção 8 (registro fotográfico). Devolve `false` sem ensaio.
+ */
+export function folhaAlimentacaoCaldeira(doc: Documento, mc: ModeloCaldeira): boolean {
+  const a = mc.alimentacao;
+  if (!a) return false;
+  doc.novaFolha();
+  doc.banner('2.3 ENSAIO DOS DISPOSITIVOS DE ALIMENTAÇÃO DE ÁGUA E CONTROLE DE NÍVEL');
+  dadosGerais(doc, mc, 'AA', 'alim');
+  aspectosGerais(doc, mc, 'alim');
+
+  doc.faixa('VERIFICAÇÕES');
+  doc.tabela({
+    compacta: true,
+    colunas: [0.64, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06],
+    linhas: PERGUNTAS_ALIMENTACAO.map((p) => {
+      const r = a.respostas[p.id];
+      return [
+        rot(p.item ? `${p.texto} (${p.item})` : p.texto),
+        rot('SIM'),
+        marca(r === 'sim', `alim.${p.id}-sim`, `${p.texto} — SIM`),
+        rot('NÃO'),
+        marca(r === 'nao', `alim.${p.id}-nao`, `${p.texto} — NÃO`),
+        rot('N.A.'),
+        marca(r === 'na', `alim.${p.id}-na`, `${p.texto} — N.A.`),
+      ];
+    }),
+  });
+  doc.tabela({
+    compacta: true,
+    colunas: [0.25, 0.75],
+    linhas: [[rot('DATA DO ENSAIO'), val(a.dataEnsaio ? a.dataEnsaio.split('-').reverse().join('/') : null, 'alim.data', 'Data do ensaio')]],
+  });
+
+  doc.faixa('LAUDO');
+  doc.texto(textoOu(a.laudo || null), { cor: COR.valor, negrito: true, alinhamento: 'center', espacoAntes: 2, id: 'alim.laudo', rotuloCampo: 'Laudo do ensaio de alimentação de água' });
+  if (a.resultado) {
+    doc.texto(a.resultado === 'aprovado' ? 'APROVADO' : 'REPROVADO', { cor: COR.valor, negrito: true, alinhamento: 'center', espacoAntes: 1 });
+  }
+  doc.faixa('OBSERVAÇÕES');
+  doc.texto(a.observacoes.trim() || '—', { cor: COR.valor, id: 'alim.observacoes', rotuloCampo: 'Observações do ensaio de alimentação de água', espacoAntes: 1 });
+  doc.y += 3;
+  assinaturas(doc, mc.base);
+  return true;
 }

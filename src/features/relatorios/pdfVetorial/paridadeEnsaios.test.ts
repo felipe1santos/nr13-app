@@ -228,6 +228,7 @@ const ESPERADO: Record<FormularioEnsaio, string[]> = {
   acumulacao: [],
   // Só caldeira e sem documento avulso (sai na folha 1.3 do relatório de caldeira).
   nr13_caldeira: [],
+  alimentacao: [],
 };
 
 /** Cabeçalhos que identificam a seção daquele ensaio nos dois documentos. */
@@ -243,6 +244,7 @@ const CABECALHOS: Record<FormularioEnsaio, string[]> = {
   // Só caldeira; o fixture desta paridade é um vaso (ver ensaioAcumulacao.test.ts).
   acumulacao: [],
   nr13_caldeira: [],
+  alimentacao: [],
 };
 
 describe.each(ENSAIOS)('%s — o avulso e o relatório dizem a mesma coisa', (ensaio) => {

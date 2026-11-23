@@ -11,6 +11,7 @@
  *
  * Função síncrona e sem desenho: o teste a alcança sem jsPDF.
  */
+import { alimentacaoPreenchida, normalizarAlimentacao, type DadosAlimentacao } from '../../caldeira/alimentacaoAgua';
 import { itensNaoAtendidos, verificacaoNr13Preenchida, type ItemNaoAtendido } from '../../caldeira/verificacaoNr13';
 import { ler } from '../../../services/storage';
 import type { ModeloRelatorio } from './modelo';
@@ -94,6 +95,8 @@ export interface ModeloCaldeira {
    * (23/11/2026). `null` = a verificação não foi feita nesta inspeção.
    */
   naoAtendidos: ItemNaoAtendido[] | null;
+  /** 2.3 · ensaio de alimentação de água e controle de nível (null = não feito). */
+  alimentacao: DadosAlimentacao | null;
   /** Há prontuário de fabricação anexável (PDF do fabricante ou prontuário anexado)? */
   temFabricacao: boolean;
   tipoInspecao: string | null;
@@ -278,6 +281,8 @@ export function montarModeloCaldeira(
   const th = (injecao.th ?? {}) as Record<string, unknown>;
   const acum = injecao.acumulacao as Partial<DadosAcumulacao> | undefined;
   const acumulacaoFeita = !!acum && acumulacaoPreenchida(acum);
+  const alimentacao = normalizarAlimentacao(injecao.alimentacao);
+  const alimentacaoFeita = alimentacaoPreenchida(alimentacao);
   const temMedicao = medicao !== null || (base.ultrassom?.pontos?.some((p) => p.medidas.some((v) => v && v !== '—')) ?? false);
   const ensaios: LinhaEnsaio[] = [
     { id: 'espessura', nome: 'Medição de espessura por ultrassom', feito: temMedicao, laudo: temMedicao ? rotuloLaudo(us.resultado) : null, numero: temMedicao ? rastreavel('ME') : null },
@@ -290,7 +295,13 @@ export function montarModeloCaldeira(
     },
     { id: 'estanqueidade', nome: 'Estanqueidade', feito: false, laudo: null, numero: null },
     { id: 'acumulacao', nome: 'Ensaio de acumulação', feito: acumulacaoFeita, laudo: acumulacaoFeita ? rotuloLaudo(acum?.resultado) : null, numero: acumulacaoFeita ? rastreavel('EA') : null },
-    { id: 'alimentacao', nome: 'Ensaio dos dispositivos de alimentação de água', feito: false, laudo: null, numero: null },
+    {
+      id: 'alimentacao',
+      nome: 'Ensaio dos dispositivos de alimentação de água',
+      feito: alimentacaoFeita,
+      laudo: alimentacaoFeita ? rotuloLaudo(alimentacao.resultado) : null,
+      numero: alimentacaoFeita ? rastreavel('AA') : null,
+    },
   ];
   ensaios[1].numero = ensaios[1].feito ? rastreavel('TS') : null;
 
@@ -335,6 +346,7 @@ export function montarModeloCaldeira(
     ensaios,
     dispositivos,
     acumulacaoFeita,
+    alimentacao: alimentacaoFeita ? alimentacao : null,
     naoAtendidos: verificacaoNr13Preenchida(injecao.nr13_caldeira) ? itensNaoAtendidos(injecao.nr13_caldeira) : null,
     temFabricacao: false,
     tipoInspecao: textoOu(meta?.tipoInspecao ?? null, '') || null,

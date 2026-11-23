@@ -40,6 +40,7 @@ import {
   folhasProntuarioCaldeira,
   folhasRelatorioInspecaoCaldeira,
   folhasSobrepressaoCaldeira,
+  folhaAlimentacaoCaldeira,
 } from './folhasCaldeira';
 import { folhasExameExterno, folhasExameInterno } from './folhas';
 import { secaoLivroRegistro } from './livroRegistro';
@@ -66,6 +67,7 @@ export const FOLHAS_CALDEIRA = {
   calculos: ['CALD-CALCULOS.HTML', 'RESUMO-MEMORIAL.HTML', 'MEMORIAL.HTML'],
   medicao: ['ULTRASSOM.HTML'],
   acumulacao: ['ENSAIO-ACUMULACAO.HTML'],
+  alimentacao: ['CALD-ALIMENTACAO-AGUA.HTML'],
   th: ['TESTE-HIDROSTATICO.HTML'],
   livro: ['LIVRO-REGISTRO.HTML'],
   // 23/11/2026 · o Relatório de Imagens da inspeção, no FIM do relatório (seção 8).
@@ -275,6 +277,10 @@ function emitirCaldeira(
   if (tem.acumulacao && b.acumulacao) {
     anotar('2.2');
     folhaAcumulacaoCaldeira(doc, b);
+  }
+  if (tem.alimentacao && mc.alimentacao) {
+    anotar('2.3');
+    folhaAlimentacaoCaldeira(doc, mc);
   }
 
   if (tem.th) {

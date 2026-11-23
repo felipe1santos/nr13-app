@@ -22,6 +22,7 @@ const ICONE_FORMULARIO: Record<FormularioEnsaio, NomeIcone> = {
   imagens: 'camera',
   acumulacao: 'manometro',
   nr13_caldeira: 'clipboard',
+  alimentacao: 'gauge',
 };
 
 /**
@@ -39,6 +40,7 @@ const ENS_DO_FORMULARIO: Partial<Record<FormularioEnsaio, string>> = {
   imagens: 'relatorio_imagens',
   acumulacao: 'acumulacao',
   nr13_caldeira: 'verificacao_caldeira',
+  alimentacao: 'alimentacao_agua',
 };
 
 export default function InspecaoContainer() {

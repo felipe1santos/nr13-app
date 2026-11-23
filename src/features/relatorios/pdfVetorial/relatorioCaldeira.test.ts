@@ -282,6 +282,13 @@ describe('caldeira: registro fotográfico no fim e 13.4.4.12 i)', () => {
       observacoes: '',
       fotos: Array.from({ length: 9 }, (_, i) => ({ id: `img${i}`, ordem: i, base64: PIXEL, descricao: `FOTO-CALDEIRA-${i + 1}` })),
     };
+    dados.alimentacao = {
+      dataEnsaio: '2022-03-29',
+      respostas: { bombaPrincipal: 'sim', alimentacaoIndependente: 'na', controleAutomatico: 'sim', alarmeNivelBaixo: 'sim', intertravamento: 'sim', visores: 'sim' },
+      resultado: 'aprovado',
+      laudo: 'LAUDO-ALIMENTACAO-ZZ',
+      observacoes: '',
+    };
     dados.nr13_caldeira = {
       respostas: { disp_valvula: 'sim', disp_nivel: 'nao', op_manual: 'na' },
       observacoes: { disp_nivel: 'INTERTRAVAMENTO-NIVEL-NAO-DESARMA' },
@@ -303,6 +310,15 @@ describe('caldeira: registro fotográfico no fim e 13.4.4.12 i)', () => {
     const corpo = pags.slice(s8).join(' ');
     for (let i = 1; i <= 9; i++) expect(corpo).toContain(`FOTO-CALDEIRA-${i}`);
     expect(pags[pg('SUMÁRIO')]).toContain('REGISTRO FOTOGRÁFICO');
+  });
+
+  it('2.3 alimentação de água sai entre a acumulação e o TH; a 1.3 marca o ensaio com nº /AA', () => {
+    const p23 = pg('2.3 ENSAIO DOS DISPOSITIVOS DE ALIMENTAÇÃO');
+    expect(p23).toBeGreaterThan(pg('2.2 ENSAIO DE ACUMULAÇÃO'));
+    expect(p23).toBeLessThan(pg('3. TESTE DE SOBREPRESSÃO'));
+    expect(pags[p23]).toContain('LAUDO-ALIMENTACAO-ZZ');
+    const ri = pags.slice(pg('1.3 RELATÓRIO DE INSPEÇÃO'), pg('1.4 EXAME VISUAL EXTERNO')).join(' ');
+    expect(ri).toMatch(/alimentação de água[^]*?AA/i);
   });
 
   it('1.3 lista o item não atendido com a constatação', () => {

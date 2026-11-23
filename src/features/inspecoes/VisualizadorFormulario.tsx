@@ -1,5 +1,6 @@
 import type { FormularioEnsaio } from './tipos';
 import { GRUPOS_NR13_CALDEIRA, normalizarVerificacaoNr13 } from '../caldeira/verificacaoNr13';
+import { PERGUNTAS_ALIMENTACAO, normalizarAlimentacao } from '../caldeira/alimentacaoAgua';
 import { dadosPadraoAcumulacao, instrumentoDoEnsaio, pressaoNasCincoUnidades, type DadosAcumulacao } from './acumulacao';
 import FotoImg from '../../components/FotoImg';
 import { normalizarFotos, rotuloFoto } from './fotosDescritas';
@@ -562,6 +563,26 @@ export default function VisualizadorFormulario({ formulario, dados, tag }: Props
       return <ViewTH dados={dados as DadosTH} />;
     case 'acumulacao':
       return <ViewAcumulacao dados={dados as DadosAcumulacao} />;
+    case 'alimentacao': {
+      const a = normalizarAlimentacao(dados);
+      const rot = { sim: 'Sim', nao: 'Não', na: 'N.A.' } as const;
+      return (
+        <SecaoViz titulo="Alimentação de água e controle de nível">
+          {PERGUNTAS_ALIMENTACAO.map((p) => {
+            const r = a.respostas[p.id];
+            return (
+              <p key={p.id} style={{ fontSize: 13, margin: '0 0 6px' }}>
+                {p.texto} — <b style={{ color: r === 'nao' ? 'var(--crit)' : r === 'sim' ? 'var(--ok)' : 'var(--texto-3)' }}>{r ? rot[r] : 'não verificado'}</b>
+              </p>
+            );
+          })}
+          <p style={{ fontSize: 13, margin: '8px 0 0' }}>
+            <b>Resultado:</b> {a.resultado === 'aprovado' ? 'Aprovado' : a.resultado === 'reprovado' ? 'Reprovado' : '—'} · <b>Laudo:</b> {a.laudo || '—'}
+          </p>
+          {a.observacoes && <p style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{a.observacoes}</p>}
+        </SecaoViz>
+      );
+    }
     case 'nr13_caldeira': {
       const d = normalizarVerificacaoNr13(dados);
       const rot = { sim: 'Atende', nao: 'Não atende', na: 'N.A.' } as const;

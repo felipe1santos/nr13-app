@@ -7,6 +7,7 @@ import FormularioVisualInterno from '../features/inspecoes/formularios/Formulari
 import FormularioTH from '../features/inspecoes/formularios/FormularioTH';
 import FormularioAcumulacao from '../features/inspecoes/formularios/FormularioAcumulacao';
 import FormularioVerificacaoCaldeira from '../features/inspecoes/formularios/FormularioVerificacaoCaldeira';
+import FormularioAlimentacaoAgua from '../features/inspecoes/formularios/FormularioAlimentacaoAgua';
 import FormularioRelatorioImagens from '../features/inspecoes/formularios/FormularioRelatorioImagens';
 import VisualizadorFormulario from '../features/inspecoes/VisualizadorFormulario';
 import PreviewDocumento from '../features/inspecoes/PreviewDocumento';
@@ -61,6 +62,7 @@ export default function InspecaoFormulario() {
             {f === 'th' && <FormularioTH tag={tag} containerId={containerId} />}
             {f === 'acumulacao' && <FormularioAcumulacao tag={tag} containerId={containerId} />}
             {f === 'nr13_caldeira' && <FormularioVerificacaoCaldeira tag={tag} containerId={containerId} />}
+            {f === 'alimentacao' && <FormularioAlimentacaoAgua tag={tag} containerId={containerId} />}
             {f === 'imagens' && <FormularioRelatorioImagens tag={tag} containerId={containerId} />}
           </>
         )}

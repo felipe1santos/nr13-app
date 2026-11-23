@@ -1,4 +1,5 @@
 import type { RelatorioMeta } from './tipos';
+import { alimentacaoPreenchida, normalizarAlimentacao, verificarAlimentacao } from '../caldeira/alimentacaoAgua';
 import { itensNaoAtendidos } from '../caldeira/verificacaoNr13';
 import { resolverValor, type MapaOverrides } from './overridesRelatorio';
 import { acumulacaoPreenchida, dadosPadraoAcumulacao, verificarAcumulacao, type DadosAcumulacao } from '../inspecoes/acumulacao';
@@ -223,6 +224,22 @@ export function validarParaFinalizar(e: EntradaValidacao): ResultadoValidacao {
       }
       if (vazio(texto(d.resultado))) {
         opcionais.push({ campo: 'acumulacao.resultado', texto: 'Resultado do ensaio de acumulação não informado', onde });
+      }
+    }
+  }
+
+  // 23/11/2026 · ALIMENTAÇÃO DE ÁGUA E CONTROLE DE NÍVEL (só caldeira). Erro
+  // bloqueia (intertravamento 13.4.1.2 e falhou com resultado aprovado; laudo
+  // contraditório); alerta só avisa. Sem dado, a folha 2.3 não sai — não bloqueia.
+  if (tem(e.documentos, 'CALD-ALIMENTACAO-AGUA.html')) {
+    const onde = 'Inspeção · Alimentação de água e controle de nível';
+    const bruto = bloco<Record<string, unknown>>(e.dadosContainer, 'alimentacao');
+    if (bruto && alimentacaoPreenchida(bruto)) {
+      for (const a of verificarAlimentacao(bruto)) {
+        (a.nivel === 'erro' ? obrigatorios : opcionais).push({ campo: 'alimentacao', texto: a.texto, onde });
+      }
+      if (!normalizarAlimentacao(bruto).resultado) {
+        opcionais.push({ campo: 'alimentacao.resultado', texto: 'Resultado do ensaio de alimentação de água não informado', onde });
       }
     }
   }

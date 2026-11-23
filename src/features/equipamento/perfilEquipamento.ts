@@ -14,7 +14,13 @@
  * que o documento deles não mudou.
  */
 import { ler } from '../../services/storage';
-import { ENSAIOS_DISPONIVEIS, ENSAIO_ACUMULACAO, ENSAIO_VERIFICACAO_CALDEIRA, type TipoEnsaio } from '../inspecoes/tipos';
+import {
+  ENSAIOS_DISPONIVEIS,
+  ENSAIO_ACUMULACAO,
+  ENSAIO_ALIMENTACAO_AGUA,
+  ENSAIO_VERIFICACAO_CALDEIRA,
+  type TipoEnsaio,
+} from '../inspecoes/tipos';
 import { DOCUMENTOS_DISPONIVEIS } from '../relatorios/tipos';
 import type { InfoEquipamento, TipoEquipamento } from './tipos';
 
@@ -25,6 +31,8 @@ const ENSAIOS_CALDEIRA: { value: TipoEnsaio; label: string }[] = [
   ENSAIO_ACUMULACAO,
   // 23/11/2026 · itens da NR-13 de caldeira → 13.4.4.12 i) na folha 1.3.
   ENSAIO_VERIFICACAO_CALDEIRA,
+  // 23/11/2026 · dispositivos de alimentação de água e controle de nível (13.4.1.2 c/e).
+  ENSAIO_ALIMENTACAO_AGUA,
 ];
 
 /**
@@ -45,6 +53,8 @@ export const DOCUMENTOS_CALDEIRA: readonly string[] = [
   'CALD-CALCULOS.html',
   'ULTRASSOM.html',
   FOLHA_ACUMULACAO,
+  // 23/11/2026 · 2.3, só vetorial.
+  'CALD-ALIMENTACAO-AGUA.html',
   'TESTE-HIDROSTATICO.html',
   'LIVRO-REGISTRO.html',
   // 23/11/2026 · seção 8, no fim: o Relatório de Imagens da inspeção.

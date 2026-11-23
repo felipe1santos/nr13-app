@@ -8,6 +8,7 @@ import {
 } from './tipos';
 import { acumulacaoPreenchida, type DadosAcumulacao } from './acumulacao';
 import { resumoVerificacaoNr13 } from '../caldeira/verificacaoNr13';
+import { alimentacaoPreenchida, normalizarAlimentacao } from '../caldeira/alimentacaoAgua';
 
 /**
  * O QUE UM CONTAINER DE INSPEÇÃO REALMENTE TEM DENTRO — 09/09/2026.
@@ -198,6 +199,19 @@ const LEITOR: Record<FormularioEnsaio, (d: Blob) => Omit<EnsaioResumido, 'ensaio
   },
   // 21/10/2026 · Ensaio de Acumulação (só caldeira). "Salvo" com a mesma
   // pergunta que o documento faz: há pressão, horário, tempo, resposta ou foto.
+  // 23/11/2026 · Alimentação de água e controle de nível (só caldeira).
+  alimentacao: (d) => {
+    const a = normalizarAlimentacao(d);
+    return {
+      salvo: alimentacaoPreenchida(a),
+      data: dataBrDoCampo(a.dataEnsaio),
+      respostas: Object.keys(a.respostas).length,
+      medicoes: 0,
+      fotos: 0,
+      resultado: a.resultado || null,
+      conclusao: a.laudo.trim() || null,
+    };
+  },
   // 23/11/2026 · Verificação NR-13 da caldeira: "salvo" = ao menos uma resposta.
   nr13_caldeira: (d) => {
     const r = resumoVerificacaoNr13(d);
@@ -320,4 +334,5 @@ export const DOC_DO_ENSAIO: Record<TipoEnsaio, string | null> = {
   relatorio_imagens: 'RELATORIO-IMAGENS.html',
   acumulacao: 'ENSAIO-ACUMULACAO.html',
   verificacao_caldeira: 'CALD-RELATORIO-INSPECAO.html',
+  alimentacao_agua: 'CALD-ALIMENTACAO-AGUA.html',
 };

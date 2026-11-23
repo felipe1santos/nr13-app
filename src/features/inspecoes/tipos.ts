@@ -6,7 +6,8 @@ export type TipoEnsaio =
   | 'teste_hidrostatico'
   | 'relatorio_imagens'
   | 'acumulacao'
-  | 'verificacao_caldeira';
+  | 'verificacao_caldeira'
+  | 'alimentacao_agua';
 
 export const ENSAIOS_DISPONIVEIS: { value: TipoEnsaio; label: string }[] = [
   { value: 'checklist',         label: 'Checklist Completo de Inspeção (NR-13)' },
@@ -41,11 +42,21 @@ export const ENSAIO_VERIFICACAO_CALDEIRA = { value: 'verificacao_caldeira', labe
   label: string;
 };
 
+/**
+ * ENSAIO DOS DISPOSITIVOS DE ALIMENTAÇÃO DE ÁGUA E CONTROLE DE NÍVEL
+ * (23/11/2026) — só caldeira. Catálogo em `features/caldeira/alimentacaoAgua.ts`.
+ */
+export const ENSAIO_ALIMENTACAO_AGUA = { value: 'alimentacao_agua', label: 'Alimentação de Água e Controle de Nível' } as const satisfies {
+  value: TipoEnsaio;
+  label: string;
+};
+
 /** Todos os ensaios que o sistema conhece — para rótulo e leitura, nunca para oferecer. */
 export const TODOS_ENSAIOS: { value: TipoEnsaio; label: string }[] = [
   ...ENSAIOS_DISPONIVEIS,
   ENSAIO_ACUMULACAO,
   ENSAIO_VERIFICACAO_CALDEIRA,
+  ENSAIO_ALIMENTACAO_AGUA,
 ];
 
 export type FormularioEnsaio =
@@ -58,7 +69,8 @@ export type FormularioEnsaio =
   | 'psv'
   | 'imagens'
   | 'acumulacao'
-  | 'nr13_caldeira';
+  | 'nr13_caldeira'
+  | 'alimentacao';
 
 export const FORM_POR_ENSAIO: Record<TipoEnsaio, FormularioEnsaio> = {
   checklist:          'checklist',
@@ -69,6 +81,7 @@ export const FORM_POR_ENSAIO: Record<TipoEnsaio, FormularioEnsaio> = {
   relatorio_imagens:  'imagens',
   acumulacao:         'acumulacao',
   verificacao_caldeira: 'nr13_caldeira',
+  alimentacao_agua: 'alimentacao',
 };
 
 export const ROTULO_FORMULARIO: Record<FormularioEnsaio, string> = {
@@ -82,6 +95,7 @@ export const ROTULO_FORMULARIO: Record<FormularioEnsaio, string> = {
   imagens:        'Relatório de Imagens',
   acumulacao:     'Ensaio de Acumulação',
   nr13_caldeira:  'Verificação NR-13 da Caldeira',
+  alimentacao:    'Alimentação de Água e Controle de Nível',
 };
 
 // Container de inspeção: agrupa os ensaios atribuídos a um equipamento numa rodada de inspeção.
@@ -114,4 +128,5 @@ export const DOCS_POR_FORMULARIO: Record<FormularioEnsaio, string[]> = {
   // 23/11/2026 · só caldeira; sai dentro da folha 1.3 do relatório de caldeira
   // (Itens da NR-13 não atendidos — 13.4.4.12 i). Sem folha HTML própria.
   nr13_caldeira:  ['CALD-RELATORIO-INSPECAO.html'],
+  alimentacao:    ['CALD-ALIMENTACAO-AGUA.html'],
 };
