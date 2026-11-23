@@ -4,20 +4,27 @@ import { resumirContainer, rotuloConteudo } from '../inspecoes/resumoContainer';
 import type { ContainerInspecao } from '../inspecoes/tipos';
 
 /**
- * DENSIDADE DA ETAPA 2 — 10/09/2026.
+ * DENSIDADE DO ASSISTENTE — 10/09/2026, revisto em 23/11/2026.
  *
- * O que motivou: com UM container salvo, a etapa 2 mostrava um cartão de 153 px
- * no celular; com dez, o modal crescia sem fim. A regra que este arquivo trava
- * é a que resolve os dois casos de uma vez — **a linha tem altura fixa e a
- * lista tem teto**. Dez containers e vinte são a mesma linha, mais vezes.
- *
- * A altura em si é medida no navegador (registrada em
- * `docs/medicoes/2026-09-10-ux-mobile.md`); o que se trava aqui é o CSS que a
- * produz, porque é ele que alguém pode desfazer sem perceber.
+ * 10/09/2026: um container ocupava 153 px no celular e dez faziam o modal
+ * crescer sem fim; a resposta foi uma LINHA DE ALTURA FIXA (64 px) com o nome
+ * reticenciado. 23/11/2026: o dono reclamou exatamente disso — "bugado cortando
+ * informações". A altura fixa cortava o nome e escondia os ensaios atrás de
+ * ícones sem texto. Agora o cartão QUEBRA LINHA (nome, meta, etiquetas com
+ * texto) e quem rola é o corpo do modal; o topo (progresso + etapas) e o
+ * rodapé continuam fixos, fora da área que rola.
  */
 
 const css = readFileSync('src/features/relatorios/modalCriarRelatorio.css', 'utf8');
 const componente = readFileSync('src/features/relatorios/ModalCriarRelatorio.tsx', 'utf8');
+const wizard = css.slice(css.indexOf('O ASSISTENTE DE CRIAÇÃO'));
+
+/** O corpo de uma regra de topo (sem media query), pelo seletor exato. */
+function regra(seletor: string): string {
+  const i = wizard.indexOf(`\n${seletor} {`);
+  expect(i, `regra ${seletor} ausente`).toBeGreaterThan(-1);
+  return wizard.slice(i, wizard.indexOf('}', i));
+}
 
 /** Massa de FIXTURE — nada disto vai para produção (item 24 da rodada). */
 function containers(n: number): ContainerInspecao[] {
@@ -36,77 +43,105 @@ function containers(n: number): ContainerInspecao[] {
   }));
 }
 
-describe('a linha não muda de tamanho com a quantidade', () => {
-  it('a lista tem TETO e rola por dentro — o modal não cresce', () => {
-    const bloco = css.slice(css.indexOf('.wz-containers {'), css.indexOf('.wz-container {'));
-    expect(bloco).toContain('overflow-y: auto;');
-    expect(bloco).toMatch(/max-height: \d+px;/);
+describe('o cartão de container não corta informação', () => {
+  it('sem altura fixa e sem reticências no cartão, no nome e na meta', () => {
+    for (const s of ['.wz-container', '.wz-container-nome', '.wz-container-meta', '.wz-container-txt']) {
+      const r = regra(s);
+      expect(r, s).not.toMatch(/(^|[\s;{])height:/);
+      expect(r, s).not.toContain('text-overflow: ellipsis');
+      expect(r, s).not.toContain('white-space: nowrap');
+    }
+    // E nenhuma regra do assistente volta a reticenciar o cartão.
+    expect(wizard).not.toMatch(/\.wz-container[\w-]*[^{]*\{[^}]*text-overflow: ellipsis/);
   });
 
-  it('a linha tem altura FIXA, não mínima', () => {
-    const bloco = css.slice(css.indexOf('.wz-container {'), css.indexOf('.wz-container:last-child'));
-    // `min-height` deixaria o conteúdo esticar a linha — foi o que produziu o
-    // cartão de 153 px quando os ícones dos ensaios formavam uma 3ª linha.
-    expect(bloco).toContain('height: 64px;');
-    expect(bloco).not.toContain('min-height');
+  it('os ensaios salvos aparecem como etiquetas com TEXTO e a cor do ensaio', () => {
+    expect(componente).toContain('className={`wz-chip ens-${e.ensaio}`}');
+    expect(componente).toContain('{e.rotulo}');
+    const chip = regra('.wz-chip');
+    expect(chip).toContain('padding: 3px 9px;');
+    expect(chip).toContain('border-radius: 4px;');
+    expect(chip).toContain('var(--ens-bg');
   });
 
-  it('cabeçalho, etapas e rodapé ficam FORA da área que rola', () => {
-    // O corpo é o único `overflow-y: auto` do modal; a barra de etapas e o
-    // rodapé são irmãos dele, não filhos.
-    const ordem = ['<ol className="wz-passos"', '<div className="modal-body mni-body">', 'className="modal-actions mni-rodape'];
+  // 23/11/2026 · seleção no AZUL de destaque (pedido do dono); o verde ficou
+  // só para "com dados".
+  it('selecionado = borda de 2 px no azul de destaque + fundo claro', () => {
+    const sel = regra('.wz-container.is-sel');
+    expect(sel).toContain('border: 2px solid var(--destaque');
+    expect(sel).toContain('background: var(--destaque-bg');
+  });
+
+  it('o olho tem 44 px de alvo', () => {
+    const olho = regra('.wz-olho');
+    expect(olho).toContain('width: 44px;');
+    expect(olho).toContain('height: 44px;');
+  });
+
+  it('"Não usar container" continua sendo o último cartão', () => {
+    const sem = componente.indexOf('wz-container-sem');
+    expect(sem).toBeGreaterThan(componente.indexOf('{resumos.map((r) => ('));
+    expect(componente.indexOf('wz-container ', sem + 1)).toBe(-1);
+  });
+});
+
+describe('topo e rodapé ficam FORA da área que rola', () => {
+  it('progresso → cabeçalho → etapas → corpo → rodapé, nesta ordem', () => {
+    const ordem = [
+      'className="wz-progresso"',
+      'className="modal-header mni-header wz-header"',
+      '<ol className="wz-passos"',
+      '<div className="modal-body mni-body">',
+      'className="modal-actions mni-rodape',
+    ];
     let anterior = -1;
     for (const marca of ordem) {
       const i = componente.indexOf(marca);
       expect(i, marca).toBeGreaterThan(anterior);
       anterior = i;
     }
-    expect(css).toMatch(/\.mni-rodape \{[^}]*flex: 0 0 auto;/s);
   });
 
-  it('os ícones dos ensaios ficam NA linha da meta, não num bloco próprio', () => {
-    const i = componente.indexOf('wz-container-icones');
-    const small = componente.lastIndexOf('<small>', i);
-    // O `<small>` mais próximo acima tem de ser o pai — se os ícones voltarem a
-    // ser irmãos dele, a linha ganha altura de novo.
-    expect(small).toBeGreaterThan(-1);
-    expect(componente.slice(small, i)).not.toContain('</small>');
+  it('só o corpo rola; o topo e o rodapé não encolhem', () => {
+    expect(css).toMatch(/\.mni-body \{[^}]*overflow-y: auto;/s);
+    expect(css).toMatch(/\.mni-rodape \{[^}]*flex: 0 0 auto;/s);
+    for (const s of ['.wz-progresso', '.wz-passos']) expect(regra(s), s).toContain('flex: 0 0 auto;');
+    // A lista de containers não tem mais rolagem própria: rola com o corpo.
+    expect(regra('.wz-containers')).not.toContain('overflow-y');
+  });
+
+  it('a barra de progresso anima por transform e respeita menos movimento', () => {
+    expect(componente).toContain('transform: `scaleX(${progressoDoPasso(passo)})`');
+    expect(regra('.wz-progresso-fill')).toContain('background: var(--vermelho-padrao');
+    expect(wizard).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.wz-progresso-fill \{ transition: none; \}/);
   });
 });
 
-describe('o texto da linha não estoura com 1, 5, 10 ou 20', () => {
+describe('o texto do cartão não estoura com 1, 5, 10 ou 20', () => {
   for (const n of [1, 5, 10, 20]) {
     it(`${n} container(es): toda linha diz a mesma coisa, no mesmo formato`, () => {
       const resumos = containers(n).map(resumirContainer);
       expect(resumos).toHaveLength(n);
       for (const r of resumos) {
-        // Uma linha de meta: data · conteúdo (· responsável, quando existe).
         expect(rotuloConteudo(r)).toBe('5 ensaios com dados salvos');
         expect(r.salvos).toHaveLength(5);
-        // Nada de contagem que cresça com a lista: o resumo é POR container.
         expect(r.ensaios.length).toBeLessThanOrEqual(5);
       }
     });
   }
-
-  it('o nome longo é reticenciado, não quebrado em duas linhas', () => {
-    // É o que mantém a altura fixa quando o técnico dá nome comprido ao
-    // container — e acontece, porque o padrão do sistema já é uma frase.
-    const bloco = css.slice(css.indexOf('.wz-container-txt strong {'));
-    expect(bloco.slice(0, 260)).toContain('white-space: nowrap;');
-    expect(bloco.slice(0, 260)).toContain('text-overflow: ellipsis;');
-  });
 });
 
-describe('celular', () => {
-  it('a linha cresce para o dedo, e a lista encolhe o teto', () => {
-    const geral = css.slice(css.indexOf('@media (max-width: 640px)'));
-    expect(geral).toContain('.wz-container { height: 68px;');
-    expect(geral).toContain('.wz-containers { max-height: 252px; }');
+describe('celular (até 600 px)', () => {
+  const movel = wizard.slice(wizard.indexOf('@media (max-width: 600px)'));
+
+  it('vira folha de altura total, com rótulos curtos nas etapas', () => {
+    expect(movel).toContain('height: 100dvh;');
+    expect(movel).toContain('.wz-passo-rot { display: none; }');
+    expect(movel).toContain('.wz-passo-rot-curto { display: inline;');
   });
 
-  it('o olho tem 44 px', () => {
-    const geral = css.slice(css.indexOf('@media (max-width: 640px)'));
-    expect(geral).toContain('.wz-olho { width: 44px; height: 44px; }');
+  it('engrenagem e botões do rodapé passam de 44 px', () => {
+    expect(movel).toContain('.wz-engrenagem { width: 44px; height: 44px; }');
+    expect(movel).toMatch(/\.wz-modal \.mni-rodape \.btn-secundario \{ flex: 1 1 0; height: 44px; \}/);
   });
 });

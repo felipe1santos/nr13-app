@@ -1,14 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
+  FOLHAS_ENSAIO,
+  PASSOS,
   alternarDocumento,
   documentosFinais,
+  documentosPadraoParaContainer,
   ensaiosRevisaveis,
   estadoDoPasso,
+  folhasComDados,
+  folhasEnsaioSemDados,
   passoAnterior,
   passoSeguinte,
   podeAvancar,
+  podeGerar,
+  progressoDoPasso,
+  rotuloDaFolha,
 } from './wizardCriacao';
+import { DOCUMENTOS_CALDEIRA } from '../equipamento/perfilEquipamento';
+import { DOC_DO_ENSAIO } from '../inspecoes/resumoContainer';
 import { escolhaProntaDoState, telaInicialDoEditor } from './rotaRelatorios';
 import { resumirContainer } from '../inspecoes/resumoContainer';
 import { DOCUMENTOS_DISPONIVEIS } from './tipos';
@@ -20,13 +30,29 @@ import type { ContainerInspecao } from '../inspecoes/tipos';
  */
 
 describe('as três etapas', () => {
-  it('a etapa 1 não avança sem nenhuma folha marcada', () => {
-    expect(podeAvancar(1, [])).toBe(false);
-    expect(podeAvancar(1, ['CAPA.html'])).toBe(true);
+  // 23/11/2026 · nova ordem a pedido do dono: Inspeção → Certificados → Resumo.
+  // A composição das folhas saiu das etapas e foi para a engrenagem do
+  // cabeçalho; por isso a trava de "pelo menos uma folha" é a do GERAR.
+  it('a ordem é Inspeção, Certificados, Resumo', () => {
+    expect(PASSOS.map((p) => p.rotulo)).toEqual(['Inspeção', 'Certificados', 'Resumo']);
   });
 
-  it('a etapa 2 avança sempre — "sem container" é resposta legítima', () => {
-    expect(podeAvancar(2, ['CAPA.html'])).toBe(true);
+  it('as etapas 1 e 2 avançam sempre — "sem container" e "sem certificado" são respostas legítimas', () => {
+    expect(podeAvancar(1, [])).toBe(true);
+    expect(podeAvancar(1, ['CAPA.html'])).toBe(true);
+    expect(podeAvancar(2, [])).toBe(true);
+  });
+
+  it('gerar exige ao menos uma folha marcada', () => {
+    expect(podeGerar([])).toBe(false);
+    expect(podeGerar(['CAPA.html'])).toBe(true);
+    expect(podeAvancar(3, [])).toBe(false);
+  });
+
+  it('a barra vermelha anda um terço por etapa', () => {
+    expect(progressoDoPasso(1)).toBeCloseTo(1 / 3);
+    expect(progressoDoPasso(2)).toBeCloseTo(2 / 3);
+    expect(progressoDoPasso(3)).toBe(1);
   });
 
   it('a barra não passa dos limites', () => {
@@ -91,6 +117,93 @@ describe('a revisão só lista ensaio REALMENTE salvo', () => {
 
   it('sem container, nada a revisar', () => {
     expect(ensaiosRevisaveis(null)).toEqual([]);
+  });
+});
+
+describe('o padrão inteligente das folhas de ensaio (23/11/2026)', () => {
+  const container = (dados: ContainerInspecao['dados'], ensaios: ContainerInspecao['ensaios']): ContainerInspecao => ({
+    id: 'c1',
+    nome: 'Inspeção',
+    criadoEm: '05/09/2026',
+    ensaios,
+    dados,
+  });
+  const estrutura = DOCUMENTOS_DISPONIVEIS.filter((d) => !FOLHAS_ENSAIO.has(d));
+
+  it('sem container: estrutura toda marcada, nenhuma folha de ensaio — o default antigo', () => {
+    expect(documentosPadraoParaContainer(DOCUMENTOS_DISPONIVEIS, null)).toEqual(estrutura);
+  });
+
+  it('com container: marca só a folha de ensaio que tem dado SALVO', () => {
+    const r = resumirContainer(
+      container({ ultrassom: { medidas: { p: { c: '7,8' } } } }, ['ultrassom', 'teste_hidrostatico']),
+    );
+    const padrao = documentosPadraoParaContainer(DOCUMENTOS_DISPONIVEIS, r);
+    expect(padrao).toContain('ULTRASSOM.html');
+    // Atribuído e vazio não nasce marcado: sairia uma seção em branco.
+    expect(padrao).not.toContain('TESTE-HIDROSTATICO.html');
+    for (const d of estrutura) expect(padrao).toContain(d);
+    // Na ordem do documento.
+    expect(padrao).toEqual(DOCUMENTOS_DISPONIVEIS.filter((d) => padrao.includes(d)));
+  });
+
+  it('folha de ensaio marcada sem dado é a que recebe o aviso "sai em branco"', () => {
+    const r = resumirContainer(container({ ultrassom: { medidas: { p: { c: '7,8' } } } }, ['ultrassom']));
+    expect(folhasEnsaioSemDados(['CAPA.html', 'ULTRASSOM.html', 'TESTE-HIDROSTATICO.html'], r)).toEqual([
+      'TESTE-HIDROSTATICO.html',
+    ]);
+    // Sem container, toda folha de ensaio marcada sai em branco; estrutura nunca.
+    expect(folhasEnsaioSemDados(['CAPA.html', 'ULTRASSOM.html'], null)).toEqual(['ULTRASSOM.html']);
+  });
+
+  it('folhasComDados lê a mesma tabela da revisão', () => {
+    const r = resumirContainer(container({ ultrassom: { medidas: { p: { c: '7,8' } } } }, ['ultrassom']));
+    expect([...folhasComDados(r)]).toEqual(['ULTRASSOM.html']);
+    expect(folhasComDados(null).size).toBe(0);
+  });
+});
+
+describe('caldeira · toda folha e todo ensaio representados (23/11/2026)', () => {
+  it('CALD-ALIMENTACAO-AGUA é folha de ENSAIO e tem nome na tela', () => {
+    expect(FOLHAS_ENSAIO.has('CALD-ALIMENTACAO-AGUA.html')).toBe(true);
+    expect(rotuloDaFolha('CALD-ALIMENTACAO-AGUA.html')).toBe('Alimentação de água e controle de nível (2.3)');
+  });
+
+  it('nenhuma folha da caldeira aparece com o nome do arquivo', () => {
+    for (const d of DOCUMENTOS_CALDEIRA) expect(rotuloDaFolha(d), d).not.toBe(d);
+  });
+
+  it('toda folha alimentada por um ensaio de folha própria é folha de ensaio', () => {
+    // A Verificação NR-13 alimenta o Relatório de inspeção, que é ESTRUTURA —
+    // ela não tem folha própria e por isso fica de fora deste conjunto.
+    for (const [ensaio, doc] of Object.entries(DOC_DO_ENSAIO)) {
+      if (!doc || ensaio === 'verificacao_caldeira') continue;
+      expect(FOLHAS_ENSAIO.has(doc), `${ensaio} → ${doc}`).toBe(true);
+    }
+    expect(DOC_DO_ENSAIO.verificacao_caldeira).toBe('CALD-RELATORIO-INSPECAO.html');
+    expect(FOLHAS_ENSAIO.has('CALD-RELATORIO-INSPECAO.html')).toBe(false);
+  });
+
+  it('toda folha de ensaio da caldeira está no catálogo dela', () => {
+    for (const doc of Object.values(DOC_DO_ENSAIO)) {
+      if (doc && doc !== 'RELATORIO-IMAGENS.html' && doc.startsWith('CALD-')) {
+        expect(DOCUMENTOS_CALDEIRA, doc).toContain(doc);
+      }
+    }
+  });
+
+  it('alimentação de água salva marca a folha 2.3; sem dado ela nasce desmarcada', () => {
+    const vazio = resumirContainer({ id: 'c', nome: 'C', criadoEm: '', ensaios: ['alimentacao_agua'], dados: {} });
+    expect(documentosPadraoParaContainer(DOCUMENTOS_CALDEIRA, vazio)).not.toContain('CALD-ALIMENTACAO-AGUA.html');
+    expect(documentosPadraoParaContainer(DOCUMENTOS_CALDEIRA, vazio)).toContain('CALD-RELATORIO-INSPECAO.html');
+    const feito = resumirContainer({
+      id: 'c',
+      nome: 'C',
+      criadoEm: '',
+      ensaios: ['alimentacao_agua'],
+      dados: { alimentacao: { respostas: { a1: 'sim' }, resultado: 'aprovado' } },
+    });
+    expect(documentosPadraoParaContainer(DOCUMENTOS_CALDEIRA, feito)).toContain('CALD-ALIMENTACAO-AGUA.html');
   });
 });
 
@@ -250,5 +363,16 @@ describe('gate · a TAG não pode vir do estado do React na geração', () => {
 
   it('quem chama do assistente ENTREGA a TAG', () => {
     expect(tela).toContain('docs: pronta.documentos, tag: pronta.tag }');
+  });
+});
+
+describe('Livro de Registro fora da criação (23/11/2026)', () => {
+  it('o assistente não oferece o Livro — ele é preenchido à mão em Registros de Segurança', async () => {
+    const { folhasOferecidas } = await import('./wizardCriacao');
+    const { DOCUMENTOS_CALDEIRA } = await import('../equipamento/perfilEquipamento');
+    const { DOCUMENTOS_DISPONIVEIS } = await import('./tipos');
+    expect(folhasOferecidas(DOCUMENTOS_CALDEIRA)).not.toContain('LIVRO-REGISTRO.html');
+    expect(folhasOferecidas(DOCUMENTOS_DISPONIVEIS)).not.toContain('LIVRO-REGISTRO.html');
+    expect(folhasOferecidas(['CAPA.html', 'LIVRO-REGISTRO.html'])).toEqual(['CAPA.html']);
   });
 });

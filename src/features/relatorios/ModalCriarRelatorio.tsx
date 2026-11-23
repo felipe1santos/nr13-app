@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Icone, type NomeIcone } from '../../components/Icone';
 import { definicaoDe } from '../calibracoes/instrumentos';
 import { contagemParaRelatorio, folhaDoRelatorio, listarCalibracoes } from '../calibracoes/calibracaoService';
@@ -10,14 +11,22 @@ import type { TipoEnsaio } from '../inspecoes/tipos';
 import type { TipoInspecao } from './tipos';
 import { documentosDoTipo, tipoDaTag } from '../equipamento/perfilEquipamento';
 import {
+  FOLHAS_ENSAIO,
+  folhasOferecidas,
   PASSOS,
   alternarDocumento,
   documentosFinais,
+  documentosPadraoParaContainer,
   ensaiosRevisaveis,
   estadoDoPasso,
+  folhasComDados,
+  folhasEnsaioSemDados,
   passoAnterior,
   passoSeguinte,
   podeAvancar,
+  podeGerar,
+  progressoDoPasso,
+  rotuloDaFolha,
   type PassoWizard,
 } from './wizardCriacao';
 import '../equipamento/equipamento.css';
@@ -37,19 +46,20 @@ import './modalCriarRelatorio.css';
  * Aqui o shell é UM só e fica montado do começo ao fim. Trocar de etapa é
  * trocar o miolo; o equipamento, o tipo, as folhas, o container escolhido e a
  * rolagem continuam onde estavam. A navegação para o editor acontece uma única
- * vez, no "Gerar Documento", já com TUDO decidido.
+ * vez, no "Gerar documento", já com TUDO decidido.
  *
- * ## As três etapas, e por que são três
+ * ## As três etapas (reordenadas em 23/11/2026, a pedido do dono)
  *
- * 1. **Documentos** — quais partes compõem o relatório. É estrutura.
- * 2. **Inspeção** — de onde vêm os dados de campo. É origem.
- * 3. **Revisar** — o que foi decidido, junto, antes de virar documento.
+ * 1. **Inspeção** — o tipo de inspeção e de onde vêm os dados de campo.
+ * 2. **Certificados** — as calibrações que entram como folhas no fim.
+ * 3. **Resumo** — o que vai ser gerado, com aviso em cada folha de ensaio
+ *    marcada que vai sair em branco.
  *
- * O modal antigo misturava 1 e 2 num bloco azul chamado "Injeção Automática de
- * Dados (Containers)": ele listava ensaios com o nome de um container do lado,
- * mas as caixas dele eram as MESMAS da lista de folhas, e o container de
- * verdade só era escolhido depois, noutra tela. Marcar "Medição de Espessura ·
- * Container A" e escolher o container B no passo seguinte injetava B, sem aviso.
+ * A composição fina das folhas deixou de ser uma etapa: mora na ENGRENAGEM do
+ * cabeçalho (um painel dentro da caixa, como o olho), disponível nas três. E a
+ * inspeção escolhida decide sozinha as folhas de ensaio
+ * (`documentosPadraoParaContainer`) — até o usuário mexer nelas à mão; daí em
+ * diante a escolha dele vence (`docsEditados`), e "Restaurar padrão" devolve.
  *
  * ## Atribuído × salvo
  *
@@ -58,43 +68,6 @@ import './modalCriarRelatorio.css';
  */
 
 const TIPOS: TipoInspecao[] = ['Inspeção Inicial', 'Inspeção Periódica', 'Inspeção Extraordinária'];
-
-const ROTULOS: Record<string, string> = {
-  'CAPA.html': 'Capa',
-  'SUMARIO.html': 'Sumário',
-  'PLACA.html': 'Placa de Identificação',
-  'PRONTUARIO.html': 'Prontuário',
-  'CLASSIFICACAO-RISCO.html': 'Caracterização (Classificação de Risco)',
-  'RESUMO-MEMORIAL.html': 'Resumo do Memorial',
-  'MEMORIAL.html': 'Memorial de Cálculo (folhas automáticas)',
-  'INSPECOES.html': 'Inspeções',
-  'VERIFICACAO-DOCUMENTACAO.html': 'Verificação de Documentação',
-  'checklist1.html': 'Checklist 1',
-  'checklist2.html': 'Checklist 2',
-  'checklist3.html': 'Checklist 3',
-  'CONCLUSAO.html': 'Conclusão',
-  'ULTRASSOM.html': 'Laudo de Ultrassom',
-  'TESTE-HIDROSTATICO.html': 'Teste Hidrostático (2 folhas — dados + fotos)',
-  'VISUAL-EXTERNO.html': 'Inspeção Visual Externa (checklist + folhas de fotos)',
-  'VISUAL-INTERNO.html': 'Inspeção Visual Interna (checklist + folhas de fotos)',
-  'RELATORIO-IMAGENS.html': 'Relatório de Imagens (fotos descritas do ensaio)',
-  'ENSAIO-ACUMULACAO.html': 'Ensaio de Acumulação (dados + fotos)',
-  'CALD-PRONTUARIO.html': 'Prontuário da caldeira (construção, operação e controles)',
-  'CALD-ACESSORIOS.html': 'Instrumentos de segurança e acessórios',
-  'CALD-RELATORIO-INSPECAO.html': 'Relatório de inspeção (ensaios, dispositivos e laudo final)',
-  'CALD-CALCULOS.html': 'Cálculos de pressão interna (corpo e espelhos)',
-  'LIVRO-REGISTRO.html': 'Livro de Registro de Segurança (NR-13)',
-};
-
-/** Folhas que só têm conteúdo se a inspeção de campo tiver sido feita. */
-const ENSAIOS = new Set<string>([
-  'VISUAL-EXTERNO.html',
-  'VISUAL-INTERNO.html',
-  'ULTRASSOM.html',
-  'TESTE-HIDROSTATICO.html',
-  'RELATORIO-IMAGENS.html',
-  'ENSAIO-ACUMULACAO.html',
-]);
 
 const ICONE_ENSAIO: Record<TipoEnsaio, NomeIcone> = {
   checklist: 'clipboard',
@@ -107,6 +80,9 @@ const ICONE_ENSAIO: Record<TipoEnsaio, NomeIcone> = {
   verificacao_caldeira: 'clipboard',
   alimentacao_agua: 'gauge',
 };
+
+/** A folha que traz a Verificação NR-13 da caldeira (ela não tem folha própria). */
+const FOLHA_VERIFICACAO_CALDEIRA = 'CALD-RELATORIO-INSPECAO.html';
 
 /** Item da seção de calibrações: um LOTE inteiro ou uma calibração avulsa antiga. */
 interface ItemCalibracao {
@@ -136,19 +112,39 @@ interface Props {
   onGerar: (escolha: EscolhaCriacao) => void;
 }
 
+/** Os ensaios salvos do container, como etiquetas coloridas com TEXTO. */
+function ChipsEnsaios({ r }: { r: ResumoContainer }) {
+  if (r.salvos.length === 0) return null;
+  return (
+    <span className="wz-chips">
+      {r.salvos.map((e) => (
+        <span key={e.ensaio} className={`wz-chip ens-${e.ensaio}`}>
+          <Icone nome={ICONE_ENSAIO[e.ensaio] ?? 'filetext'} tam={12} />
+          {e.rotulo}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, onGerar }: Props) {
   const [passo, setPasso] = useState<PassoWizard>(1);
   const [tipo, setTipo] = useState<TipoInspecao>('Inspeção Periódica');
   // As folhas que ESTE equipamento oferece: vaso e autoclave recebem a lista de
-  // sempre; caldeira, a mesma com o Ensaio de Acumulação (perfilEquipamento).
-  const folhasDoTipo = useMemo(() => documentosDoTipo(tipoDaTag(tag)), [tag]);
-  const [marcados, setMarcados] = useState<string[]>(
-    documentosDoTipo(tipoDaTag(tag)).filter((d) => !ENSAIOS.has(d)),
+  // sempre; caldeira, a dela (perfilEquipamento.DOCUMENTOS_CALDEIRA).
+  // Sem o Livro de Registro: ele é manual (Registros de Segurança), 23/11/2026.
+  const folhasDoTipo = useMemo(() => folhasOferecidas(documentosDoTipo(tipoDaTag(tag))), [tag]);
+  const [marcados, setMarcados] = useState<string[]>(() =>
+    documentosPadraoParaContainer(documentosDoTipo(tipoDaTag(tag)), null),
   );
+  /** O usuário mexeu nas folhas à mão: trocar de inspeção não pode desfazer isso. */
+  const [docsEditados, setDocsEditados] = useState(false);
   const [calibSelecionados, setCalibSelecionados] = useState<Set<string>>(new Set());
   const [containerId, setContainerId] = useState<string | null>(null);
   /** O olho: id do container em pré-visualização. Não fecha o assistente. */
   const [preview, setPreview] = useState<string | null>(null);
+  /** A engrenagem: painel dos documentos, dentro da mesma caixa. */
+  const [painelDocs, setPainelDocs] = useState(false);
   const [gerando, setGerando] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
 
@@ -163,6 +159,8 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
     [resumos, containerId],
   );
   const emPreview = useMemo(() => resumos.find((r) => r.id === preview) ?? null, [resumos, preview]);
+  const comDados = useMemo(() => folhasComDados(escolhido), [escolhido]);
+  const verificacaoSalva = !!escolhido?.salvos.some((e) => e.ensaio === 'verificacao_caldeira');
 
   const itensCalibracao = useMemo<ItemCalibracao[]>(() => {
     if (!tag) return [];
@@ -188,20 +186,37 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
     return [...doLote, ...avulsas].sort((a, b) => tsDoId(b.id) - tsDoId(a.id)).slice(0, 3);
   }, [tag]);
 
-  // ESC fecha o preview antes do assistente: fechar tudo de uma vez perderia a
-  // etapa e as escolhas por causa de uma tecla.
+  // ESC fecha o painel de dentro (olho ou engrenagem) antes do assistente:
+  // fechar tudo de uma vez perderia a etapa e as escolhas por causa de uma tecla.
   useEffect(() => {
     function aoTeclar(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
       e.preventDefault();
       if (preview) setPreview(null);
+      else if (painelDocs) setPainelDocs(false);
       else onClose();
     }
     document.addEventListener('keydown', aoTeclar);
     return () => document.removeEventListener('keydown', aoTeclar);
-  }, [preview, onClose]);
+  }, [preview, painelDocs, onClose]);
 
-  const toggle = (doc: string) => setMarcados((m) => alternarDocumento(m, doc));
+  /** Escolher a inspeção aplica o padrão inteligente — se o usuário ainda não mexeu. */
+  function escolherContainer(id: string | null) {
+    setContainerId(id);
+    if (docsEditados) return;
+    const r = resumos.find((x) => x.id === id) ?? null;
+    setMarcados(documentosPadraoParaContainer(folhasDoTipo, r));
+  }
+
+  const toggle = (doc: string) => {
+    setDocsEditados(true);
+    setMarcados((m) => alternarDocumento(m, doc));
+  };
+
+  function restaurarPadrao() {
+    setDocsEditados(false);
+    setMarcados(documentosPadraoParaContainer(folhasDoTipo, escolhido));
+  }
 
   function toggleCalib(id: string) {
     setCalibSelecionados((s) => {
@@ -212,10 +227,22 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
     });
   }
 
-  const revisaveis = useMemo(() => ensaiosRevisaveis(escolhido), [escolhido]);
+  // Só ensaio SALVO e com folha própria de ensaio: a Verificação NR-13 da
+  // caldeira aponta para o Relatório de inspeção (estrutura), e desmarcá-la
+  // tiraria a folha inteira — ela aparece como nota, não como caixa.
+  const revisaveis = useMemo(
+    () => ensaiosRevisaveis(escolhido).filter((e) => FOLHAS_ENSAIO.has(e.doc)),
+    [escolhido],
+  );
+  const marcadosDoTipo = useMemo(() => folhasDoTipo.filter((d) => marcados.includes(d)), [folhasDoTipo, marcados]);
+  const semDados = useMemo(() => new Set(folhasEnsaioSemDados(marcadosDoTipo, escolhido)), [marcadosDoTipo, escolhido]);
+  const calibEscolhidas = itensCalibracao.filter((i) => calibSelecionados.has(i.id));
+  const estrutura = folhasDoTipo.filter((d) => !FOLHAS_ENSAIO.has(d));
+  const deEnsaio = folhasDoTipo.filter((d) => FOLHAS_ENSAIO.has(d));
+  const geravel = podeGerar(marcadosDoTipo);
 
   async function gerar() {
-    if (gerando) return;
+    if (gerando || !geravel) return;
     setGerando(true);
     const selecionados = itensCalibracao.filter((i) => calibSelecionados.has(i.id));
     const docsCalibracao = selecionados.flatMap((i) =>
@@ -234,22 +261,59 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
     onGerar({ tipo, documentos: documentosFinais(marcados, docsCalibracao, folhasDoTipo), containerId });
   }
 
-  return (
+  const descricaoEquip = [resumo.descricao, resumo.tipo].filter(Boolean).join(' · ') || 'Equipamento';
+
+  // PORTAL no <body> (23/11/2026): dentro da página o overlay ficava ABAIXO da
+  // barra do topo do sistema, que escondia a barra de progresso e — no celular,
+  // onde o assistente ocupa a tela inteira — o cabeçalho e o ×. Mesmo padrão de
+  // ModalCliente / ModalNovoRegistro (z-index --z-modal-app).
+  return createPortal(
     // O fundo NAO fecha: sao as 3 etapas do assistente, e um clique fora voltava
     // ao zero. Ver `modaisComEdicao.test.ts`.
-    <div className="modal-overlay">
+    <div className="modal-overlay wz-overlay">
       <div className="modal-content mni-modal wz-modal" ref={caixa} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header mni-header">
-          <h3>Configurar novo relatório</h3>
-          <button type="button" className="btn-close-modal" onClick={onClose} aria-label="Fechar">
-            ×
-          </button>
+        {/* ── TOPO FIXO: progresso, título e etapas ───────────────────────────
+            Fora do corpo que rola: com vinte containers a lista desce, e o
+            usuário continua vendo onde está. */}
+        <div
+          className="wz-progresso"
+          role="progressbar"
+          aria-label="Progresso da criação"
+          aria-valuemin={1}
+          aria-valuemax={PASSOS.length}
+          aria-valuenow={passo}
+        >
+          <span className="wz-progresso-fill" style={{ transform: `scaleX(${progressoDoPasso(passo)})` }} />
         </div>
 
-        {/* ── BARRA DE ETAPAS ────────────────────────────────────────────────
-            Ela também NAVEGA para trás: voltar de "Revisar" para "Documentos"
-            em um clique é o que o usuário tenta fazer primeiro. Para a frente
-            não, porque a etapa 1 tem uma condição (pelo menos uma folha). */}
+        <div className="modal-header mni-header wz-header">
+          <h3>Configurar novo relatório</h3>
+          <div className="wz-header-acoes">
+            <button
+              type="button"
+              className={`wz-engrenagem${painelDocs ? ' is-ativo' : ''}`}
+              aria-label="Documentos do relatório"
+              title="Documentos do relatório"
+              aria-expanded={painelDocs}
+              onClick={() => {
+                setPreview(null);
+                setPainelDocs((v) => !v);
+              }}
+            >
+              <Icone nome="engrenagem" tam={18} />
+              <span className="wz-engrenagem-cont" aria-hidden="true">
+                {marcadosDoTipo.length}
+              </span>
+            </button>
+            <button type="button" className="btn-close-modal" onClick={onClose} aria-label="Fechar">
+              ×
+            </button>
+          </div>
+        </div>
+
+        {/* ── ETAPAS ─────────────────────────────────────────────────────────
+            Elas também NAVEGAM para trás: voltar do Resumo para a Inspeção em
+            um clique é o que o usuário tenta fazer primeiro. */}
         <ol className="wz-passos" aria-label="Etapas da criação">
           {PASSOS.map((p) => {
             const st = estadoDoPasso(p.n, passo);
@@ -263,7 +327,7 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
                   onClick={() => st === 'feito' && setPasso(p.n)}
                 >
                   <span className="wz-passo-num" aria-hidden="true">
-                    {st === 'feito' ? <Icone nome="check" tam={12} /> : p.n}
+                    {st === 'feito' ? <Icone nome="check" tam={11} /> : p.n}
                   </span>
                   <span className="wz-passo-rot">{p.rotulo}</span>
                   <span className="wz-passo-rot-curto">{p.curto}</span>
@@ -274,24 +338,27 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
         </ol>
 
         <div className="modal-body mni-body">
-          <div className="mni-resumo">
-            <div className="mni-resumo-txt">
-              <strong>{resumo.tag}</strong>
-              <span>{[resumo.descricao, resumo.tipo].filter(Boolean).join(' · ') || 'Equipamento'}</span>
+          {/* No Resumo o equipamento já tem bloco próprio — a faixa não se repete. */}
+          {passo !== 3 && (
+            <div className="mni-resumo">
+              <div className="mni-resumo-txt">
+                <strong>{resumo.tag}</strong>
+                <span>{descricaoEquip}</span>
+              </div>
+              {aoVoltar && passo === 1 && (
+                <button type="button" className="fj-btn fj-btn-ghost mni-trocar" onClick={aoVoltar}>
+                  ← Trocar equipamento
+                </button>
+              )}
             </div>
-            {aoVoltar && passo === 1 && (
-              <button type="button" className="fj-btn fj-btn-ghost mni-trocar" onClick={aoVoltar}>
-                ← Trocar equipamento
-              </button>
-            )}
-          </div>
+          )}
 
-          {/* ══ ETAPA 1 · DOCUMENTOS ══════════════════════════════════════ */}
+          {/* ══ ETAPA 1 · INSPEÇÃO ════════════════════════════════════════ */}
           {passo === 1 && (
             <>
               <div className="campo-bloco-modal">
                 <label className="label-bloco-modal" htmlFor="wz-tipo">
-                  Tipo de Inspeção
+                  Tipo de inspeção
                 </label>
                 <select
                   id="wz-tipo"
@@ -309,167 +376,131 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
 
               <div className="campo-bloco-modal">
                 <div className="mni-secao">
-                  <span className="label-bloco-modal">Documentos do relatório</span>
+                  <span className="label-bloco-modal">Selecione a inspeção</span>
                   <span className="texto-ajuda-modal-inline">
-                    ↓ Quais partes vão compor o documento
+                    De onde vêm os dados de campo. As folhas de ensaio acompanham o que ela tem salvo.
                   </span>
                 </div>
-                <div className="lista-documentos-scroll">
-                  {folhasDoTipo.map((doc) => (
-                    <label key={doc} className="item-documento-check">
+
+                {/* Cartões que QUEBRAM linha: nome, meta e etiquetas dos ensaios
+                    salvos aparecem inteiros. A altura fixa de 64 px de antes
+                    cortava o nome e escondia os ensaios atrás de ícones. */}
+                <div className="wz-containers" role="radiogroup" aria-label="Inspeções salvas">
+                  {resumos.map((r) => (
+                    <label
+                      key={r.id}
+                      className={`wz-container${containerId === r.id ? ' is-sel' : ''}`}
+                    >
                       <input
-                        type="checkbox"
-                        checked={marcados.includes(doc)}
-                        onChange={() => toggle(doc)}
+                        type="radio"
+                        name="wz-container"
+                        checked={containerId === r.id}
+                        onChange={() => escolherContainer(r.id)}
                       />
-                      {(ROTULOS[doc] || doc).toUpperCase()}
-                      {ENSAIOS.has(doc) && (
-                        <span
-                          className="ensaio-selo"
-                          title="Folha de ensaio: o conteúdo vem da inspeção de campo, escolhida na próxima etapa"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                            <line x1="12" y1="9" x2="12" y2="13" />
-                            <line x1="12" y1="17" x2="12.01" y2="17" />
-                          </svg>
-                          <span className="ensaio-bolinha" />
+                      <span className="wz-container-marca" aria-hidden="true">
+                        <Icone nome="check" tam={12} />
+                      </span>
+                      <span className="wz-container-txt">
+                        <strong className="wz-container-nome">{r.nome}</strong>
+                        <span className="wz-container-meta">
+                          {[r.data, r.responsavel, rotuloConteudo(r)].filter(Boolean).join(' · ')}
                         </span>
-                      )}
+                        <ChipsEnsaios r={r} />
+                      </span>
+                      <button
+                        type="button"
+                        className="wz-olho"
+                        title={`Ver o conteúdo de ${r.nome}`}
+                        aria-label={`Ver o conteúdo de ${r.nome}`}
+                        onClick={(e) => {
+                          // Dentro do <label>: sem isto o clique marcaria o radio.
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setPainelDocs(false);
+                          setPreview(r.id);
+                        }}
+                      >
+                        <Icone nome="eye" tam={17} />
+                      </button>
                     </label>
                   ))}
-                </div>
-              </div>
 
-              {/* Calibrações continuam AQUI, e não na etapa da inspeção: marcar
-                  um lote ACRESCENTA FOLHAS ao documento (`?calibId=`), que é a
-                  pergunta desta etapa. Elas nunca vieram de container. */}
-              {itensCalibracao.length > 0 && (
-                <div className="campo-bloco-modal">
-                  <div className="mni-secao">
-                    <span className="label-bloco-modal">Certificados de calibração</span>
-                    <span className="texto-ajuda-modal-inline">
-                      ↓ Entram como folhas no fim do relatório
-                    </span>
-                  </div>
-                  <div className="lista-documentos-scroll">
-                    {itensCalibracao.map((i) => (
-                      <label key={i.id} className="item-documento-check" title={i.lote ? 'Lote de calibração' : 'Calibração avulsa'}>
-                        <input
-                          type="checkbox"
-                          checked={calibSelecionados.has(i.id)}
-                          onChange={() => toggleCalib(i.id)}
-                        />
-                        {i.rotulo}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* ══ ETAPA 2 · INSPEÇÃO ════════════════════════════════════════ */}
-          {passo === 2 && (
-            <div className="campo-bloco-modal">
-              <div className="mni-secao">
-                <span className="label-bloco-modal">Selecione a inspeção</span>
-                <span className="texto-ajuda-modal-inline">
-                  ↓ De onde vêm os dados de campo deste relatório
-                </span>
-              </div>
-
-              <div className="wz-containers">
-                {resumos.map((r) => (
-                  <label
-                    key={r.id}
-                    className={`wz-container${containerId === r.id ? ' is-sel' : ''}`}
-                  >
+                  <label className={`wz-container wz-container-sem${containerId === null ? ' is-sel' : ''}`}>
                     <input
                       type="radio"
                       name="wz-container"
-                      checked={containerId === r.id}
-                      onChange={() => setContainerId(r.id)}
+                      checked={containerId === null}
+                      onChange={() => escolherContainer(null)}
                     />
-                    {/* DUAS LINHAS, altura fixa. Os ícones dos ensaios ficam na
-                        MESMA linha da meta: como bloco próprio eles somavam uma
-                        terceira linha e o cartão chegava a 153 px no celular —
-                        um container virava um painel. */}
-                    <span className="wz-container-txt">
-                      <strong>{r.nome}</strong>
-                      <small>
-                        <span className="wz-container-icones" aria-hidden="true">
-                          {r.salvos.map((e) => (
-                            <span key={e.ensaio} title={e.rotulo}>
-                              <Icone nome={ICONE_ENSAIO[e.ensaio] ?? 'filetext'} tam={13} />
-                            </span>
-                          ))}
-                        </span>
-                        {r.data} · {rotuloConteudo(r)}
-                        {r.responsavel ? ` · ${r.responsavel}` : ''}
-                      </small>
+                    <span className="wz-container-marca" aria-hidden="true">
+                      <Icone nome="check" tam={12} />
                     </span>
-                    <button
-                      type="button"
-                      className="wz-olho"
-                      title={`Ver o conteúdo de ${r.nome}`}
-                      aria-label={`Ver o conteúdo de ${r.nome}`}
-                      onClick={(e) => {
-                        // Dentro do <label>: sem isto o clique marcaria o radio.
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setPreview(r.id);
-                      }}
-                    >
-                      <Icone nome="eye" tam={16} />
-                    </button>
+                    <span className="wz-container-txt">
+                      <strong className="wz-container-nome">Não usar container</strong>
+                      <span className="wz-container-meta">Gerar relatório sem injeção de dados de inspeção</span>
+                    </span>
                   </label>
-                ))}
+                </div>
 
-                <label className={`wz-container wz-container-sem${containerId === null ? ' is-sel' : ''}`}>
-                  <input
-                    type="radio"
-                    name="wz-container"
-                    checked={containerId === null}
-                    onChange={() => setContainerId(null)}
-                  />
-                  <span className="wz-container-txt">
-                    <strong>Não usar container</strong>
-                    <small>Gerar relatório sem injeção de dados de inspeção</small>
-                  </span>
-                </label>
+                {resumos.length === 0 && (
+                  <p className="wz-vazio">
+                    Nenhuma inspeção salva para este equipamento ainda. O relatório será gerado sem
+                    dados de campo — o que já é um caminho válido.
+                  </p>
+                )}
               </div>
+            </>
+          )}
 
-              {resumos.length === 0 && (
-                <p className="wz-vazio">
-                  Nenhuma inspeção salva para este equipamento ainda. O relatório será gerado sem
-                  dados de campo — o que já é um caminho válido.
-                </p>
+          {/* ══ ETAPA 2 · CERTIFICADOS ════════════════════════════════════
+              Marcar um lote ACRESCENTA FOLHAS ao documento (`?calibId=`). Elas
+              nunca vieram de container. */}
+          {passo === 2 && (
+            <div className="campo-bloco-modal">
+              <div className="mni-secao">
+                <span className="label-bloco-modal">Certificados de calibração</span>
+                <span className="texto-ajuda-modal-inline">Entram como folhas no fim do relatório</span>
+              </div>
+              {itensCalibracao.length > 0 ? (
+                <div className="wz-certs">
+                  {itensCalibracao.map((i) => (
+                    <label
+                      key={i.id}
+                      className={`wz-cert${calibSelecionados.has(i.id) ? ' is-sel' : ''}`}
+                      title={i.lote ? 'Lote de calibração' : 'Calibração avulsa'}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={calibSelecionados.has(i.id)}
+                        onChange={() => toggleCalib(i.id)}
+                      />
+                      <span className="wz-cert-txt">
+                        <span className="wz-cert-tipo">{i.lote ? 'Lote de calibração' : 'Calibração avulsa'}</span>
+                        <span className="wz-cert-nome">{i.rotulo}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <div className="wz-vazio-caixa">
+                  <Icone nome="award" tam={22} />
+                  <strong>Nenhuma calibração para anexar</strong>
+                  <span>
+                    Este equipamento não tem lote nem calibração com folha. Siga para o resumo — o
+                    relatório sai sem certificados.
+                  </span>
+                </div>
               )}
             </div>
           )}
 
-          {/* ══ ETAPA 3 · REVISAR ═════════════════════════════════════════ */}
+          {/* ══ ETAPA 3 · RESUMO ══════════════════════════════════════════ */}
           {passo === 3 && (
             <div className="wz-revisao">
-              {/* A ilustração acompanha o PRIMEIRO bloco, no canto superior
-                  direito, e sai do fluxo depois dele — nada de reservar uma
-                  coluna até o fim do modal e deixar dois vazios embaixo. */}
-              <img
-                className="wz-rev-arte"
-                src="/ilustracoes/container-inspecao.webp"
-                alt=""
-                aria-hidden="true"
-                width={626}
-                height={417}
-                loading="lazy"
-              />
               <section className="wz-rev-bloco">
                 <h4>Equipamento</h4>
                 <p className="wz-rev-forte">{resumo.tag}</p>
-                <p className="wz-rev-sub">
-                  {[resumo.descricao, resumo.tipo].filter(Boolean).join(' · ') || 'Equipamento'}
-                </p>
+                <p className="wz-rev-sub">{descricaoEquip}</p>
               </section>
 
               <section className="wz-rev-bloco">
@@ -478,40 +509,30 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
               </section>
 
               <section className="wz-rev-bloco wz-rev-larga">
-                <h4>
-                  Documentos <span className="wz-rev-cont">{marcados.length}</span>
-                </h4>
-                <ul className="wz-rev-lista">
-                  {folhasDoTipo.filter((d) => marcados.includes(d)).map((d) => (
-                    <li key={d}>
-                      <Icone nome="check" tam={12} /> {ROTULOS[d] || d}
-                    </li>
-                  ))}
-                  {calibSelecionados.size > 0 && (
-                    <li>
-                      <Icone nome="check" tam={12} /> Certificados de calibração (
-                      {calibSelecionados.size})
-                    </li>
-                  )}
-                </ul>
-              </section>
-
-              <section className="wz-rev-bloco wz-rev-larga">
-                <h4>Inspeção selecionada</h4>
+                <h4>Inspeção</h4>
                 {escolhido ? (
                   <>
                     <p className="wz-rev-forte">{escolhido.nome}</p>
                     <p className="wz-rev-sub">
-                      {escolhido.data}
-                      {escolhido.responsavel ? ` · ${escolhido.responsavel}` : ''}
-                      {escolhido.totalFotos > 0 ? ` · ${escolhido.totalFotos} foto${escolhido.totalFotos > 1 ? 's' : ''}` : ''}
-                      {escolhido.totalMedicoes > 0 ? ` · ${escolhido.totalMedicoes} ${escolhido.totalMedicoes > 1 ? 'medições' : 'medição'}` : ''}
+                      {[
+                        escolhido.data,
+                        escolhido.responsavel,
+                        escolhido.totalFotos > 0 ? `${escolhido.totalFotos} foto${escolhido.totalFotos > 1 ? 's' : ''}` : null,
+                        escolhido.totalMedicoes > 0
+                          ? `${escolhido.totalMedicoes} ${escolhido.totalMedicoes > 1 ? 'medições' : 'medição'}`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </p>
-                    {revisaveis.length > 0 ? (
+                    {escolhido.salvos.length > 0 ? (
+                      <ChipsEnsaios r={escolhido} />
+                    ) : (
+                      <p className="wz-rev-ajuda">Esta inspeção ainda não tem ensaio preenchido.</p>
+                    )}
+                    {revisaveis.length > 0 && (
                       <>
-                        <p className="wz-rev-ajuda">
-                          Dados disponíveis. Desmarque o que não deve sair no documento:
-                        </p>
+                        <p className="wz-rev-ajuda">Desmarque o ensaio que não deve sair no documento:</p>
                         <div className="wz-rev-ensaios">
                           {revisaveis.map((e) => (
                             <label key={e.ensaio} className="item-documento-check">
@@ -525,17 +546,67 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
                           ))}
                         </div>
                       </>
-                    ) : (
-                      <p className="wz-rev-ajuda">
-                        Esta inspeção ainda não tem ensaio preenchido — as folhas de ensaio sairão
-                        em branco.
-                      </p>
                     )}
                   </>
                 ) : (
-                  <p className="wz-rev-sub">
-                    Nenhum container selecionado. O relatório será gerado sem dados de inspeção.
+                  <p className="wz-rev-sub">Nenhum container selecionado. O relatório será gerado sem dados de inspeção.</p>
+                )}
+              </section>
+
+              <section className="wz-rev-bloco wz-rev-larga">
+                <div className="wz-rev-titulo">
+                  <h4>
+                    Documentos que serão gerados <span className="wz-rev-cont">{marcadosDoTipo.length}</span>
+                  </h4>
+                  <button type="button" className="wz-link" onClick={() => setPainelDocs(true)}>
+                    <Icone nome="engrenagem" tam={14} /> Ajustar documentos
+                  </button>
+                </div>
+                {marcadosDoTipo.length === 0 ? (
+                  <p className="wz-aviso-geral" role="alert">
+                    <Icone nome="alerttri" tam={14} /> Nenhuma folha marcada. Marque ao menos uma em
+                    “Ajustar documentos” para gerar o relatório.
                   </p>
+                ) : (
+                  <ol className="wz-rev-lista">
+                    {marcadosDoTipo.map((d) => (
+                      <li key={d}>
+                        <span className="wz-rev-doc">
+                          <Icone nome="check" tam={12} />
+                          <span>{rotuloDaFolha(d)}</span>
+                        </span>
+                        {d === FOLHA_VERIFICACAO_CALDEIRA && verificacaoSalva && (
+                          <span className="wz-rev-nota">inclui a Verificação NR-13 da inspeção</span>
+                        )}
+                        {semDados.has(d) && (
+                          <span className="wz-tag-aviso">
+                            <Icone nome="alerttri" tam={12} />
+                            sem dados na inspeção — sai em branco
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </section>
+
+              <section className="wz-rev-bloco wz-rev-larga">
+                <h4>
+                  Certificados <span className="wz-rev-cont">{calibEscolhidas.length}</span>
+                </h4>
+                {calibEscolhidas.length > 0 ? (
+                  <ul className="wz-rev-lista">
+                    {calibEscolhidas.map((i) => (
+                      <li key={i.id}>
+                        <span className="wz-rev-doc">
+                          <Icone nome="check" tam={12} />
+                          <span>{i.rotulo}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="wz-rev-sub">Nenhum certificado anexado.</p>
                 )}
               </section>
             </div>
@@ -543,6 +614,9 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
         </div>
 
         <div className="modal-actions mni-rodape wz-rodape">
+          {passo === 3 && !geravel && (
+            <span className="wz-rodape-motivo">Marque ao menos uma folha para gerar.</span>
+          )}
           {passo === 1 ? (
             <button type="button" className="btn-secundario" onClick={onClose}>
               Cancelar
@@ -562,15 +636,96 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
               Próximo
             </button>
           ) : (
-            <button type="button" className="btn-primario" disabled={gerando} onClick={() => void gerar()}>
-              {gerando ? 'Gerando…' : 'Gerar Documento'}
+            <button
+              type="button"
+              className={`btn-primario${gerando ? ' is-gerando' : ''}`}
+              disabled={gerando || !geravel}
+              aria-busy={gerando}
+              onClick={() => void gerar()}
+            >
+              {gerando && <span className="wz-spinner" aria-hidden="true" />}
+              {gerando ? 'Gerando…' : 'Gerar documento'}
             </button>
           )}
         </div>
 
+        {/* ── A ENGRENAGEM ───────────────────────────────────────────────────
+            Mesmo desenho do olho: painel SOBRE o assistente, dentro da mesma
+            caixa. Fechar devolve a etapa em que o usuário estava. */}
+        {painelDocs && (
+          <div className="wz-preview wz-painel" role="dialog" aria-modal="true" aria-label="Documentos do relatório">
+            <div className="wz-preview-caixa wz-painel-caixa">
+              <div className="wz-preview-head">
+                <div>
+                  <div className="fj-eyebrow">Composição</div>
+                  <h4>Documentos do relatório</h4>
+                </div>
+                <button type="button" className="btn-close-modal" onClick={() => setPainelDocs(false)} aria-label="Fechar">
+                  ×
+                </button>
+              </div>
+              <div className="wz-preview-corpo">
+                <h5 className="wz-preview-titulo">Estrutura do relatório</h5>
+                <div className="wz-docs">
+                  {folhasDoTipo.map((doc) =>
+                    FOLHAS_ENSAIO.has(doc) ? null : (
+                      <label key={doc} className="wz-doc">
+                        <input type="checkbox" checked={marcados.includes(doc)} onChange={() => toggle(doc)} />
+                        <span className="wz-doc-txt">
+                          <span className="wz-doc-nome">{rotuloDaFolha(doc)}</span>
+                          {doc === FOLHA_VERIFICACAO_CALDEIRA && (
+                            <span className="wz-doc-dica">
+                              inclui a Verificação NR-13 da inspeção
+                              {verificacaoSalva ? ' (com dados)' : ''}
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    ),
+                  )}
+                </div>
+                {estrutura.length === 0 && <p className="wz-preview-nada">Sem folhas de estrutura.</p>}
+
+                {deEnsaio.length > 0 && (
+                  <>
+                    <h5 className="wz-preview-titulo">Folhas de ensaio (dados da inspeção)</h5>
+                    <div className="wz-docs">
+                      {deEnsaio.map((doc) => (
+                        <label key={doc} className="wz-doc">
+                          <input type="checkbox" checked={marcados.includes(doc)} onChange={() => toggle(doc)} />
+                          <span className="wz-doc-txt">
+                            <span className="wz-doc-nome">{rotuloDaFolha(doc)}</span>
+                          </span>
+                          <span className={`wz-doc-estado${comDados.has(doc) ? ' is-ok' : ''}`}>
+                            {comDados.has(doc) ? 'com dados' : 'sem dados'}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {!geravel && (
+                  <p className="wz-aviso-geral" role="alert">
+                    <Icone nome="alerttri" tam={14} /> Marque ao menos uma folha — sem nenhuma, não há
+                    documento para gerar.
+                  </p>
+                )}
+              </div>
+              <div className="wz-preview-rodape">
+                <button type="button" className="btn-secundario" onClick={restaurarPadrao}>
+                  Restaurar padrão
+                </button>
+                <button type="button" className="btn-primario" onClick={() => setPainelDocs(false)}>
+                  Concluir
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── O OLHO ─────────────────────────────────────────────────────────
             Painel SOBRE o assistente, dentro da mesma caixa: fechar devolve a
-            etapa 2 exatamente como estava, com o radio onde estava. Nada é
+            etapa 1 exatamente como estava, com o radio onde estava. Nada é
             desmontado — é por isso que ele não pode ser outro modal. */}
         {emPreview && (
           <div
@@ -648,7 +803,7 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
                   type="button"
                   className="btn-primario"
                   onClick={() => {
-                    setContainerId(emPreview.id);
+                    escolherContainer(emPreview.id);
                     setPreview(null);
                   }}
                 >
@@ -659,6 +814,7 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
