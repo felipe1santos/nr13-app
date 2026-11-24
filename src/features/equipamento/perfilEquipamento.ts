@@ -59,6 +59,9 @@ export const DOCUMENTOS_CALDEIRA: readonly string[] = [
   'LIVRO-REGISTRO.html',
   // 23/11/2026 · seção 8, no fim: o Relatório de Imagens da inspeção.
   'RELATORIO-IMAGENS.html',
+  // 23/11/2026 · fotos da documentação e do checklist da inspeção, também na
+  // seção 8 — antes o checklist da caldeira não tinha onde sair.
+  'CALD-FOTOS-CHECKLIST.html',
 ];
 
 export function ehCaldeira(tipo: TipoEquipamento | string | null | undefined): boolean {

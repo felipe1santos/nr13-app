@@ -25,6 +25,7 @@ import {
   passoSeguinte,
   podeAvancar,
   podeGerar,
+  containerPadrao,
   progressoDoPasso,
   rotuloDaFolha,
   type PassoWizard,
@@ -134,13 +135,20 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
   // sempre; caldeira, a dela (perfilEquipamento.DOCUMENTOS_CALDEIRA).
   // Sem o Livro de Registro: ele é manual (Registros de Segurança), 23/11/2026.
   const folhasDoTipo = useMemo(() => folhasOferecidas(documentosDoTipo(tipoDaTag(tag))), [tag]);
-  const [marcados, setMarcados] = useState<string[]>(() =>
-    documentosPadraoParaContainer(documentosDoTipo(tipoDaTag(tag)), null),
+  // Os containers e os resumos são calculados UMA vez: `listarContainers` lê do
+  // cache em memória, e refazer a conta a cada passo faria a lista piscar.
+  const resumos = useMemo<ResumoContainer[]>(
+    () => (tag ? listarContainers(tag).map(resumirContainer) : []),
+    [tag],
   );
+  // 23/11/2026 · a inspeção mais recente com dado já vem escolhida (antes vinha
+  // "Não usar container" e o relatório saía sem nada do campo).
+  const inicial = useMemo(() => resumos.find((r) => r.id === containerPadrao(resumos)) ?? null, [resumos]);
+  const [marcados, setMarcados] = useState<string[]>(() => documentosPadraoParaContainer(folhasDoTipo, inicial));
   /** O usuário mexeu nas folhas à mão: trocar de inspeção não pode desfazer isso. */
   const [docsEditados, setDocsEditados] = useState(false);
   const [calibSelecionados, setCalibSelecionados] = useState<Set<string>>(new Set());
-  const [containerId, setContainerId] = useState<string | null>(null);
+  const [containerId, setContainerId] = useState<string | null>(() => inicial?.id ?? null);
   /** O olho: id do container em pré-visualização. Não fecha o assistente. */
   const [preview, setPreview] = useState<string | null>(null);
   /** A engrenagem: painel dos documentos, dentro da mesma caixa. */
@@ -148,12 +156,6 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
   const [gerando, setGerando] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
 
-  // Os containers e os resumos são calculados UMA vez: `listarContainers` lê do
-  // cache em memória, e refazer a conta a cada passo faria a lista piscar.
-  const resumos = useMemo<ResumoContainer[]>(
-    () => (tag ? listarContainers(tag).map(resumirContainer) : []),
-    [tag],
-  );
   const escolhido = useMemo(
     () => resumos.find((r) => r.id === containerId) ?? null,
     [resumos, containerId],

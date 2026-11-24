@@ -23,7 +23,7 @@
  * 2018 da NR-13.
  */
 import type { CelulaDoc, Documento } from './documento';
-import { COR, FONTE } from './documentoA4';
+import { COR, FONTE, LIMITE_CORPO } from './documentoA4';
 import { textoOu, type ModeloRelatorio } from './modelo';
 import { assinaturas, blocoPlaca, folhasExameExterno, folhasExameInterno, folhasTesteHidrostatico, folhaUltrassom } from './folhas';
 import { folhasAcumulacao } from './folhaAcumulacao';
@@ -109,6 +109,9 @@ function tabelaGrupo(doc: Documento, mc: ModeloCaldeira, g: GrupoCaldeira, porLi
     while (linha.length < porLinha * 2) linha.push({ texto: '' }, { texto: '' });
     pares.push(linha);
   }
+  // O título do grupo nunca fica sozinho no pé da folha (23/11/2026): o
+  // "CHAMINÉ" saía na última linha da 1.2 e a tabela dele na folha seguinte.
+  doc.garantirEspaco(16);
   doc.secao(g.titulo.toUpperCase());
   const colunas = porLinha === 3 ? [0.15, 0.183, 0.15, 0.183, 0.15, 0.184] : [0.24, 0.26, 0.24, 0.26];
   doc.tabela({ compacta: true, esticavel: true, colunas, linhas: pares });
@@ -229,13 +232,22 @@ export const SUMARIO_CALDEIRA: ItemSumarioCaldeira[] = [
   { numero: '6', titulo: 'ART' },
   { numero: '7', titulo: 'Livro de Registro de Segurança' },
   { numero: '8', titulo: 'Registro fotográfico' },
+  { numero: '8.1', titulo: 'Fotos da documentação' },
+  { numero: '8.2', titulo: 'Fotos do checklist' },
 ];
 
 export function folhaSumarioCaldeira(doc: Documento, paginas: Map<string, number>, itens: ItemSumarioCaldeira[]): void {
   doc.novaFolha();
   doc.banner('SUMÁRIO');
+  // 23/11/2026 · o sumário ocupava só o terço de cima da folha (tabela compacta,
+  // linhas de 4 mm) e deixava o resto em branco. Agora as linhas dividem a
+  // altura útil da folha — com teto, para não virarem faixas de 2 cm quando a
+  // lista for curta. O cabeçalho da tabela e uma margem saem da conta.
+  const util = LIMITE_CORPO - doc.y - 12;
+  const porLinha = Math.max(6, Math.min(13, util / Math.max(1, itens.length)));
   doc.tabela({
-    compacta: true,
+    alturaMinima: porLinha,
+    centroVertical: true,
     colunas: [0.12, 0.73, 0.15],
     cabecalho: ['ITEM', 'DOCUMENTO', 'PÁGINA'],
     linhas: itens.map((it) => {

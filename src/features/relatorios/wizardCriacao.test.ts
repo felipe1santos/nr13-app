@@ -16,6 +16,8 @@ import {
   podeGerar,
   progressoDoPasso,
   rotuloDaFolha,
+  containerPadrao,
+  FOLHA_FOTOS_CHECKLIST_CALDEIRA,
 } from './wizardCriacao';
 import { DOCUMENTOS_CALDEIRA } from '../equipamento/perfilEquipamento';
 import { DOC_DO_ENSAIO } from '../inspecoes/resumoContainer';
@@ -374,5 +376,37 @@ describe('Livro de Registro fora da criação (23/11/2026)', () => {
     expect(folhasOferecidas(DOCUMENTOS_CALDEIRA)).not.toContain('LIVRO-REGISTRO.html');
     expect(folhasOferecidas(DOCUMENTOS_DISPONIVEIS)).not.toContain('LIVRO-REGISTRO.html');
     expect(folhasOferecidas(['CAPA.html', 'LIVRO-REGISTRO.html'])).toEqual(['CAPA.html']);
+  });
+});
+
+describe('containerPadrao — a inspeção já vem escolhida (23/11/2026)', () => {
+  const r = (id: string, n: number) => ({ id, salvos: Array.from({ length: n }, () => ({}) as never) });
+  it('escolhe a mais recente COM dado salvo, pelo carimbo do id', () => {
+    expect(containerPadrao([r('cont1000_a', 2), r('cont3000_c', 1), r('cont2000_b', 4)])).toBe('cont3000_c');
+  });
+  it('ignora container vazio', () => {
+    expect(containerPadrao([r('cont1000_a', 2), r('cont9000_z', 0)])).toBe('cont1000_a');
+  });
+  it('sem nenhum container com dado: nenhum (= "Não usar container")', () => {
+    expect(containerPadrao([])).toBeNull();
+    expect(containerPadrao([r('cont1000_a', 0)])).toBeNull();
+  });
+  it('id sem carimbo: vale a última da lista', () => {
+    expect(containerPadrao([r('x', 1), r('y', 1)])).toBe('y');
+  });
+});
+
+describe('fotos do checklist da caldeira (8.1/8.2) — 23/11/2026', () => {
+  const resumo = (fotos: number) =>
+    ({ salvos: [{ ensaio: 'checklist', fotos }] }) as unknown as Parameters<typeof folhasComDados>[0];
+  it('checklist COM foto acende a folha de fotos da caldeira', () => {
+    expect(folhasComDados(resumo(3)).has(FOLHA_FOTOS_CHECKLIST_CALDEIRA)).toBe(true);
+  });
+  it('checklist sem foto não acende (a seção não sairia)', () => {
+    expect(folhasComDados(resumo(0)).has(FOLHA_FOTOS_CHECKLIST_CALDEIRA)).toBe(false);
+  });
+  it('a caldeira oferece a folha; o vaso não a recebe', () => {
+    expect(DOCUMENTOS_CALDEIRA).toContain(FOLHA_FOTOS_CHECKLIST_CALDEIRA);
+    expect(documentosPadraoParaContainer(['CAPA.html'], resumo(3))).not.toContain(FOLHA_FOTOS_CHECKLIST_CALDEIRA);
   });
 });

@@ -71,3 +71,21 @@ export function avaliacaoVinteECincoAnos(anoFabricacao: string | number | null |
   const idade = anoReferencia - ano;
   return { idade, exige: idade >= 25 };
 }
+
+/**
+ * As próximas inspeções SUGERIDAS para um relatório NOVO de caldeira
+ * (23/11/2026): data da inspeção + prazo máximo da NR-13 para a categoria
+ * (13.4.4.4 a: 12 meses, exames interno e externo). Entram na meta como
+ * PREENCHIMENTO INICIAL — o PLH muda nas Configurações do relatório, e o
+ * vencimento oficial continua lendo a meta (decisão B do dono). Sem categoria
+ * A/B ou sem data válida, nada é sugerido.
+ */
+export function proximasSugeridasCaldeira(
+  categoria: string | null | undefined,
+  dataInspecaoBr: string,
+): { interna: string; externa: string } | null {
+  const prazo = prazoMaximoCaldeira(categoria);
+  if (!prazo) return null;
+  const data = somarMesesBr(dataInspecaoBr, prazo.meses);
+  return data ? { interna: data, externa: data } : null;
+}

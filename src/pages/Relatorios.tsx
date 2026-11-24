@@ -70,7 +70,7 @@ import { ehRascunhoConhecido } from '../features/relatorios/rascunhos';
 import { duplicarRelatorio } from '../features/relatorios/duplicarRelatorio';
 import { pmtaDoDocumentoMpa, tipoDaTag } from '../features/equipamento/perfilEquipamento';
 import { categoriaExibida } from '../features/caldeira/categoriaExibida';
-import { prazoMaximoCaldeira, somarMesesBr } from '../features/caldeira/prazosCaldeira';
+import { prazoMaximoCaldeira, proximasSugeridasCaldeira, somarMesesBr } from '../features/caldeira/prazosCaldeira';
 import { abrirRelatorio, avisoDaAbertura } from '../features/relatorios/aberturaRelatorio';
 import { ultimaLacrada, type LivroEntrada } from '../features/relatorios/livroLacre';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
@@ -838,6 +838,16 @@ function RelatoriosLegado() {
     let novaMeta = metaPadrao(pendente.tipo);
     novaMeta.documentos = comTermo; // SUMARIO/INSPECOES leem isto pra montar TOC e ensaios
     if (containerId) novaMeta.containerOrigemId = containerId;
+    // 23/11/2026 · caldeira: a próxima inspeção já nasce SUGERIDA pelo prazo
+    // máximo da NR-13 (13.4.4.4) — antes a folha 1.3 saía com o prazo em branco.
+    // É só o preenchimento inicial; o PLH muda nas Configurações.
+    if (tipoDaTag(tagAtual) === 'caldeira') {
+      const sug = proximasSugeridasCaldeira(categoriaExibida(tagAtual), novaMeta.execucaoInspecao);
+      if (sug) {
+        novaMeta.proximaInspecaoInterna = sug.interna;
+        novaMeta.proximaInspecaoExterna = sug.externa;
+      }
+    }
     // Assinantes do motor de assinatura: grava nr13_assinantes_rel_<TAG> ANTES de montar os
     // iframes e espelha engenheiro/técnico na meta (livro de registro usa phNome/phCrea).
     const funcs = listarFuncionarios();

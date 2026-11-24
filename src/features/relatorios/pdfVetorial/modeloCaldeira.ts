@@ -205,8 +205,16 @@ export function montarModeloCaldeira(
   const pmoMpa = numeroDoStorage(info.pmoAdotadaMpa);
   const { classificacao } = classificacaoDaFicha(dados, info as PressoesDaFicha, calc.pmta as string | undefined);
 
-  const us = (injecao.ultrassom ?? {}) as { caldeira?: MedicaoCaldeira; resultado?: unknown; medidas?: unknown };
+  const us = (injecao.ultrassom ?? {}) as { caldeira?: MedicaoCaldeira; resultado?: unknown; medidas?: unknown; aparelho?: unknown };
   const medicao = us.caldeira && temMedicaoCaldeira(us.caldeira) ? us.caldeira : null;
+  // 23/11/2026 · sem certificado PADRÃO de ultrassom cadastrado, o bloco
+  // "INSTRUMENTO UTILIZADO" da 2.1 saía em branco mesmo com o aparelho digitado
+  // na medição de campo ("Aparelho / Nº de Série"). O cadastro continua vencendo;
+  // o aparelho do container só preenche o que estava vazio.
+  const aparelho = typeof us.aparelho === 'string' && us.aparelho.trim() ? us.aparelho.trim() : null;
+  if (aparelho && !base.ultrassom.instrumento.padrao) {
+    base.ultrassom = { ...base.ultrassom, instrumento: { ...base.ultrassom.instrumento, padrao: aparelho } };
+  }
 
   // ── Verificação pela espessura medida ──────────────────────────────────
   const cos = memorial.costado ?? {};

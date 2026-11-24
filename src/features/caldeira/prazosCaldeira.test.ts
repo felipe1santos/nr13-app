@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { avaliacaoVinteECincoAnos, prazoMaximoCaldeira, somarMesesBr } from './prazosCaldeira';
+import { avaliacaoVinteECincoAnos, prazoMaximoCaldeira, somarMesesBr, proximasSugeridasCaldeira } from './prazosCaldeira';
 
 describe('prazo máximo da inspeção periódica (NR-13 13.4.4.4 / 13.4.4.5)', () => {
   it('A e B = 12 meses (13.4.4.4 a)', () => {
@@ -48,5 +48,16 @@ describe('13.4.4.6 — 25 anos', () => {
   it('ano ausente ou absurdo = sem avaliação', () => {
     expect(avaliacaoVinteECincoAnos('', 2026)).toBeNull();
     expect(avaliacaoVinteECincoAnos('3000', 2026)).toBeNull();
+  });
+});
+
+describe('proximasSugeridasCaldeira — prazo já sugerido no relatório novo (23/11/2026)', () => {
+  it('A/B: data da inspeção + 12 meses, interna e externa', () => {
+    expect(proximasSugeridasCaldeira('B', '23/11/2026')).toEqual({ interna: '23/11/2027', externa: '23/11/2027' });
+    expect(proximasSugeridasCaldeira('A', '29/02/2028')).toEqual({ interna: '28/02/2029', externa: '28/02/2029' });
+  });
+  it('sem categoria A/B ou sem data válida: nada', () => {
+    expect(proximasSugeridasCaldeira('Não categorizado', '23/11/2026')).toBeNull();
+    expect(proximasSugeridasCaldeira('B', '')).toBeNull();
   });
 });

@@ -844,6 +844,13 @@ export class Documento {
      * vez de empurrá-lo todo para um retângulo em branco no fim.
      */
     alturaMinima?: number;
+    /**
+     * Centraliza o texto na ALTURA da linha (23/11/2026). Só faz diferença
+     * quando a linha é mais alta que o texto (`alturaMinima`); sem ela, o texto
+     * fica no topo, como sempre — o sumário da caldeira, com linhas altas para
+     * ocupar a folha, ficava com o texto grudado na borda de cima.
+     */
+    centroVertical?: boolean;
   }): void {
     const tamanho = opcoes.compacta ? FONTE.tabelaCompacta : FONTE.tabela;
     const padX = 1.4;
@@ -976,7 +983,9 @@ export class Documento {
                 : COR.texto,
         );
         const linhasCel = this.pdf.splitTextToSize(cel.texto, larg - padX * 2) as string[];
-        let yc = this.cursor + padY;
+        let yc = opcoes.centroVertical
+          ? this.cursor + Math.max(padY, (altura - alturaLinha(tamanho) * linhasCel.length) / 2)
+          : this.cursor + padY;
         for (const l of linhasCel) {
           this.pdf.text(l, cel.centro ? x + larg / 2 : x + padX, yc + alturaLinha(tamanho) * 0.78, {
             align: cel.centro ? 'center' : 'left',

@@ -89,6 +89,8 @@ export const FOLHAS_ENSAIO: ReadonlySet<string> = new Set<string>([
   'RELATORIO-IMAGENS.html',
   'ENSAIO-ACUMULACAO.html',
   'CALD-ALIMENTACAO-AGUA.html',
+  // 23/11/2026 · fotos da documentação e do checklist da caldeira (seção 8).
+  'CALD-FOTOS-CHECKLIST.html',
 ]);
 
 /** O nome de cada folha na tela do assistente. */
@@ -118,8 +120,12 @@ export const ROTULOS_FOLHA: Readonly<Record<string, string>> = {
   'CALD-CALCULOS.html': 'Cálculos de pressão interna (corpo e espelhos)',
   // 23/11/2026 · faltava: a caldeira mostrava o nome do arquivo.
   'CALD-ALIMENTACAO-AGUA.html': 'Alimentação de água e controle de nível (2.3)',
+  'CALD-FOTOS-CHECKLIST.html': 'Fotos da documentação e do checklist (8)',
   'LIVRO-REGISTRO.html': 'Livro de Registro de Segurança (NR-13)',
 };
+
+/** A folha de fotos do checklist da caldeira (seção 8) — só existe no tipo caldeira. */
+export const FOLHA_FOTOS_CHECKLIST_CALDEIRA = 'CALD-FOTOS-CHECKLIST.html';
 
 export function rotuloDaFolha(doc: string): string {
   return ROTULOS_FOLHA[doc] ?? doc;
@@ -135,6 +141,9 @@ export function folhasComDados(resumo: ResumoContainer | null): Set<string> {
   for (const e of resumo.salvos) {
     const doc = DOC_DO_ENSAIO[e.ensaio];
     if (doc) docs.add(doc);
+    // O checklist alimenta várias folhas (DOC_DO_ENSAIO = null); na caldeira, as
+    // FOTOS dele têm folha própria. Só conta se há foto — sem foto, a seção não sai.
+    if (e.ensaio === 'checklist' && e.fotos > 0) docs.add(FOLHA_FOTOS_CHECKLIST_CALDEIRA);
   }
   return docs;
 }
@@ -206,4 +215,27 @@ export function documentosFinais(
  */
 export function alternarDocumento(marcados: string[], doc: string): string[] {
   return marcados.includes(doc) ? marcados.filter((d) => d !== doc) : [...marcados, doc];
+}
+
+/**
+ * A inspeção que o assistente já traz ESCOLHIDA (23/11/2026, pedido do dono).
+ *
+ * O assistente abria com "Não usar container" marcado: quem clicava Próximo
+ * direto gerava um relatório sem nada da inspeção de campo — fotos, ensaios,
+ * medições — e a queixa era "os dados do container não entram no relatório".
+ * Agora vem marcada a inspeção MAIS RECENTE que tem algum ensaio salvo (o
+ * carimbo `cont<ms>` do id; sem carimbo, a última da lista). Container vazio
+ * não é escolhido: ele não traria dado nenhum. "Não usar container" continua
+ * disponível para quem quiser.
+ */
+export function containerPadrao(resumos: readonly Pick<ResumoContainer, 'id' | 'salvos'>[]): string | null {
+  const carimbo = (id: string) => Number(/^cont(\d+)/.exec(id)?.[1] ?? NaN);
+  let melhor: { id: string; ts: number; pos: number } | null = null;
+  resumos.forEach((r, pos) => {
+    if (r.salvos.length === 0) return;
+    const ts = carimbo(r.id);
+    const t = Number.isFinite(ts) ? ts : -1;
+    if (!melhor || t > melhor.ts || (t === melhor.ts && pos > melhor.pos)) melhor = { id: r.id, ts: t, pos };
+  });
+  return (melhor as { id: string } | null)?.id ?? null;
 }

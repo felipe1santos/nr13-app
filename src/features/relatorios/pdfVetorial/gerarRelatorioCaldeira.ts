@@ -43,7 +43,7 @@ import {
   folhaAlimentacaoCaldeira,
   folhaPlacaCaldeira,
 } from './folhasCaldeira';
-import { folhasExameExterno, folhasExameInterno } from './folhas';
+import { folhaDeFotos, folhasExameExterno, folhasExameInterno } from './folhas';
 import { secaoLivroRegistro } from './livroRegistro';
 import type { SecaoRelatorio } from './composicao';
 import { ler } from '../../../services/storage';
@@ -73,6 +73,8 @@ export const FOLHAS_CALDEIRA = {
   livro: ['LIVRO-REGISTRO.HTML'],
   // 23/11/2026 · o Relatório de Imagens da inspeção, no FIM do relatório (seção 8).
   imagens: ['RELATORIO-IMAGENS.HTML'],
+  // 23/11/2026 · fotos da documentação e do checklist da inspeção (8.1 e 8.2).
+  fotosChecklist: ['CALD-FOTOS-CHECKLIST.HTML'],
 } as const;
 
 export type SecaoCaldeira = keyof typeof FOLHAS_CALDEIRA;
@@ -333,6 +335,19 @@ function emitirCaldeira(
   if (tem.imagens && b.relatorioImagens.desenho.length > 0) {
     anotar('8');
     secaoRelatorioImagens(doc, b.relatorioImagens.desenho, TITULO_FOTOS_CALDEIRA);
+  }
+  // 8.1 e 8.2 (23/11/2026) — as fotos que o técnico anexou no CHECKLIST da
+  // inspeção (documentação e itens). Antes elas ficavam no container e nenhuma
+  // folha da caldeira as imprimia. Mesmo desenho das fotos do vaso (4 por folha).
+  if (tem.fotosChecklist && b.fotosDocumentacao.length > 0) {
+    anotar('8');
+    anotar('8.1');
+    folhaDeFotos(doc, '8.1 REGISTRO FOTOGRÁFICO — DOCUMENTAÇÃO', b.fotosDocumentacao);
+  }
+  if (tem.fotosChecklist && b.fotosChecklist.length > 0) {
+    anotar('8');
+    anotar('8.2');
+    folhaDeFotos(doc, '8.2 REGISTRO FOTOGRÁFICO — CHECKLIST', b.fotosChecklist);
   }
 }
 
