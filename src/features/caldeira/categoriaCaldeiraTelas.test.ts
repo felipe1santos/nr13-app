@@ -104,22 +104,29 @@ describe('as portas usam a regra', () => {
 describe('ficha da caldeira organizada (23/11/2026)', () => {
   const s = fonte('src/pages/Equipamento.tsx');
   const cald = s.slice(s.indexOf("{info.tipo === 'caldeira' ? (\n        <>"), s.indexOf(') : (\n        <>\n'));
-  it('ordem: dados (+placa) → pressões → memorial → construção/operação/acessórios → vida → empresa', () => {
+  it('ordem: dados (+placa) → pressões → memorial → construção/operação/acessórios → empresa', () => {
     const pos = [
       'data-secao="dados"',
       'bloco="placa"',
       'data-secao="pressoes"',
       'Memorial de Cálculo',
       "['construcao', 'operacao', 'acessorios']",
-      'data-secao="vida"',
       'data-secao="empresa"',
     ].map((m) => cald.indexOf(m));
     expect(pos.every((p) => p >= 0)).toBe(true);
     expect([...pos].sort((a, b) => a - b)).toEqual(pos);
   });
+  it('vida remanescente logo abaixo da classificação, só na caldeira (23/11/2026)', () => {
+    const classif = s.indexOf('<SecaoClassificacaoCaldeira');
+    const vida = s.indexOf('data-secao="vida"');
+    expect(classif).toBeGreaterThan(0);
+    expect(vida).toBeGreaterThan(classif);
+    expect(vida).toBeLessThan(s.indexOf('data-secao="dados"'));
+    expect(cald).not.toContain('data-secao="vida"');
+  });
   it('nada saiu: empresa e vida continuam na ficha da caldeira', () => {
     expect(cald).toContain('<DadosEmpresa tag={tag} />');
-    expect(cald).toContain('<VidaRemanescente tag={tag} info={info} />');
+    expect(s).toContain('<VidaRemanescente tag={tag} info={info} />');
     expect(cald).toContain('<DadosEquipamento info={info} onSalvo={setInfo} />');
   });
   it('todos os grupos da ficha da caldeira pertencem a algum bloco', async () => {

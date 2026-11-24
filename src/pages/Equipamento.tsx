@@ -154,7 +154,7 @@ function EquipamentoView({ tag }: { tag: string }) {
   const rotuloTipo = ROTULO_TIPO[info.tipo] + (info.subtipo && info.subtipo !== 'flamotubular' ? ` (${info.subtipo})` : '');
 
   return (
-    <div className="equipamento-page">
+    <div className={`equipamento-page${info.tipo === 'caldeira' ? ' ficha-caldeira' : ''}`}>
       {/* Cobalto: barra fixa do protótipo — voltar, trilha e os chips de tipo e
           unidade (INFORMAÇÃO, não controle; os mesmos do cartão). */}
       <div className="fx-bar">
@@ -322,6 +322,13 @@ function EquipamentoView({ tag }: { tag: string }) {
         )}
       </section>
 
+      {/* 23/11/2026 · CALDEIRA: vida remanescente logo abaixo da classificação. */}
+      {info.tipo === 'caldeira' && (
+        <section className="equipamento-secao" data-secao="vida">
+          <VidaRemanescente tag={tag} info={info} />
+        </section>
+      )}
+
       {info.tipo === 'caldeira' ? (
         <>
           {/* CALDEIRA (23/11/2026): ficha organizada por hierarquia — dados do
@@ -359,25 +366,27 @@ function EquipamentoView({ tag }: { tag: string }) {
               <div className="memorial-resumo-grid">
             <div className="resultado-item">
               <span className="lbl-view">PMTA Calculada</span>
-              <span className="val-view accent" style={{ fontSize: 16 }}>
+              <span className="val-view accent mem-chip" style={{ fontSize: 16 }}>
                 {pmtaMpa != null ? formatarValor(pmtaMpa, unidade) : '—'}
               </span>
             </div>
             <div className="resultado-item">
               <span className="lbl-view">PTH (1,5×PMTA)</span>
-              <span className="val-view">
+              <span className="val-view mem-chip">
                 {calculo?.pth ? formatarValor(parseFloat(calculo.pth), unidade) : '—'}
               </span>
             </div>
             <div className="resultado-item">
               <span className="lbl-view">Resultado</span>
-              <span className={`val-view ${calculo?.resultado === 'REPROVADO' ? 'val-erro' : ''}`}>
+              <span
+                className={`val-view ${calculo?.resultado === 'REPROVADO' ? 'val-erro mem-status erro' : calculo?.resultado === 'APROVADO' ? 'mem-status ok' : ''}`}
+              >
                 {calculo?.resultado ?? '—'}
               </span>
             </div>
             <div className="resultado-item">
               <span className="lbl-view">Volume</span>
-              <span className="val-view">
+              <span className="val-view mem-chip">
                 {/* Caldeira: o volume da classificação, não o da calculadora de vaso. */}
                 {volumeCaldeiraM3 !== null ? `${volumeCaldeiraM3.toLocaleString('pt-BR', { maximumFractionDigits: 4 })} m³` : '—'}
               </span>
@@ -434,9 +443,6 @@ function EquipamentoView({ tag }: { tag: string }) {
               </div>
             </section>
           ))}
-      <section className="equipamento-secao" data-secao="vida">
-        <VidaRemanescente tag={tag} info={info} />
-      </section>
 
           <section className="equipamento-secao" data-secao="empresa">
             <div className="bloco-dados">

@@ -121,7 +121,10 @@ export default function FichaCaldeira({
           >
             <Icone nome={conteudoVisivel ? 'chevdown' : 'chevright'} tam={14} />
             <h3>{def.titulo}</h3>
-            <small>
+            {/* Selo do bloco (23/11/2026): completo = aprovado, parcial = informação, vazio = atenção. */}
+            <small
+              className={`ficha-cald-selo ${preenchidos === 0 ? 'atencao' : preenchidos === grupos.length ? 'ok' : 'info'}`}
+            >
               {preenchidos === 0 ? 'não preenchido' : `${preenchidos} de ${grupos.length} preenchido${grupos.length > 1 ? 's' : ''}`}
             </small>
           </button>
@@ -154,16 +157,17 @@ export default function FichaCaldeira({
         grupos.map((g) => {
           if (!editando && !grupoPreenchido(dados, g)) return null;
           return (
-            <div key={g.id} className="ficha-grupo">
+            <div key={g.id} className="ficha-grupo" data-grupo={g.id}>
               {grupos.length > 1 && <h5 className="ficha-grupo-titulo">{g.titulo}</h5>}
               <div className={editando ? 'memorial-campos-grid' : 'dash-grid-4'}>
                 {g.campos.map((c) => {
                   const rotulo = c.unidade ? `${c.rotulo} (${c.unidade})` : c.rotulo;
                   if (!editando) {
+                    const valor = valorCaldeira(dados, c.chave);
                     return (
-                      <div key={c.chave} className="resultado-item">
+                      <div key={c.chave} className="resultado-item" data-campo={c.chave}>
                         <span className="lbl-view">{rotulo}</span>
-                        <span className="val-view">{valorCaldeira(dados, c.chave) || '—'}</span>
+                        <span className={`val-view${valor.trim() ? '' : ' vazio'}`}>{valor || '—'}</span>
                       </div>
                     );
                   }

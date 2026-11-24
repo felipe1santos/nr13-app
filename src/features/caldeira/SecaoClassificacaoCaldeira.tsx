@@ -197,6 +197,9 @@ export default function SecaoClassificacaoCaldeira({
         )}
       </div>
 
+      {/* 23/11/2026 · ① e ② lado a lado (sobrava espaço à direita). Na edição
+          o formulário do volume precisa da largura toda: volta a empilhar. */}
+      <div className={`cc-par${editando ? ' cc-par-edicao' : ''}`}>
       {/* ① VOLUME */}
       <section className="cc-etapa">
         <h4><span className="cc-num">1</span> Volume</h4>
@@ -286,6 +289,8 @@ export default function SecaoClassificacaoCaldeira({
           </>
         )}
       </section>
+
+      </div>
 
       {/* ③ CLASSIFICAÇÃO */}
       <section className="cc-etapa">

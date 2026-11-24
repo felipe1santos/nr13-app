@@ -60,3 +60,48 @@
 .ficha-cald-toggle .icone { align-self: center; color: var(--texto-3); flex: none; }
 .ficha-cald-toggle:hover h3 { color: var(--destaque); }
 .ficha-cald-toggle:focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; border-radius: 4px; }
+
+/* ── Ficha da caldeira: cores que realçam a informação (23/11/2026) ──────────
+   Pedido do dono. Escopo `.ficha-caldeira` (a página da caldeira) — vaso e
+   autoclave não mudam. Paleta: valores em azul petróleo; dispositivos de alívio
+   em azul; indicadores de nível em violeta; escalas dos medidores em pêssego;
+   estados com Aprovado / Atenção / Erro / Informação. */
+.cc .cc-par { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+.cc .cc-par.cc-par-edicao { display: block; }
+.cc .cc-par .cc-tabela { max-width: none; }
+@media (max-width: 900px) { .cc .cc-par { display: block; } }
+
+.equipamento-page.ficha-caldeira .bloco-dados .resultado-item .val-view,
+.equipamento-page.ficha-caldeira .bloco-dados .val-view,
+.equipamento-page.ficha-caldeira .ficha-cald-bloco .resultado-item .val-view { color: var(--petroleo) !important; font-weight: 600; }
+.equipamento-page.ficha-caldeira .resultado-item .val-view.vazio,
+.equipamento-page.ficha-caldeira .bloco-dados .resultado-item .val-view.vazio { color: var(--texto-3) !important; font-weight: 400; }
+
+/* Chips: o valor ganha um fundo — só quando existe. */
+.equipamento-page.ficha-caldeira .resultado-item .val-view.mem-chip,
+.equipamento-page.ficha-caldeira .ficha-grupo[data-grupo^='alivio'] .val-view:not(.vazio),
+.equipamento-page.ficha-caldeira .ficha-grupo[data-grupo^='nivel'] .val-view:not(.vazio),
+.equipamento-page.ficha-caldeira .ficha-grupo .resultado-item[data-campo$='escala'] .val-view:not(.vazio),
+.equipamento-page.ficha-caldeira .resultado-item .val-view.mem-status {
+  display: inline-block; width: fit-content; max-width: 100%; padding: 2px 8px; border-radius: 4px; overflow-wrap: anywhere;
+}
+.equipamento-page.ficha-caldeira .bloco-dados .resultado-item .val-view.mem-chip { color: var(--petroleo) !important; background: var(--petroleo-bg) !important; }
+.equipamento-page.ficha-caldeira .bloco-dados .resultado-item .val-view.mem-status.ok { color: #009A3D !important; background: #DEFFE8 !important; }
+.equipamento-page.ficha-caldeira .bloco-dados .resultado-item .val-view.mem-status.erro { color: #B42318 !important; background: #FBEAE8 !important; }
+/* Dispositivos de alívio 1 e 2 — o mesmo fundo nos dois. */
+.equipamento-page.ficha-caldeira .ficha-grupo[data-grupo^='alivio'] .val-view:not(.vazio) { color: #0C4F9B !important; background: #E7EFF8 !important; }
+/* Indicadores de nível 1 e 2. */
+.equipamento-page.ficha-caldeira .ficha-grupo[data-grupo^='nivel'] .val-view:not(.vazio) { color: #6D28D9 !important; background: #F1EDFF !important; }
+/* Escalas dos medidores (indicador de pressão, níveis…) — vence as de cima. */
+.equipamento-page.ficha-caldeira .ficha-grupo[data-grupo] .resultado-item[data-campo$='escala'] .val-view:not(.vazio) { color: #C2410C !important; background: #FFEDD5 !important; }
+
+/* Selo de preenchimento de cada bloco recolhível. */
+.equipamento-page.ficha-caldeira .ficha-cald-toggle small.ficha-cald-selo { padding: 1px 8px; border-radius: 4px; font: 600 11.5px/18px var(--font); }
+.equipamento-page.ficha-caldeira .ficha-cald-selo.ok { color: #009A3D !important; background: #DEFFE8 !important; }
+.equipamento-page.ficha-caldeira .ficha-cald-selo.info { color: #1A3591 !important; background: #E3EAFF !important; }
+.equipamento-page.ficha-caldeira .ficha-cald-selo.atencao { color: #8A5A00 !important; background: #FBF2DE !important; }
+
+/* "Editar Memorial": hover vermelho padrão. */
+.equipamento-page.ficha-caldeira .btn-mem-edit:not(.btn-mem-edit-principal):hover { color: #DC2626 !important; border-color: #DC2626 !important; background: #FEF2F2 !important; }
+/* Vida remanescente (logo abaixo da classificação): valores em azul petróleo. */
+.equipamento-page.ficha-caldeira [data-secao='vida'] .val-view { color: var(--petroleo) !important; font-weight: 600; }
