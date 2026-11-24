@@ -23,7 +23,9 @@
  * 2018 da NR-13.
  */
 import type { CelulaDoc, Documento } from './documento';
-import { COR, FONTE, LIMITE_CORPO } from './documentoA4';
+import { CAIXA, COR, FONTE, LIMITE_CORPO } from './documentoA4';
+import { FAMILIA } from './carlito';
+import { ARDOSIA, marcaDagua, pontilhado, quadradinhos } from './decoracaoCaldeira';
 import { textoOu, type ModeloRelatorio } from './modelo';
 import { assinaturas, blocoPlaca, folhasExameExterno, folhasExameInterno, folhasTesteHidrostatico, folhaUltrassom } from './folhas';
 import { folhasAcumulacao } from './folhaAcumulacao';
@@ -237,52 +239,143 @@ export const SUMARIO_CALDEIRA: ItemSumarioCaldeira[] = [
 ];
 
 export function folhaSumarioCaldeira(doc: Documento, paginas: Map<string, number>, itens: ItemSumarioCaldeira[]): void {
+  // 23/11/2026 · ÍNDICE, não tabela (pedido do dono): número e título à
+  // esquerda, pontilhado cinza claro até a página em negrito à direita. As
+  // linhas dividem a altura útil da folha (com teto), a marca d'água "NR-13"
+  // fica quase invisível por baixo e os quadradinhos fecham o canto.
   doc.novaFolha();
-  doc.banner('SUMÁRIO');
-  // 23/11/2026 · o sumário ocupava só o terço de cima da folha (tabela compacta,
-  // linhas de 4 mm) e deixava o resto em branco. Agora as linhas dividem a
-  // altura útil da folha — com teto, para não virarem faixas de 2 cm quando a
-  // lista for curta. O cabeçalho da tabela e uma margem saem da conta.
-  const util = LIMITE_CORPO - doc.y - 12;
-  const porLinha = Math.max(6, Math.min(13, util / Math.max(1, itens.length)));
-  doc.tabela({
-    alturaMinima: porLinha,
-    centroVertical: true,
-    colunas: [0.12, 0.73, 0.15],
-    cabecalho: ['ITEM', 'DOCUMENTO', 'PÁGINA'],
-    linhas: itens.map((it) => {
-      const principal = !it.numero.includes('.');
-      return [
-        { texto: it.numero, centro: true, ...(principal ? { rotulo: true } : {}) },
-        { texto: principal ? it.titulo.toUpperCase() : `   ${it.titulo}`, ...(principal ? { rotulo: true } : {}) },
-        { texto: paginas.has(it.numero) ? String(paginas.get(it.numero)) : '—', centro: true },
-      ];
-    }),
-  });
+  const pdf = doc.pdf;
+  const x0 = CAIXA.x;
+  const x1 = CAIXA.x + CAIXA.largura;
+  marcaDagua(pdf, 'NR-13', (x0 + x1) / 2, (doc.y + LIMITE_CORPO) / 2, 130, 32);
+
+  let y = doc.y + 4;
+  pdf.setFont(FAMILIA, 'bold');
+  pdf.setFontSize(20);
+  pdf.setTextColor(ARDOSIA.forte);
+  pdf.text('SUMÁRIO', x0, y + 6, { charSpace: 0.6 });
+  y += 10;
+  pdf.setDrawColor(ARDOSIA.suave);
+  pdf.setLineWidth(0.35);
+  pdf.line(x0, y, x1, y);
+  pdf.setFillColor(ARDOSIA.forte);
+  pdf.rect(x0, y - 0.6, 26, 1.2, 'F');
+  y += 5;
+
+  const util = LIMITE_CORPO - 18 - y;
+  const passo = Math.max(6.5, Math.min(11.5, util / Math.max(1, itens.length)));
+  for (const it of itens) {
+    const principal = !it.numero.includes('.');
+    const base = y + passo * 0.62;
+    const recuo = principal ? 0 : 9;
+    const tamanho = principal ? 11 : 10;
+
+    pdf.setFont(FAMILIA, 'bold');
+    pdf.setFontSize(tamanho);
+    pdf.setTextColor(principal ? ARDOSIA.forte : ARDOSIA.medio);
+    pdf.text(it.numero, x0 + recuo, base);
+
+    const xTitulo = x0 + recuo + (principal ? 9 : 11);
+    pdf.setFont(FAMILIA, principal ? 'bold' : 'normal');
+    pdf.setTextColor(COR.texto);
+    const titulo = principal ? it.titulo.toUpperCase() : it.titulo;
+    pdf.text(titulo, xTitulo, base);
+    const fimTitulo = xTitulo + pdf.getTextWidth(titulo);
+
+    const pagina = paginas.has(it.numero) ? String(paginas.get(it.numero)) : '—';
+    pdf.setFont(FAMILIA, 'bold');
+    pdf.setFontSize(tamanho);
+    pdf.setTextColor(paginas.has(it.numero) ? COR.texto : ARDOSIA.medio);
+    pdf.text(pagina, x1, base, { align: 'right' });
+    pontilhado(pdf, fimTitulo + 2, x1 - pdf.getTextWidth(pagina) - 2, base - 0.5);
+    y += passo;
+  }
+  quadradinhos(pdf);
+  doc.y = y;
 }
 
-/** Folha de rosto de uma seção — o "divisor" da referência, desenhado como as nossas faixas. */
+/**
+ * Folha de rosto de uma seção — o "divisor" da referência (4 · certificados,
+ * 5 · prontuário de fabricação, 6 · ART).
+ *
+ * 23/11/2026 · COM anexo ela é uma CAPA DE SEÇÃO: o número grande como marca
+ * d'água, o título no meio da folha com a faixa ardósia, e os quadradinhos no
+ * canto — antes era só uma faixa cinza perdida no meio do papel. SEM anexo vira
+ * um bloco compacto, e os blocos sem anexo dividem a mesma folha.
+ */
 export function folhaDivisoria(
   doc: Documento,
   numero: string,
   titulo: string,
   linhas: string[],
   /**
-   * 23/11/2026 · `false` = continua na folha atual. Sem anexo, as seções 4, 5 e
-   * 6 ocupavam três folhas com duas linhas cada; agora dividem uma. Com anexo a
-   * divisória abre folha própria (o anexo entra logo DEPOIS dela).
+   * `folhaNova: false` = continua na folha atual. `capa: true` = capa de seção
+   * (só faz sentido quando há anexo logo depois dela).
    */
   opcoes: { folhaNova?: boolean; capa?: boolean } = {},
 ): void {
   const { folhaNova = true, capa = true } = opcoes;
-  if (folhaNova) {
-    doc.novaFolha();
-    doc.y += capa ? 50 : 0;
-  } else {
-    doc.y += 8;
+  const pdf = doc.pdf;
+  const x0 = CAIXA.x;
+  const x1 = CAIXA.x + CAIXA.largura;
+  if (folhaNova) doc.novaFolha();
+
+  if (capa) {
+    const meio = (doc.y + LIMITE_CORPO) / 2;
+    marcaDagua(pdf, numero, (x0 + x1) / 2, meio - 6, 330);
+    let y = meio - 4;
+    pdf.setFont(FAMILIA, 'bold');
+    pdf.setFontSize(20);
+    pdf.setTextColor(ARDOSIA.forte);
+    for (const l of pdf.splitTextToSize(`${numero}. ${titulo.toUpperCase()}`, CAIXA.largura - 30) as string[]) {
+      pdf.text(l, (x0 + x1) / 2, y, { align: 'center' });
+      y += 8.5;
+    }
+    pdf.setFillColor(ARDOSIA.forte);
+    pdf.rect((x0 + x1) / 2 - 14, y - 4, 28, 1.2, 'F');
+    y += 5;
+    pdf.setFont(FAMILIA, 'normal');
+    pdf.setFontSize(10);
+    pdf.setTextColor(COR.nota);
+    for (const linha of linhas) {
+      for (const l of pdf.splitTextToSize(linha, CAIXA.largura - 40) as string[]) {
+        pdf.text(l, (x0 + x1) / 2, y, { align: 'center' });
+        y += 5;
+      }
+      y += 1;
+    }
+    quadradinhos(pdf);
+    doc.y = Math.max(doc.y, y);
+    return;
   }
-  doc.banner(`${numero}. ${titulo.toUpperCase()}`);
-  for (const l of linhas) doc.texto(l, { alinhamento: 'center', espacoAntes: 3, cor: COR.nota });
+
+  // Bloco compacto: barra ardósia à esquerda, título numerado, as linhas e um filete.
+  let y = doc.y + (folhaNova ? 6 : 10);
+  const lado = 3;
+  pdf.setFillColor(ARDOSIA.forte);
+  pdf.rect(x0, y + 1, 1.4, 8, 'F');
+  pdf.setFillColor(ARDOSIA.claro);
+  pdf.rect(x0 + 1.4, y + 1, 1.6, 8, 'F');
+  pdf.setFont(FAMILIA, 'bold');
+  pdf.setTextColor(ARDOSIA.forte);
+  pdf.setFontSize(13);
+  pdf.text(`${numero}. ${titulo.toUpperCase()}`, x0 + lado + 4, y + 6.6);
+  y += 15;
+  pdf.setFont(FAMILIA, 'normal');
+  pdf.setFontSize(10);
+  pdf.setTextColor(COR.nota);
+  for (const linha of linhas) {
+    for (const l of pdf.splitTextToSize(linha, CAIXA.largura - lado - 4) as string[]) {
+      pdf.text(l, x0 + lado + 4, y);
+      y += 5;
+    }
+  }
+  y += 2;
+  pdf.setDrawColor(ARDOSIA.suave);
+  pdf.setLineWidth(0.35);
+  pdf.line(x0, y, x1, y);
+  quadradinhos(pdf);
+  doc.y = y;
 }
 
 // ── 1.1 PRONTUÁRIO ──────────────────────────────────────────────────────────
