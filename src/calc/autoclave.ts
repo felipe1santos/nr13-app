@@ -249,7 +249,8 @@ export function vertical(dados: DadosAutoclaveVertical): ResultadoCalculo {
       : f.tipo === 'torisferico'
         ? [
             `// 3. FUNDO TORISFÉRICO — ASME VIII Div.1 UG-32(e) (L = ${f.L!.toFixed(2)} mm, r = ${f.r!.toFixed(2)} mm)`,
-            `$$M = \\frac{1}{4}\\left(3 + \\sqrt{\\frac{L}{r}}\\right) = ${f.M!.toFixed(4)}$$`,
+            // Em texto: raiz de fração não é desenhada pelo PDF vetorial (latexMemorial.ts).
+            `// M = 1/4 · (3 + √(L/r)) = ${f.M!.toFixed(4)}`,
             `$$t_{req} = \\frac{P \\cdot L \\cdot M}{2 \\cdot S \\cdot E - 0.2 \\cdot P} = ${treqFundo.toFixed(4)} \\text{ mm}$$`,
             `$$PMTA_{fundo} = \\frac{2 \\cdot S \\cdot E \\cdot t_{util}}{L \\cdot M + 0.2 \\cdot t_{util}} = ${pmtaFundo.toFixed(4)} \\text{ MPa}$$`,
           ]
@@ -290,7 +291,8 @@ export function vertical(dados: DadosAutoclaveVertical): ResultadoCalculo {
     `// Travas: N = ${N} | d = ${dTrava.toFixed(2)} mm | S_trava = ${Strava.toFixed(2)} MPa`,
     ' ',
     '// 1. TAMPO PLANO APARAFUSADO — UG-34',
-    `$$t_{req} = D\\sqrt{\\frac{C \\cdot P}{S \\cdot E}} = ${D.toFixed(2)}\\sqrt{\\frac{${C} \\cdot ${P}}{${S} \\cdot ${E}}} = ${treqTampo.toFixed(4)} \\text{ mm}$$`,
+    // 23/11/2026 · em texto: duas raízes de fração na mesma linha saíam embaralhadas no PDF.
+    `// t_req = D · √(C · P/(S · E)) = ${D.toFixed(2)} · √(${C} · ${P}/(${S} · ${E})) = ${treqTampo.toFixed(4)} mm`,
     `$$PMTA_{tampo} = \\frac{S \\cdot E}{C}\\left(\\frac{t_{util}}{D}\\right)^2 = ${pmtaTampo.toFixed(4)} \\text{ MPa}$$`,
     tampo_ok
       ? `<div style="${CSS_OK}"><b>OK:</b> t_tampo (${num(dados.t_tampo).toFixed(2)} mm) ≥ requerida (${treqTampo.toFixed(3)} mm).</div>`
@@ -579,6 +581,10 @@ export function bancada(dados: DadosAutoclaveBancada): ResultadoCalculo {
   const nv = po.nervuras;
   const resultadoFinal = c.aprovado ? 'APROVADO' : 'REPROVADO';
 
+  // Uma fórmula por linha e só o LaTeX que o PDF vetorial desenha (latexMemorial.ts):
+  // \frac simples, \cdot, \text, subscritos. Máximo, mínimo e raiz de fração vão em texto.
+  const mm = (v: number) => `${v.toFixed(4)} \\text{ mm}`;
+  const mpa = (v: number) => `${v.toFixed(4)} \\text{ MPa}`;
   const log = [
     '// ====================================================',
     '// MEMORIAL DE CÁLCULO - AUTOCLAVE DE BANCADA (NR-13)',
@@ -590,36 +596,42 @@ export function bancada(dados: DadosAutoclaveBancada): ResultadoCalculo {
     `// t_costado = ${num(dados.t_costado).toFixed(2)} mm | t_fundo = ${num(dados.t_fundo).toFixed(2)} mm | porta: ${po.t1.toFixed(2)} + ${po.t2.toFixed(2)} mm`,
     ' ',
     `// 1. COSTADO CILÍNDRICO — UG-27 (E = ${co.E.toFixed(2)})`,
-    `$$t_{circ} = \\frac{P \\cdot R}{S \\cdot E - 0.6 \\cdot P} = ${co.tCirc.toFixed(4)} \\text{ mm} \\quad t_{long} = \\frac{P \\cdot R}{2 \\cdot S \\cdot E + 0.4 \\cdot P} = ${co.tLong.toFixed(4)} \\text{ mm}$$`,
-    `$$t_{req} = \\max(t_{circ}, t_{long}, ${T_MIN_UG16}) + CA = ${co.tReq.toFixed(4)} \\text{ mm}$$`,
-    `$$PMTA_{circ} = \\frac{S \\cdot E \\cdot t}{R + 0.6 \\cdot t} = ${co.pmtaCirc.toFixed(4)} \\quad PMTA_{long} = \\frac{2 \\cdot S \\cdot E \\cdot t}{R - 0.4 \\cdot t} = ${co.pmtaLong.toFixed(4)} \\text{ MPa}$$`,
-    `$$PMTA_{costado} = ${co.pmta.toFixed(4)} \\text{ MPa} \\; (${kgf(co.pmta)} \\text{ kgf/cm}^2)$$`,
+    `$$t_{circ} = \\frac{P \\cdot R}{S \\cdot E - 0.6 \\cdot P} = ${mm(co.tCirc)}$$`,
+    `$$t_{long} = \\frac{P \\cdot R}{2 \\cdot S \\cdot E + 0.4 \\cdot P} = ${mm(co.tLong)}$$`,
+    `// t_req = máx(t_circ; t_long; ${T_MIN_UG16} mm da UG-16(b)) + CA = ${co.tReq.toFixed(4)} mm`,
+    `$$PMTA_{circ} = \\frac{S \\cdot E \\cdot t}{R + 0.6 \\cdot t} = ${mpa(co.pmtaCirc)}$$`,
+    `$$PMTA_{long} = \\frac{2 \\cdot S \\cdot E \\cdot t}{R - 0.4 \\cdot t} = ${mpa(co.pmtaLong)}$$`,
+    `// PMTA do costado = a menor das duas = ${co.pmta.toFixed(4)} MPa (${kgf(co.pmta)} kgf/cm²)`,
     ok(co.ok, `espessura do costado (${num(dados.t_costado).toFixed(2)} mm) ≥ requerida (${co.tReq.toFixed(3)} mm).`, `espessura do costado (${num(dados.t_costado).toFixed(2)} mm) < requerida (${co.tReq.toFixed(3)} mm) ou PMTA abaixo da pressão de verificação.`),
     ' ',
     `// 2. FUNDO TORISFÉRICO — UG-32(e) (E = ${fu.E.toFixed(2)}, L = ${fu.L.toFixed(2)} mm, r = ${fu.r.toFixed(2)} mm)`,
-    `$$M = \\frac{1}{4}\\left(3 + \\sqrt{\\frac{L}{r}}\\right) = ${fu.M.toFixed(4)}$$`,
-    `$$t = \\frac{P \\cdot L \\cdot M}{2 \\cdot S \\cdot E - 0.2 \\cdot P} = ${fu.tCalc.toFixed(4)} \\text{ mm} \\quad t_{req} = \\max(t, ${T_MIN_UG16}) + CA = ${fu.tReq.toFixed(4)} \\text{ mm}$$`,
-    `$$PMTA_{fundo} = \\frac{2 \\cdot S \\cdot E \\cdot t}{L \\cdot M + 0.2 \\cdot t} = ${fu.pmta.toFixed(4)} \\text{ MPa} \\; (${kgf(fu.pmta)} \\text{ kgf/cm}^2)$$`,
+    `// M = 1/4 · (3 + √(L/r)) = ${fu.M.toFixed(4)}`,
+    `$$t = \\frac{P \\cdot L \\cdot M}{2 \\cdot S \\cdot E - 0.2 \\cdot P} = ${mm(fu.tCalc)}$$`,
+    `// t_req = máx(t; ${T_MIN_UG16} mm da UG-16(b)) + CA = ${fu.tReq.toFixed(4)} mm`,
+    `$$PMTA_{fundo} = \\frac{2 \\cdot S \\cdot E \\cdot t}{L \\cdot M + 0.2 \\cdot t} = ${mpa(fu.pmta)}$$`,
+    `// PMTA do fundo = ${fu.pmta.toFixed(4)} MPa (${kgf(fu.pmta)} kgf/cm²)`,
     ok(fu.ok, `espessura do fundo (${num(dados.t_fundo).toFixed(2)} mm) ≥ requerida (${fu.tReq.toFixed(3)} mm).`, `espessura do fundo (${num(dados.t_fundo).toFixed(2)} mm) < requerida (${fu.tReq.toFixed(3)} mm) ou PMTA abaixo da pressão de verificação.`),
     ' ',
     `// 3. PORTA PLANA REFORÇADA — UG-34 (E = ${po.E.toFixed(2)}, C = ${po.C})`,
-    `$$F = P \\cdot \\frac{\\pi D^2}{4} = ${(po.forca / 1000).toFixed(3)} \\text{ kN}$$`,
+    `// Força na porta: F = P · pi · D²/4 = ${(po.forca / 1000).toFixed(3)} kN`,
     ...(nv
       ? [
           `// 3.1 Nervuras radiais (${nv.n} un, ${nv.b} × ${nv.h} mm) — viga biapoiada, L = ${nv.L.toFixed(1)} mm`,
-          `$$Z = \\frac{b \\cdot h^2}{6} = ${nv.Z.toFixed(1)} \\text{ mm}^3 \\quad M_{max} = \\frac{w \\cdot L^2}{8} = ${nv.momento.toFixed(1)} \\text{ N·mm}$$`,
-          `$$\\sigma = \\frac{M_{max}}{Z} = ${nv.sigma.toFixed(3)} \\text{ MPa} \\quad \\sigma/S = ${(nv.uso * 100).toFixed(1)}\\% \\quad PMTA_{nervuras} = ${nv.pmta.toFixed(4)} \\text{ MPa}$$`,
+          `// Módulo resistente Z = b · h²/6 = ${nv.Z.toFixed(1)} mm³ | momento máximo = w · L²/8 = ${nv.momento.toFixed(1)} N·mm`,
+          `// Tensão de flexão = M/Z = ${nv.sigma.toFixed(3)} MPa | utilização = ${(nv.uso * 100).toFixed(1)}% de S | PMTA das nervuras = P · S/tensão = ${nv.pmta.toFixed(4)} MPa (${kgf(nv.pmta)} kgf/cm²)`,
         ]
       : ['// 3.1 Sem nervuras informadas — a porta é verificada só pelas chapas.']),
-    `// 3.2 Painel entre nervuras — vão ${po.vaoReal !== null ? `REAL medido (${po.vaoReal.toFixed(1)} mm)` : `conservador 2·R·sen(π/n) (${po.vaoConservador.toFixed(1)} mm)`}`,
-    `$$t_{req} = d \\cdot \\sqrt{\\frac{C \\cdot P}{S \\cdot E}} + CA = ${po.tReq.toFixed(4)} \\text{ mm} \\quad d_{max} = ${po.vaoMax.toFixed(2)} \\text{ mm}$$`,
-    `$$PMTA_{painel} = \\frac{S \\cdot E}{C}\\left(\\frac{t_1 + t_2}{d}\\right)^2 = ${po.pmtaPainel.toFixed(4)} \\text{ MPa} \\; (${kgf(po.pmtaPainel)} \\text{ kgf/cm}^2)$$`,
+    `// 3.2 Painel entre nervuras — vão ${po.vaoReal !== null ? `REAL medido (${po.vaoReal.toFixed(1)} mm)` : `conservador 2 · R · sen(pi/n) (${po.vaoConservador.toFixed(1)} mm)`}`,
+    `// t_req = d · √(C · P/(S · E)) + CA = ${po.tReq.toFixed(4)} mm | vão máximo admissível = ${po.vaoMax.toFixed(2)} mm`,
+    `// PMTA do painel = (S · E/C) · ((t1 + t2)/d)² = ${po.pmtaPainel.toFixed(4)} MPa (${kgf(po.pmtaPainel)} kgf/cm²)`,
+    `// PMTA da porta = a menor entre nervuras e painel = ${po.pmta.toFixed(4)} MPa (${kgf(po.pmta)} kgf/cm²)`,
     ok(po.ok, `porta: PMTA ${po.pmta.toFixed(4)} MPa ≥ P e vão ${po.vaoUsado.toFixed(1)} mm ≤ ${po.vaoMax.toFixed(1)} mm.`, `porta: PMTA ${po.pmta.toFixed(4)} MPa, vão ${po.vaoUsado.toFixed(1)} mm (máx. ${po.vaoMax.toFixed(1)} mm) — não demonstrada para P.`),
     `<div style="${CSS_AVISO}"><b>ATENDE CONDICIONALMENTE:</b> a soma das duas chapas só vale com ação conjunta comprovada; confirmar vãos, apoios, material, soldas, aro, cubo e fechamento (memorial de referência SERCON AHMC10).</div>`,
     ' ',
     '// 4. PMTA DO CONJUNTO E TESTE HIDROSTÁTICO',
-    `$$PMTA = \\min(PMTA_{costado}, PMTA_{fundo}, PMTA_{porta}) = ${c.pmta.toFixed(4)} \\text{ MPa} \\; (${kgf(c.pmta)} \\text{ kgf/cm}^2)$$`,
-    `$$P_{teste} = 1.3 \\cdot PMTA = ${c.pTeste.toFixed(4)} \\text{ MPa} \\; (${kgf(c.pTeste)} \\text{ kgf/cm}^2)$$`,
+    `// PMTA = a menor entre costado, fundo e porta = ${c.pmta.toFixed(4)} MPa (${kgf(c.pmta)} kgf/cm²)`,
+    `$$P_{teste} = 1.3 \\cdot PMTA = ${mpa(c.pTeste)}$$`,
+    `// P_teste = ${kgf(c.pTeste)} kgf/cm²`,
     ' ',
     '// ====================================================',
     `// RESULTADO FINAL: ${resultadoFinal}`,

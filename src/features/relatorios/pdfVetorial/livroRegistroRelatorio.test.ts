@@ -133,7 +133,8 @@ describe('composição · quando o livro e o termo entram', () => {
   });
 });
 
-describe('PDF · A nenhum / B só livro / C só termo / D ambos', () => {
+// Gera vários PDFs inteiros: sob a suíte completa em paralelo passava dos 5 s padrão (23/11/2026).
+describe('PDF · A nenhum / B só livro / C só termo / D ambos', { timeout: 60_000 }, () => {
   it('A · sem livro: nenhuma seção 12, nada residual', async () => {
     const { t } = await gerar(BASE);
     expect(t.join(' ')).not.toMatch(/LIVRO DE REGISTRO|TERMO DE ABERTURA|12\.1 |12\.2 /i);

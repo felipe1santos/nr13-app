@@ -174,13 +174,20 @@ function componentesVertical(dados: DadosAutoclaveVertical, resultado: Resultado
   ];
 }
 
+/** 4 casas: o RESUMO imprimia "1.1612316599254502" (23/11/2026). */
+const r4 = (v: number) => (Number.isFinite(v) ? Number(v.toFixed(4)) : v);
+
 function componentesAutoclave(
   subtipo: SubtipoAutoclaveMemorial,
   dados: DadosAutoclave,
   resultado: ResultadoCalculo,
 ): ComponenteResumo[] {
   if (subtipo === 'vertical') {
-    return componentesVertical(dados as DadosAutoclaveVertical, resultado);
+    return componentesVertical(dados as DadosAutoclaveVertical, resultado).map((c) => ({
+      ...c,
+      pmtaMpa: r4(c.pmtaMpa as number),
+      tReqMm: r4(c.tReqMm as number),
+    }));
   }
   if (subtipo === 'bancada') {
     // Mesmo cálculo do memorial (calcularBancada) — 1 linha por componente.
@@ -188,9 +195,9 @@ function componentesAutoclave(
     const c = calcularBancada(d);
     const base = { S: c.S, D: c.D, raio: c.R, ca: c.CA, material: d.material || null };
     return [
-      { nome: 'Costado Cilíndrico (UG-27)', pmtaMpa: c.costado.pmta, tReqMm: c.costado.tReq, tNom: num(d.t_costado), E: c.costado.E, ...base, formulaT: 't = P·R/(S·E − 0,6·P)', formulaP: 'PMTA = S·E·t/(R + 0,6·t)' },
-      { nome: 'Fundo Torisférico (UG-32e)', pmtaMpa: c.fundo.pmta, tReqMm: c.fundo.tReq, tNom: num(d.t_fundo), E: c.fundo.E, ...base, formulaT: 't = P·L·M/(2·S·E − 0,2·P)', formulaP: 'PMTA = 2·S·E·t/(L·M + 0,2·t)' },
-      { nome: 'Porta Plana Reforçada (UG-34)', pmtaMpa: c.porta.pmta, tReqMm: c.porta.tReq, tNom: c.porta.t1 + c.porta.t2, E: c.porta.E, ...base, formulaT: 't = d·√(C·P/(S·E))', formulaP: 'PMTA = (S·E/C)·(t/d)²' },
+      { nome: 'Costado Cilíndrico (UG-27)', pmtaMpa: r4(c.costado.pmta), tReqMm: r4(c.costado.tReq), tNom: num(d.t_costado), E: c.costado.E, ...base, formulaT: 't = P·R/(S·E − 0,6·P)', formulaP: 'PMTA = S·E·t/(R + 0,6·t)' },
+      { nome: 'Fundo Torisférico (UG-32e)', pmtaMpa: r4(c.fundo.pmta), tReqMm: r4(c.fundo.tReq), tNom: num(d.t_fundo), E: c.fundo.E, ...base, formulaT: 't = P·L·M/(2·S·E − 0,2·P)', formulaP: 'PMTA = 2·S·E·t/(L·M + 0,2·t)' },
+      { nome: 'Porta Plana Reforçada (UG-34)', pmtaMpa: r4(c.porta.pmta), tReqMm: r4(c.porta.tReq), tNom: c.porta.t1 + c.porta.t2, E: c.porta.E, ...base, formulaT: 't = d·√(C·P/(S·E))', formulaP: 'PMTA = (S·E/C)·(t/d)²' },
     ];
   }
   if (subtipo === 'cilindrica') {
