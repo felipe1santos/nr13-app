@@ -262,9 +262,25 @@ export function folhaSumarioCaldeira(doc: Documento, paginas: Map<string, number
 }
 
 /** Folha de rosto de uma seção — o "divisor" da referência, desenhado como as nossas faixas. */
-export function folhaDivisoria(doc: Documento, numero: string, titulo: string, linhas: string[]): void {
-  doc.novaFolha();
-  doc.y += 50;
+export function folhaDivisoria(
+  doc: Documento,
+  numero: string,
+  titulo: string,
+  linhas: string[],
+  /**
+   * 23/11/2026 · `false` = continua na folha atual. Sem anexo, as seções 4, 5 e
+   * 6 ocupavam três folhas com duas linhas cada; agora dividem uma. Com anexo a
+   * divisória abre folha própria (o anexo entra logo DEPOIS dela).
+   */
+  opcoes: { folhaNova?: boolean; capa?: boolean } = {},
+): void {
+  const { folhaNova = true, capa = true } = opcoes;
+  if (folhaNova) {
+    doc.novaFolha();
+    doc.y += capa ? 50 : 0;
+  } else {
+    doc.y += 8;
+  }
   doc.banner(`${numero}. ${titulo.toUpperCase()}`);
   for (const l of linhas) doc.texto(l, { alinhamento: 'center', espacoAntes: 3, cor: COR.nota });
 }
@@ -731,7 +747,30 @@ export function folhaAcumulacaoCaldeira(doc: Documento, m: ModeloRelatorio): boo
   });
 }
 
+/**
+ * Número com ponto decimal ("11.22") → vírgula ("11,22"), só quando o texto É
+ * um número. O TH guarda o que o formulário gravou (com ponto); o resto do
+ * relatório da caldeira escreve com vírgula, e a 3. saía misturando os dois.
+ */
+export function decimalBr(v: string | null): string | null {
+  if (v === null) return null;
+  return /^-?\d+\.\d+$/.test(v.trim()) ? v.trim().replace('.', ',') : v;
+}
+
 export function folhasSobrepressaoCaldeira(doc: Documento, m: ModeloRelatorio): void {
+  // 23/11/2026 · vírgula decimal na folha 3 da caldeira (o vaso segue como está:
+  // a convenção dele é travada por `thUnidades.test.ts`). O gráfico lê as
+  // mesmas strings e entende a vírgula (`numeroDoTexto`, `pontosDaCurva`).
+  m = {
+    ...m,
+    th: {
+      ...m.th,
+      pressaoProjeto: decimalBr(m.th.pressaoProjeto),
+      pressaoTrabalho: decimalBr(m.th.pressaoTrabalho),
+      pressaoTeste: decimalBr(m.th.pressaoTeste),
+      curva: m.th.curva.map((l) => ({ ...l, pressao: decimalBr(l.pressao) ?? l.pressao })),
+    },
+  };
   folhasTesteHidrostatico(doc, m, true, {
     banner: '3. TESTE DE SOBREPRESSÃO — TESTE HIDROSTÁTICO',
     fotos: '3.1 REGISTRO FOTOGRÁFICO — TESTE DE SOBREPRESSÃO',
@@ -801,7 +840,8 @@ export function fileirasPlacaCaldeira(mc: ModeloCaldeira): FileiraPlaca[] {
   const e = b.equipamento;
   const pressao = (inicio: string): { unidade: string; valor: string | null }[] => {
     const p = b.pressoes.find((x) => x.rotulo.toUpperCase().startsWith(inicio));
-    return [{ unidade: b.unidadeLabel ?? 'MPa', valor: p?.valor ?? null }];
+    // Vírgula decimal, como o resto do relatório (23/11/2026): a placa saía "11.22".
+    return [{ unidade: b.unidadeLabel ?? 'MPa', valor: decimalBr(p?.valor ?? null) }];
   };
   const campo = (rotulo: string, valor: string | null | undefined, peso: number) =>
     ({ tipo: 'campo' as const, rotulo, valor: valor && valor.trim() ? valor : null, peso });

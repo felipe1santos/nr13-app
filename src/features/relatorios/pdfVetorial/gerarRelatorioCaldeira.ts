@@ -239,8 +239,8 @@ function emitirCaldeira(
   paginasExibidas: Map<string, number>,
   reg?: Registro,
 ): void {
-  const anotar = (numero: string) => {
-    if (reg && !reg.secoes.has(numero)) reg.secoes.set(numero, doc.pdf.getNumberOfPages() + 1);
+  const anotar = (numero: string, mesmaFolha = false) => {
+    if (reg && !reg.secoes.has(numero)) reg.secoes.set(numero, doc.pdf.getNumberOfPages() + (mesmaFolha ? 0 : 1));
   };
   const b = mc.base;
   if (tem.capa) folhaCapaCaldeira(doc, mc);
@@ -295,29 +295,41 @@ function emitirCaldeira(
 
   // 4, 5 e 6: a folha divisória sempre existe (a referência as tem mesmo
   // vazias); o anexo entra logo depois dela, na montagem final.
+  // 23/11/2026 · divisória sem anexo não abre folha só para si: as que não
+  // têm anexo dividem a folha. Depois de uma COM anexo a próxima abre folha
+  // nova (o anexo é inserido logo após a página da divisória).
+  const temAnexo = { c: !!anexos.certificados, f: !!anexos.fabricacao, a: !!anexos.art };
   anotar('4');
-  folhaDivisoria(doc, '4', 'Certificados de calibração', [
-    anexos.certificados
-      ? 'Os certificados de calibração dos instrumentos e dos padrões seguem anexados a partir da próxima página.'
-      : 'Nenhum certificado de calibração anexado a este relatório.',
-  ]);
+  folhaDivisoria(
+    doc,
+    '4',
+    'Certificados de calibração',
+    [
+      anexos.certificados
+        ? 'Os certificados de calibração dos instrumentos e dos padrões seguem anexados a partir da próxima página.'
+        : 'Nenhum certificado de calibração anexado a este relatório.',
+    ],
+    { folhaNova: true, capa: temAnexo.c },
+  );
   if (reg) reg.divisorias.certificados = doc.pdf.getNumberOfPages();
 
-  anotar('5');
+  const nova5 = temAnexo.c || temAnexo.f;
+  anotar('5', !nova5);
   folhaDivisoria(doc, '5', 'Prontuário de fabricação', [
     anexos.fabricacao
       ? 'O prontuário de fabricação do equipamento segue anexado a partir da próxima página.'
       : anexos.temFabricacao
         ? 'O prontuário de fabricação está cadastrado, mas o arquivo não pôde ser anexado nesta prévia.'
         : 'O equipamento não possui prontuário de fabricação anexado ao sistema.',
-  ]);
+  ], { folhaNova: nova5, capa: temAnexo.f });
   if (reg) reg.divisorias.fabricacao = doc.pdf.getNumberOfPages();
 
-  anotar('6');
+  const nova6 = temAnexo.f || temAnexo.a;
+  anotar('6', !nova6);
   folhaDivisoria(doc, '6', 'ART — Anotação de Responsabilidade Técnica', [
     meta?.art ? `ART nº ${meta.art}.` : 'Nº da ART não informado nas configurações do relatório.',
     anexos.art ? 'A ART segue anexada a partir da próxima página.' : 'Nenhum PDF de ART anexado a este relatório.',
-  ]);
+  ], { folhaNova: nova6, capa: temAnexo.a });
   if (reg) reg.divisorias.art = doc.pdf.getNumberOfPages();
 
   if (tem.livro) {

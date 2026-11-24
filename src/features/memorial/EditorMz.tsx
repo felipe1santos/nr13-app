@@ -3,13 +3,26 @@
  * compartilhadas por caldeira e autoclave. Só apresentação: nenhuma regra de
  * cálculo, de validação ou de gravação mora aqui.
  */
-import { useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Icone } from '../../components/Icone';
 import { useFocoPreso } from '../../components/useFocoPreso';
 import MemorialLog from './MemorialLog';
 import './memorialEditor.css';
 
 export type StatusMz = 'APROVADO' | 'REPROVADO' | 'PENDENTE' | null | undefined;
+
+/** Só dígitos, UM separador decimal (vírgula ou ponto) e o sinal no início. */
+export function limparDecimal(t: string): string {
+  let s = t.replace(/[^\d.,-]/g, '').replace(/(?!^)-/g, '');
+  const i = s.search(/[.,]/);
+  if (i >= 0) s = s.slice(0, i + 1) + s.slice(i + 1).replace(/[.,]/g, '');
+  return s;
+}
+
+/** "1,1" → "1.1"; "1," → "1." (o `Number` lê 1, e a tela segue mostrando "1,"). */
+export function paraPonto(t: string): string {
+  return t.replace(',', '.');
+}
 
 const vazioNum = (v: unknown) => v === undefined || v === null || v === '' || !(Number(v) > 0);
 
@@ -38,6 +51,21 @@ export function CampoMx({
 }) {
   const v = valor === undefined || valor === null ? '' : String(valor);
   const warn = obrigatorio && (aceitaZero ? v === '' : vazioNum(v));
+  // 23/11/2026 · VÍRGULA DECIMAL. Com `type="number"` o navegador descartava a
+  // vírgula digitada: "1,1" virava 11 — 11 MPa no memorial, dez vezes a pressão.
+  // O campo agora é texto com teclado decimal; o que se digita fica na tela
+  // como foi digitado ("1,1") e o que sobe ao memorial vai com PONTO ("1.1"),
+  // que é o que o cálculo (`Number`) entende.
+  const [texto, setTexto] = useState(() => (tipo === 'number' ? v.replace('.', ',') : v));
+  useEffect(() => {
+    if (tipo !== 'number') {
+      setTexto(v);
+      return;
+    }
+    // Só reescreve a tela quando o valor mudou POR FORA (carregar, limpar);
+    // "1," enquanto se digita vale 1 e não pode virar "1" no meio da digitação.
+    setTexto((atual) => (paraPonto(atual) !== '' && Number(paraPonto(atual)) === Number(v) ? atual : v.replace('.', ',')));
+  }, [v, tipo]);
   return (
     <label className={`mx-c${warn ? ' warn' : ''}${cheio ? ' full' : ''}`} title={dica}>
       <span>
@@ -49,12 +77,18 @@ export function CampoMx({
         )}
       </span>
       <input
-        type={tipo}
-        step="any"
+        type="text"
         inputMode={tipo === 'number' ? 'decimal' : undefined}
-        value={v}
-        onChange={(e) => onChange(e.target.value)}
-        onWheel={(e) => e.currentTarget.blur()}
+        value={tipo === 'number' ? texto : v}
+        onChange={(e) => {
+          if (tipo !== 'number') {
+            onChange(e.target.value);
+            return;
+          }
+          const digitado = limparDecimal(e.target.value);
+          setTexto(digitado);
+          onChange(paraPonto(digitado));
+        }}
       />
       {unidade && <em>{unidade}</em>}
     </label>

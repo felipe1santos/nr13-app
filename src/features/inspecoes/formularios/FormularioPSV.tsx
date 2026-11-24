@@ -191,15 +191,15 @@ export default function FormularioPSV({ tag, containerId }: { tag: string; conta
         <div className="form-grid">
           <label>
             Pressão de Abertura
-            <input type="number" step="0.01" value={dados.abertura} onChange={(e) => set('abertura', e.target.value)} />
+            <input type="text" inputMode="decimal" value={dados.abertura} onChange={(e) => set('abertura', e.target.value.replace(',', '.'))} />
           </label>
           <label>
             Pressão de Ajuste
-            <input type="number" step="0.01" value={dados.ajuste} onChange={(e) => set('ajuste', e.target.value)} />
+            <input type="text" inputMode="decimal" value={dados.ajuste} onChange={(e) => set('ajuste', e.target.value.replace(',', '.'))} />
           </label>
           <label>
             Fechamento
-            <input type="number" step="0.01" value={dados.fechamento} onChange={(e) => set('fechamento', e.target.value)} />
+            <input type="text" inputMode="decimal" value={dados.fechamento} onChange={(e) => set('fechamento', e.target.value.replace(',', '.'))} />
           </label>
         </div>
       </div>

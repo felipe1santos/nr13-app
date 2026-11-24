@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { CampoMx } from './EditorMz';
 import { Icone } from '../../components/Icone';
 import { camposFaltantesVaso, type TipoComponenteVaso } from '../../calc/vaso';
 import { useFocoPreso } from '../../components/useFocoPreso';
@@ -543,43 +544,8 @@ function resumoElemento(c: ComponenteVasoSalvo): string {
   return `${rotuloTipo(c)} · ${mat || '—'} · ${tn}`;
 }
 
-function CampoMx({
-  rotulo,
-  unidade,
-  valor,
-  onChange,
-  obrigatorio = false,
-  tipo = 'number',
-  cheio = false,
-}: {
-  rotulo: string;
-  unidade?: string;
-  valor: unknown;
-  onChange: (v: string) => void;
-  obrigatorio?: boolean;
-  tipo?: 'number' | 'text';
-  cheio?: boolean;
-}) {
-  const v = valor === undefined || valor === null ? '' : String(valor);
-  const warn = obrigatorio && !(Number(v) > 0);
-  return (
-    <label className={`mx-c${warn ? ' warn' : ''}${cheio ? ' full' : ''}`}>
-      <span>
-        {rotulo}
-        {warn && <span className="mx-warn" title="Obrigatório sem valor válido"><Icone nome="alerttri" tam={14} /></span>}
-      </span>
-      <input
-        type={tipo}
-        step="any"
-        inputMode={tipo === 'number' ? 'decimal' : undefined}
-        value={v}
-        onChange={(e) => onChange(e.target.value)}
-        onWheel={(e) => e.currentTarget.blur()}
-      />
-      {unidade && <em>{unidade}</em>}
-    </label>
-  );
-}
+// CampoMx: o de EditorMz (23/11/2026) — esta cópia tinha o `type="number"`
+// que descartava a vírgula decimal ("1,1" virava 11).
 
 function DesenhoVaso({
   orientacao,
@@ -741,7 +707,7 @@ function ModalElemento({
                 Temperatura de projeto
                 {vazioTemp && <span className="mx-warn" title="Obrigatório sem valor válido"><Icone nome="alerttri" tam={14} /></span>}
               </span>
-              <input type="number" step="any" inputMode="decimal" value={d.temp === undefined || d.temp === null ? '' : String(d.temp)} onChange={(e) => dado('temp', num(e.target.value))} onWheel={(e) => e.currentTarget.blur()} />
+              <input type="text" inputMode="decimal" value={d.temp === undefined || d.temp === null ? '' : String(d.temp)} onChange={(e) => dado('temp', num(e.target.value.replace(',', '.')))} onWheel={(e) => e.currentTarget.blur()} />
               <em>°C</em>
             </label>
             {ehBocal && <CampoMx rotulo="h — projeção interna" unidade="mm" valor={d.proj_int} onChange={(v) => dado('proj_int', num(v))} />}

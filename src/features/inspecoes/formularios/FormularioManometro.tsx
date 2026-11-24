@@ -211,15 +211,15 @@ export default function FormularioManometro({ tag, containerId }: { tag: string;
             <div className="linha-medida-campos">
               <label>
                 VCV (Valor Verdadeiro)
-                <input type="number" step="0.01" value={linha.vcv} onChange={(e) => setLinha(i, 'vcv', e.target.value)} />
+                <input type="text" inputMode="decimal" value={linha.vcv} onChange={(e) => setLinha(i, 'vcv', e.target.value.replace(',', '.'))} />
               </label>
               <label>
                 VI Crescente
-                <input type="number" step="0.01" value={linha.vic} onChange={(e) => setLinha(i, 'vic', e.target.value)} />
+                <input type="text" inputMode="decimal" value={linha.vic} onChange={(e) => setLinha(i, 'vic', e.target.value.replace(',', '.'))} />
               </label>
               <label>
                 VI Decrescente
-                <input type="number" step="0.01" value={linha.vid} onChange={(e) => setLinha(i, 'vid', e.target.value)} />
+                <input type="text" inputMode="decimal" value={linha.vid} onChange={(e) => setLinha(i, 'vid', e.target.value.replace(',', '.'))} />
               </label>
               <label>
                 Erro (C / D)

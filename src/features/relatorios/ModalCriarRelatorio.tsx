@@ -147,7 +147,10 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
   const [marcados, setMarcados] = useState<string[]>(() => documentosPadraoParaContainer(folhasDoTipo, inicial));
   /** O usuário mexeu nas folhas à mão: trocar de inspeção não pode desfazer isso. */
   const [docsEditados, setDocsEditados] = useState(false);
-  const [calibSelecionados, setCalibSelecionados] = useState<Set<string>>(new Set());
+  // 23/11/2026 · as calibrações oferecidas (as 3 mais recentes, já oficiais)
+  // vêm MARCADAS: antes vinham desmarcadas e o relatório saía sem os
+  // certificados de quem não marcava. Desmarcar continua livre.
+  const [calibSelecionados, setCalibSelecionados] = useState<Set<string> | null>(null);
   const [containerId, setContainerId] = useState<string | null>(() => inicial?.id ?? null);
   /** O olho: id do container em pré-visualização. Não fecha o assistente. */
   const [preview, setPreview] = useState<string | null>(null);
@@ -187,6 +190,10 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
       }));
     return [...doLote, ...avulsas].sort((a, b) => tsDoId(b.id) - tsDoId(a.id)).slice(0, 3);
   }, [tag]);
+  const calibMarcadas = useMemo(
+    () => calibSelecionados ?? new Set(itensCalibracao.map((i) => i.id)),
+    [calibSelecionados, itensCalibracao],
+  );
 
   // ESC fecha o painel de dentro (olho ou engrenagem) antes do assistente:
   // fechar tudo de uma vez perderia a etapa e as escolhas por causa de uma tecla.
@@ -221,8 +228,8 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
   }
 
   function toggleCalib(id: string) {
-    setCalibSelecionados((s) => {
-      const n = new Set(s);
+    setCalibSelecionados(() => {
+      const n = new Set(calibMarcadas);
       if (n.has(id)) n.delete(id);
       else n.add(id);
       return n;
@@ -238,7 +245,7 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
   );
   const marcadosDoTipo = useMemo(() => folhasDoTipo.filter((d) => marcados.includes(d)), [folhasDoTipo, marcados]);
   const semDados = useMemo(() => new Set(folhasEnsaioSemDados(marcadosDoTipo, escolhido)), [marcadosDoTipo, escolhido]);
-  const calibEscolhidas = itensCalibracao.filter((i) => calibSelecionados.has(i.id));
+  const calibEscolhidas = itensCalibracao.filter((i) => calibMarcadas.has(i.id));
   const estrutura = folhasDoTipo.filter((d) => !FOLHAS_ENSAIO.has(d));
   const deEnsaio = folhasDoTipo.filter((d) => FOLHAS_ENSAIO.has(d));
   const geravel = podeGerar(marcadosDoTipo);
@@ -246,7 +253,7 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
   async function gerar() {
     if (gerando || !geravel) return;
     setGerando(true);
-    const selecionados = itensCalibracao.filter((i) => calibSelecionados.has(i.id));
+    const selecionados = itensCalibracao.filter((i) => calibMarcadas.has(i.id));
     const docsCalibracao = selecionados.flatMap((i) =>
       i.certs.map(folhaDoRelatorio).filter((d): d is string => d !== null),
     );
@@ -468,12 +475,12 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
                   {itensCalibracao.map((i) => (
                     <label
                       key={i.id}
-                      className={`wz-cert${calibSelecionados.has(i.id) ? ' is-sel' : ''}`}
+                      className={`wz-cert${calibMarcadas.has(i.id) ? ' is-sel' : ''}`}
                       title={i.lote ? 'Lote de calibração' : 'Calibração avulsa'}
                     >
                       <input
                         type="checkbox"
-                        checked={calibSelecionados.has(i.id)}
+                        checked={calibMarcadas.has(i.id)}
                         onChange={() => toggleCalib(i.id)}
                       />
                       <span className="wz-cert-txt">
