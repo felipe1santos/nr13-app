@@ -185,6 +185,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
                       <CampoMx rotulo="S — tensão admissível" unidade="MPa" obrigatorio valor={dados.tensao} onChange={(v) => set('tensao', Number(v))} dica="Planilha: 115,14 MPa (hipótese SA-240 TP 304 — confirmar)" />
                       <CampoMx rotulo="CA — sobreespessura de corrosão" unidade="mm" aceitaZero valor={dados.ca ?? 0} onChange={(v) => set('ca', Number(v))} />
                       <CampoMx rotulo="Material" tipo="text" valor={dados.material} onChange={setMaterial} />
+                      <CampoMx rotulo="Temperatura de projeto" unidade="°C" valor={dados.temperatura ?? ''} onChange={(v) => set('temperatura', Number(v))} />
                     </div>
                     <h4 className="mz-grupo"><Icone nome="box" tam={16} />Costado e fundo torisférico</h4>
                     <div className="mx-grid c3">
@@ -218,6 +219,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
                       <CampoMx rotulo="E — eficiência de junta" valor={dados.eficiencia ?? 1} onChange={(v) => set('eficiencia', Number(v))} />
                       <CampoMx rotulo="CA — corrosão admissível" unidade="mm" valor={dados.ca} onChange={(v) => set('ca', Number(v))} />
                       <CampoMx rotulo="Material" tipo="text" valor={dados.material} onChange={setMaterial} />
+                      <CampoMx rotulo="Temperatura de projeto" unidade="°C" valor={dados.temperatura ?? ''} onChange={(v) => set('temperatura', Number(v))} />
                     </div>
                     <h4 className="mz-grupo"><Icone nome="box" tam={16} />Espessuras</h4>
                     <div className="mx-grid c3">

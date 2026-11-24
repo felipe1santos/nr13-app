@@ -227,6 +227,9 @@ export interface ModeloRelatorio {
     espNom: string | null;
     /** Pressão de PROJETO (MPa) — a variável P das fórmulas. Ver o mapa `valorDe`. */
     p: string | null;
+    /** C e d da UG-34 (tampo/porta plana) — 24/11/2026. */
+    c?: string | null;
+    dAbertura?: string | null;
     material: string | null;
     e: string | null;
     s: string | null;
@@ -966,6 +969,20 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
   const tampos = compsVaso.filter(ehTampo);
   const dadoDe = (c: { dados?: Record<string, unknown> } | null, campo: string) =>
     c ? txt((c.dados ?? {})[campo]) : null;
+  // 24/11/2026 · autoclave vertical/retangular/de bancada não têm memorial de
+  // VASO: material e corrosão vêm das linhas do memorial (`nr13_calc_.componentes`)
+  // e a temperatura dos dados do memorial da autoclave. Sem isto a folha 5 saía
+  // com MATERIAL, CORROSÃO e TEMPERATURA em branco (achado no E2E de produção).
+  const compsCalc = ((calc.componentes ?? []) as Record<string, unknown>[]).map((c) => ({
+    nome: String(c.nome ?? ''),
+    material: txt(c.material),
+    ca: txt(c.ca),
+  }));
+  const compCorpo = compsCalc.find((c) => /casco|costado|corpo|cilindr/i.test(c.nome)) ?? null;
+  const compTampos = compsCalc.filter((c) => /tampo|fundo|porta|espelho/i.test(c.nome));
+  const temperaturaAutoclave = String(info.tipo ?? '').startsWith('autoclave')
+    ? txt(ler<{ temperatura?: unknown }>(`nr13_autoclave_dados_${txt(info.subtipo) ?? 'cilindrica'}_${tag}`)?.temperatura)
+    : null;
 
   // ── TESTE HIDROSTÁTICO NA UNIDADE DO EQUIPAMENTO (18/09/2026) ───────────────
   //
@@ -1070,7 +1087,11 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
       // número que o motor do memorial usou para calcular `tReqMm`. Nada é
       // recalculado aqui; o componente só passou a carregar o que já estava
       // gravado ao lado dele.
-      p: numeroDoStorage(vaso.P) !== null ? String(numeroDoStorage(vaso.P)) : null,
+      // 24/11/2026 · sem memorial de vaso (autoclave vertical/retangular/bancada,
+      // caldeira), P vem da MESMA fonte do prontuário e do TH.
+      p: numeroDoStorage(vaso.P) !== null ? String(numeroDoStorage(vaso.P)) : txt(pressaoDeProjetoMpa(tag)),
+      c: txt(c.C),
+      dAbertura: txt(c.d),
       material: txt(c.material),
       e: txt(c.E),
       s: txt(c.S),
@@ -1087,10 +1108,10 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
     prontuario: {
       contratante: txt(emps.razaoSocial ?? emps.nomeFantasia),
       endereco: txt([emps.endereco, emps.bairro, emps.cidade, emps.estado].filter(Boolean).join(", ")),
-      materialCorpo: dadoDe(casco, "mat") ?? txt(info.materialCorpo),
+      materialCorpo: dadoDe(casco, "mat") ?? compCorpo?.material ?? txt(info.materialCorpo),
       tipoConstrucao: txt(info.tipoConstrucao),
-      materialTampo1: dadoDe(tampos[0] ?? null, "mat"),
-      materialTampo2: dadoDe(tampos[1] ?? null, "mat"),
+      materialTampo1: dadoDe(tampos[0] ?? null, "mat") ?? compTampos[0]?.material ?? null,
+      materialTampo2: dadoDe(tampos[1] ?? null, "mat") ?? compTampos[1]?.material ?? null,
       volume: numeroBr(info.volume) ?? numeroBr(cat.volInput),
       // A pressão de PROJETO é a que o memorial usou (`nr13_vaso_.P`, em MPa).
       // A pressão de PROJETO na unidade do equipamento (16/09/2026). Era fixa
@@ -1105,8 +1126,8 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
         const v = naUnidade(pressaoDeProjetoMpa(tag));
         return v === null ? null : `${v} ${rotuloPressao(unidade)}`;
       })(),
-      margemCorrosao: dadoDe(casco, "ca"),
-      temperaturaProjeto: dadoDe(casco, "temp"),
+      margemCorrosao: dadoDe(casco, "ca") ?? compCorpo?.ca ?? null,
+      temperaturaProjeto: dadoDe(casco, "temp") ?? temperaturaAutoclave,
       descricaoResumida: txt(info.descricaoResumida) ?? txt(info.descricao),
     },
     operacionais: [

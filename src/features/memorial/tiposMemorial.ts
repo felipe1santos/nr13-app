@@ -12,4 +12,8 @@ export interface ComponenteResumo {
   material: string | null;
   formulaT: string;
   formulaP: string;
+  /** C da UG-34 (tampo/porta plana) — 24/11/2026, para a legenda da folha 6. */
+  C?: number | null;
+  /** d da UG-34: diâmetro ou vão que entra na fórmula do tampo/porta plana. */
+  d?: number | null;
 }

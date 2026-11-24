@@ -136,6 +136,7 @@ export interface DadosAutoclaveVertical {
   t_costado: NumLike;
   t_fundo: NumLike;
   tipo_fundo?: 'plano' | 'conico' | 'torisferico'; // default 'plano'
+  temperatura?: NumLike; // temperatura de projeto (°C) — só documentação (prontuário)
   alfa?: NumLike; // semiângulo do cone (graus) — só p/ fundo cônico
   l_coroa?: NumLike; // L — raio da coroa do torisférico (mm); default = D
   r_concordancia?: NumLike; // r — raio de concordância do torisférico (mm); default = 0,06·D
@@ -455,6 +456,7 @@ export interface DadosAutoclaveBancada {
   nerv_n?: NumLike; // quantidade de nervuras radiais
   nerv_l?: NumLike; // comprimento livre da nervura (mm); default = R
   vao_real?: NumLike; // maior vão livre REAL medido entre nervuras/travessas (mm)
+  temperatura?: NumLike; // temperatura de projeto (°C) — só documentação (prontuário)
   sigma_escoamento?: NumLike;
   material?: string; // só documentação
 }

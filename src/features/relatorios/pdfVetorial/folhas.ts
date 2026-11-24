@@ -1330,6 +1330,9 @@ export function folhaResumoCalculos(doc: Documento, m: ModeloRelatorio): void {
       L: c.raio,
       c: c.ca,
       PMTA: c.pmta,
+      // 24/11/2026 · tampo/porta plana (UG-34): o C e o d que entraram na fórmula.
+      C: c.c ?? null,
+      d: c.dAbertura ?? null,
     };
     doc.tabela({
       compacta: true,

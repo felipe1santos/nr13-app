@@ -88,6 +88,7 @@ const PADRAO_BANCADA: DadosAutoclaveBancada = {
   vao_real: '',
   sigma_escoamento: 0,
   material: 'SA-240 TP 304',
+  temperatura: 134,
 };
 
 function chaveDados(tag: string, subtipo: string): string {
@@ -168,16 +169,16 @@ function componentesVertical(dados: DadosAutoclaveVertical, resultado: Resultado
   const base = { E, S, D, raio: R, ca: CA, material: dados.material || null };
   void resultado;
   return [
-    { nome: 'Tampo Plano Aparafusado (UG-34)', pmtaMpa: pmtaTampo, tReqMm: treqTampo, tNom: num(dados.t_tampo), ...base, formulaT: FORMULAS_VERTICAL.tampo[0], formulaP: FORMULAS_VERTICAL.tampo[1] },
+    { nome: 'Tampo Plano Aparafusado (UG-34)', pmtaMpa: pmtaTampo, tReqMm: treqTampo, tNom: num(dados.t_tampo), ...base, C, d: D, formulaT: FORMULAS_VERTICAL.tampo[0], formulaP: FORMULAS_VERTICAL.tampo[1] },
     { nome: 'Costado Cilíndrico (UG-27)', pmtaMpa: pmtaCost, tReqMm: treqCost, tNom: num(dados.t_costado), ...base, formulaT: FORMULAS_VERTICAL.costado[0], formulaP: FORMULAS_VERTICAL.costado[1] },
-    { nome: fundo.nome, pmtaMpa: pmtaFundo, tReqMm: treqFundo, tNom: num(dados.t_fundo), ...base, formulaT: fFundo[0], formulaP: fFundo[1] },
+    { nome: fundo.nome, pmtaMpa: pmtaFundo, tReqMm: treqFundo, tNom: num(dados.t_fundo), ...base, ...(fundo.tipo === 'plano' ? { C, d: D } : {}), ...(fundo.tipo === 'torisferico' ? { raio: fundo.L } : {}), formulaT: fFundo[0], formulaP: fFundo[1] },
   ];
 }
 
 /** 4 casas: o RESUMO imprimia "1.1612316599254502" (23/11/2026). */
 const r4 = (v: number) => (Number.isFinite(v) ? Number(v.toFixed(4)) : v);
 
-function componentesAutoclave(
+export function componentesAutoclave(
   subtipo: SubtipoAutoclaveMemorial,
   dados: DadosAutoclave,
   resultado: ResultadoCalculo,
@@ -196,8 +197,8 @@ function componentesAutoclave(
     const base = { S: c.S, D: c.D, raio: c.R, ca: c.CA, material: d.material || null };
     return [
       { nome: 'Costado Cilíndrico (UG-27)', pmtaMpa: r4(c.costado.pmta), tReqMm: r4(c.costado.tReq), tNom: num(d.t_costado), E: c.costado.E, ...base, formulaT: 't = P·R/(S·E − 0,6·P)', formulaP: 'PMTA = S·E·t/(R + 0,6·t)' },
-      { nome: 'Fundo Torisférico (UG-32e)', pmtaMpa: r4(c.fundo.pmta), tReqMm: r4(c.fundo.tReq), tNom: num(d.t_fundo), E: c.fundo.E, ...base, formulaT: 't = P·L·M/(2·S·E − 0,2·P)', formulaP: 'PMTA = 2·S·E·t/(L·M + 0,2·t)' },
-      { nome: 'Porta Plana Reforçada (UG-34)', pmtaMpa: r4(c.porta.pmta), tReqMm: r4(c.porta.tReq), tNom: c.porta.t1 + c.porta.t2, E: c.porta.E, ...base, formulaT: 't = d·√(C·P/(S·E))', formulaP: 'PMTA = (S·E/C)·(t/d)²' },
+      { nome: 'Fundo Torisférico (UG-32e)', pmtaMpa: r4(c.fundo.pmta), tReqMm: r4(c.fundo.tReq), tNom: num(d.t_fundo), E: c.fundo.E, ...base, raio: c.fundo.L, formulaT: 't = P·L·M/(2·S·E − 0,2·P)', formulaP: 'PMTA = 2·S·E·t/(L·M + 0,2·t)' },
+      { nome: 'Porta Plana Reforçada (UG-34)', pmtaMpa: r4(c.porta.pmta), tReqMm: r4(c.porta.tReq), tNom: c.porta.t1 + c.porta.t2, E: c.porta.E, ...base, C: c.porta.C, d: r4(c.porta.vaoUsado), formulaT: 't = d·√(C·P/(S·E))', formulaP: 'PMTA = (S·E/C)·(t/d)²' },
     ];
   }
   if (subtipo === 'cilindrica') {
