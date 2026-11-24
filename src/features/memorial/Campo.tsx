@@ -1,3 +1,6 @@
+import { useEffect, useState } from 'react';
+import { limparDecimal, paraPonto, textoSincronizado } from './decimal';
+
 interface Props {
   label: string;
   value: string | number;
@@ -20,6 +23,15 @@ function separarUnidade(label: string): { rotulo: string; unidade: string | null
 
 export default function Campo({ label, value, onChange, type = 'number', options, disabled, className, warn }: Props) {
   const vazio = warn ?? (value === '' || value === null || value === undefined);
+  // 23/11/2026 · campo NUMÉRICO é texto com teclado decimal: `type="number"`
+  // descartava a vírgula ("1,1" → 11). A tela guarda o que foi digitado; o
+  // formulário recebe com ponto.
+  const numerico = type === 'number';
+  const v = value === null || value === undefined ? '' : String(value);
+  const [texto, setTexto] = useState(() => (numerico ? v.replace('.', ',') : v));
+  useEffect(() => {
+    if (numerico) setTexto((atual) => textoSincronizado(atual, v));
+  }, [v, numerico]);
   const { rotulo, unidade } = options ? { rotulo: label, unidade: null } : separarUnidade(label);
 
   return (
@@ -39,14 +51,19 @@ export default function Campo({ label, value, onChange, type = 'number', options
       ) : (
         <div className={`memorial-campo-input${unidade ? ' has-unit' : ''}`}>
           <input
-            type={type}
-            value={value}
-            step="any"
-            onChange={(e) => onChange(e.target.value)}
+            type={numerico ? 'text' : type}
+            inputMode={numerico ? 'decimal' : undefined}
+            value={numerico ? texto : value}
+            onChange={(e) => {
+              if (!numerico) {
+                onChange(e.target.value);
+                return;
+              }
+              const digitado = limparDecimal(e.target.value);
+              setTexto(digitado);
+              onChange(paraPonto(digitado));
+            }}
             disabled={disabled}
-            // roda do mouse NÃO altera o valor: perde o foco antes do incremento do
-            // input number — só teclado edita
-            onWheel={(e) => e.currentTarget.blur()}
           />
           {unidade && <span className="memorial-campo-unit">{unidade}</span>}
         </div>

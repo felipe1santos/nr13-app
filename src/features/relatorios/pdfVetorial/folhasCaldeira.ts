@@ -25,7 +25,7 @@
 import type { CelulaDoc, Documento } from './documento';
 import { CAIXA, COR, FONTE, LIMITE_CORPO } from './documentoA4';
 import { FAMILIA } from './carlito';
-import { ARDOSIA, marcaDagua, pontilhado, quadradinhos } from './decoracaoCaldeira';
+import { ARDOSIA, capaDeSecao, desenharIndice, marcaDagua, quadradinhos, tituloSumario } from './decoracaoRelatorio';
 import { textoOu, type ModeloRelatorio } from './modelo';
 import { assinaturas, blocoPlaca, folhasExameExterno, folhasExameInterno, folhasTesteHidrostatico, folhaUltrassom } from './folhas';
 import { folhasAcumulacao } from './folhaAcumulacao';
@@ -249,47 +249,15 @@ export function folhaSumarioCaldeira(doc: Documento, paginas: Map<string, number
   const x1 = CAIXA.x + CAIXA.largura;
   marcaDagua(pdf, 'NR-13', (x0 + x1) / 2, (doc.y + LIMITE_CORPO) / 2, 130, 32);
 
-  let y = doc.y + 4;
-  pdf.setFont(FAMILIA, 'bold');
-  pdf.setFontSize(20);
-  pdf.setTextColor(ARDOSIA.forte);
-  pdf.text('SUMÁRIO', x0, y + 6, { charSpace: 0.6 });
-  y += 10;
-  pdf.setDrawColor(ARDOSIA.suave);
-  pdf.setLineWidth(0.35);
-  pdf.line(x0, y, x1, y);
-  pdf.setFillColor(ARDOSIA.forte);
-  pdf.rect(x0, y - 0.6, 26, 1.2, 'F');
-  y += 5;
-
+  let y = tituloSumario(pdf, doc.y);
   const util = LIMITE_CORPO - 18 - y;
   const passo = Math.max(6.5, Math.min(11.5, util / Math.max(1, itens.length)));
-  for (const it of itens) {
-    const principal = !it.numero.includes('.');
-    const base = y + passo * 0.62;
-    const recuo = principal ? 0 : 9;
-    const tamanho = principal ? 11 : 10;
-
-    pdf.setFont(FAMILIA, 'bold');
-    pdf.setFontSize(tamanho);
-    pdf.setTextColor(principal ? ARDOSIA.forte : ARDOSIA.medio);
-    pdf.text(it.numero, x0 + recuo, base);
-
-    const xTitulo = x0 + recuo + (principal ? 9 : 11);
-    pdf.setFont(FAMILIA, principal ? 'bold' : 'normal');
-    pdf.setTextColor(COR.texto);
-    const titulo = principal ? it.titulo.toUpperCase() : it.titulo;
-    pdf.text(titulo, xTitulo, base);
-    const fimTitulo = xTitulo + pdf.getTextWidth(titulo);
-
-    const pagina = paginas.has(it.numero) ? String(paginas.get(it.numero)) : '—';
-    pdf.setFont(FAMILIA, 'bold');
-    pdf.setFontSize(tamanho);
-    pdf.setTextColor(paginas.has(it.numero) ? COR.texto : ARDOSIA.medio);
-    pdf.text(pagina, x1, base, { align: 'right' });
-    pontilhado(pdf, fimTitulo + 2, x1 - pdf.getTextWidth(pagina) - 2, base - 0.5);
-    y += passo;
-  }
+  y = desenharIndice(
+    pdf,
+    itens.map((it) => ({ numero: it.numero, titulo: it.titulo, pagina: paginas.get(it.numero) ?? null })),
+    y,
+    passo,
+  );
   quadradinhos(pdf);
   doc.y = y;
 }
@@ -321,30 +289,7 @@ export function folhaDivisoria(
   if (folhaNova) doc.novaFolha();
 
   if (capa) {
-    const meio = (doc.y + LIMITE_CORPO) / 2;
-    marcaDagua(pdf, numero, (x0 + x1) / 2, meio - 6, 330);
-    let y = meio - 4;
-    pdf.setFont(FAMILIA, 'bold');
-    pdf.setFontSize(20);
-    pdf.setTextColor(ARDOSIA.forte);
-    for (const l of pdf.splitTextToSize(`${numero}. ${titulo.toUpperCase()}`, CAIXA.largura - 30) as string[]) {
-      pdf.text(l, (x0 + x1) / 2, y, { align: 'center' });
-      y += 8.5;
-    }
-    pdf.setFillColor(ARDOSIA.forte);
-    pdf.rect((x0 + x1) / 2 - 14, y - 4, 28, 1.2, 'F');
-    y += 5;
-    pdf.setFont(FAMILIA, 'normal');
-    pdf.setFontSize(10);
-    pdf.setTextColor(COR.nota);
-    for (const linha of linhas) {
-      for (const l of pdf.splitTextToSize(linha, CAIXA.largura - 40) as string[]) {
-        pdf.text(l, (x0 + x1) / 2, y, { align: 'center' });
-        y += 5;
-      }
-      y += 1;
-    }
-    quadradinhos(pdf);
+    const y = capaDeSecao(pdf, doc.y, numero, titulo, linhas);
     doc.y = Math.max(doc.y, y);
     return;
   }

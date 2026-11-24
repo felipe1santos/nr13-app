@@ -5,12 +5,14 @@ import { Documento, type CampoEditavel, type ModoDocumento, type RespiroMedido }
 import { anexarRastreabilidades, contarPaginasRastreabilidades } from '../rastreabilidadeService';
 import { anexarFolhasDeCertificado, contarFolhasDeCertificado } from './certificados';
 import { secoesPresentes, type SecaoRelatorio } from './composicao';
+import { capaDeSecao } from './decoracaoRelatorio';
 import { prepararFotosDescritas, secaoRelatorioImagens } from './relatorioImagens';
 import type { MapaOverrides } from '../overridesRelatorio';
 import { comIdsEstaveis } from '../../calibracoes/idsInstrumentos';
 import { resolverImagem } from '../imagensDoDocumento';
 import {
   secoesDoRelatorio,
+  TITULO_ANEXOS,
   folhaCapa,
   folhaCategorizacao,
   folhaDadosInspecao,
@@ -143,6 +145,8 @@ function emitir(
   tem: Record<SecaoRelatorio, boolean>,
   paginas: Map<string, number> = new Map(),
   registrar?: Map<string, number>,
+  /** Há certificados anexados depois do corpo (23/11/2026). */
+  comAnexos = false,
 ): void {
   // O sumário da referência traz a PÁGINA de cada seção. Ela só é conhecida
   // depois de desenhar — e o gerador já desenhava duas vezes por causa do
@@ -154,7 +158,7 @@ function emitir(
 
   if (tem.capa) folhaCapa(doc, m);
   if (tem.sumario) {
-    folhaSumario(doc, m, secoesDoRelatorio(m, tem), paginas);
+    folhaSumario(doc, m, secoesDoRelatorio(m, tem, comAnexos), paginas);
     marcar('Objetivo');
     marcar('Documentos de referência');
   }
@@ -276,6 +280,16 @@ function emitir(
       if (p.termo) registrar.set(TITULO_TERMO, p.termo);
       if (p.registro) registrar.set(TITULO_REGISTRO, p.registro);
     }
+  }
+  // 13 · ANEXOS (23/11/2026) — a capa de seção dos certificados, no mesmo
+  // desenho da caldeira (número como marca d'água, faixa ardósia, quadradinhos).
+  // Antes o primeiro certificado entrava colado no fim do corpo, sem aviso.
+  if (comAnexos) {
+    doc.novaFolha();
+    capaDeSecao(doc.pdf, doc.y, '13', TITULO_ANEXOS, [
+      'Os certificados de calibração dos instrumentos e dos padrões seguem anexados a partir da próxima página.',
+    ]);
+    marcar(TITULO_ANEXOS);
   }
 }
 
@@ -535,7 +549,10 @@ export async function gerarRelatorioVetorial(
   rascunho.aoFecharSecaoElastica = (m) => {
     respiro[m.chave] = { sobra: m.sobra, linhas: m.linhas, folhaFinal: m.folhaFinal };
   };
-  emitir(rascunho, modelo, tem, new Map(), paginasDasSecoes);
+  // Os anexos são contados ANTES da 1ª passagem: com eles, o corpo ganha a capa
+  // da seção 13 (23/11/2026), e a contagem precisa incluí-la.
+  const anexas = await contarPaginasAnexadas(opcoes);
+  emitir(rascunho, modelo, tem, new Map(), paginasDasSecoes, anexas > 0);
   const paginasDoCorpo = contagem.getNumberOfPages();
 
   // O "de Y" tem que dizer o tamanho do arquivo que o usuário vai receber, e o
@@ -544,7 +561,6 @@ export async function gerarRelatorioVetorial(
   // páginas. Os anexos não são NUMERADOS — são documentos de terceiro e não se
   // carimbam (a própria folha CERTIFICADO-CAL esconde o número em produção) —
   // mas contam no total.
-  const anexas = await contarPaginasAnexadas(opcoes);
   const total = paginasDoCorpo + anexas;
 
   // 2ª passagem: para valer, já com "Página X de Y" correto.
@@ -552,7 +568,7 @@ export async function gerarRelatorioVetorial(
     const p = novoPdf();
     await registrarCarlito(p);
     const d = new Documento(p, cab, totalDoRodape, opcoes.modo ?? 'final', ovr, respiro);
-    emitir(d, modelo, tem, paginasDasSecoes);
+    emitir(d, modelo, tem, paginasDasSecoes, undefined, anexas > 0);
     return d;
   };
 

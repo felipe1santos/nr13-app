@@ -257,7 +257,14 @@ const baseline: Record<string, string> = existsSync(ARQUIVO_BASELINE)
   ? JSON.parse(readFileSync(ARQUIVO_BASELINE, 'utf8'))
   : {};
 
-/** Tipos cujo documento NÃO pode mudar um byte. */
+/**
+ * Tipos cujo documento NÃO pode mudar um byte.
+ *
+ * Mudança DECIDIDA (23/11/2026, pedido do dono): o sumário virou índice
+ * pontilhado com marca d'água e quadradinhos, e com certificados anexados o
+ * corpo ganha a capa da seção 13. O baseline foi regravado nesse dia; o
+ * documento JÁ EMITIDO não muda (é servido pelos bytes arquivados, §7-quater).
+ */
 const IMUTAVEIS: Tipo[] = ['vaso', 'autoclave'];
 
 /**

@@ -302,7 +302,16 @@ export class Documento {
    * há fonte (nascer vazio e amarelo na prévia), sem perder o que existe. O
    * override manual continua vencendo, e `branco` continua apagando.
    */
-  blocoAteOFim(id: string, rotulo: string, titulo?: string, minAltura = 22, maxAltura = 48, auto = ''): void {
+  blocoAteOFim(
+    id: string,
+    rotulo: string,
+    titulo?: string,
+    minAltura = 22,
+    maxAltura = 48,
+    auto = '',
+    /** mm reservados no pé da folha (23/11/2026: os quadradinhos do sumário). */
+    reservaPe = 0,
+  ): void {
     if (titulo) this.secao(titulo);
     // O bloco NUNCA abre folha nova. Ele é o último elemento da folha, e a
     // sobra que ele ocupa foi medida na 1ª passagem: se o respiro consumir
@@ -312,7 +321,7 @@ export class Documento {
     // Teto: uma caixa de observações de meia página é tão feia quanto o vazio
     // que ela veio substituir. O espaço que sobra além do teto é distribuído
     // pelas tabelas da folha (`alturaMinima`), não empilhado aqui.
-    const disponivel = LIMITE_CORPO - this.cursor;
+    const disponivel = LIMITE_CORPO - reservaPe - this.cursor;
     // Altura: o que sobrou, com teto. O `minAltura` é uma INTENÇÃO, não uma
     // exigência — sobrando menos que ele, o bloco fica menor em vez de mudar
     // a paginação. Menos de 6 mm não vira caixa nenhuma.

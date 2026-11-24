@@ -11,18 +11,8 @@ import './memorialEditor.css';
 
 export type StatusMz = 'APROVADO' | 'REPROVADO' | 'PENDENTE' | null | undefined;
 
-/** Só dígitos, UM separador decimal (vírgula ou ponto) e o sinal no início. */
-export function limparDecimal(t: string): string {
-  let s = t.replace(/[^\d.,-]/g, '').replace(/(?!^)-/g, '');
-  const i = s.search(/[.,]/);
-  if (i >= 0) s = s.slice(0, i + 1) + s.slice(i + 1).replace(/[.,]/g, '');
-  return s;
-}
-
-/** "1,1" → "1.1"; "1," → "1." (o `Number` lê 1, e a tela segue mostrando "1,"). */
-export function paraPonto(t: string): string {
-  return t.replace(',', '.');
-}
+export { limparDecimal, paraPonto } from './decimal';
+import { limparDecimal, paraPonto, textoSincronizado } from './decimal';
 
 const vazioNum = (v: unknown) => v === undefined || v === null || v === '' || !(Number(v) > 0);
 
@@ -64,7 +54,7 @@ export function CampoMx({
     }
     // Só reescreve a tela quando o valor mudou POR FORA (carregar, limpar);
     // "1," enquanto se digita vale 1 e não pode virar "1" no meio da digitação.
-    setTexto((atual) => (paraPonto(atual) !== '' && Number(paraPonto(atual)) === Number(v) ? atual : v.replace('.', ',')));
+    setTexto((atual) => textoSincronizado(atual, v));
   }, [v, tipo]);
   return (
     <label className={`mx-c${warn ? ' warn' : ''}${cheio ? ' full' : ''}`} title={dica}>

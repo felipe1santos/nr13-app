@@ -8,6 +8,7 @@ import { alturaDoCroqui, desenharCroquiEspessura, modeloCroqui } from './croquiE
 export { extremosDaRegiao } from './destaqueMedida';
 import { foto, imagemEncaixada } from './primitivas';
 import { FAMILIA } from './carlito';
+import { desenharIndice, marcaDagua, quadradinhos, tituloSumario } from './decoracaoRelatorio';
 import { PROPORCAO_PLACA, layoutDaPlaca, type FileiraPlaca } from '../placaIdentificacao';
 import type { CelulaDoc, Documento } from './documento';
 import { rotuloLaudo } from './rotulos';
@@ -427,21 +428,26 @@ export function folhaSumario(
 ): void {
   doc.novaFolha();
   doc.abrirSecaoElastica('sumario');
-  doc.banner('SUMÁRIO GERAL');
-  // A referência numera com o número DA SEÇÃO (7.1, 7.2…), não com a posição
-  // na lista, e traz a PÁGINA de cada uma. O número da página vem da primeira
-  // passagem do gerador — a mesma que já contava o total do rodapé.
-  doc.tabela({
-    compacta: true,
-    esticavel: true,
-    colunas: [0.1, 0.78, 0.12],
-    cabecalho: ['ITEM', 'SEÇÃO', 'PÁG.'],
-    linhas: secoes.map((sec) => [
-      { texto: sec.numero, centro: true, rotulo: true },
-      { texto: sec.titulo },
-      { texto: paginas.has(sec.titulo) ? String(paginas.get(sec.titulo)) : '', centro: true },
-    ]),
-  });
+  // 23/11/2026 · ÍNDICE pontilhado (o mesmo da caldeira, pedido do dono): número
+  // e título à esquerda, pontilhado cinza claro até a página em negrito. A
+  // marca d'água "NR-13" fica quase invisível por baixo e os quadradinhos
+  // fecham o canto. A referência numera com o número DA SEÇÃO (7.1, 7.2…) e traz
+  // a PÁGINA de cada uma — vinda da 1ª passagem do gerador.
+  //
+  // Objetivo, referências e escopo continuam nesta folha: o passo das linhas é
+  // o que cabe sobrando ~100 mm para eles (com teto e piso).
+  marcaDagua(doc.pdf, 'NR-13', CAIXA.x + CAIXA.largura / 2, (doc.y + LIMITE_CORPO) / 2, 130, 32);
+  let y = tituloSumario(doc.pdf, doc.y, 'SUMÁRIO GERAL');
+  const passo = Math.max(4.6, Math.min(7, (LIMITE_CORPO - 105 - y) / Math.max(1, secoes.length)));
+  y = desenharIndice(
+    doc.pdf,
+    secoes.map((sec) => ({ numero: sec.numero, titulo: sec.titulo, pagina: paginas.get(sec.titulo) ?? null })),
+    y,
+    passo,
+    passo < 5.6 ? 0.86 : 1,
+    false,
+  );
+  doc.y = y + 3;
 
   doc.banner('1. OBJETIVO');
   // Texto PADRÃO do sistema: o usuário pode manter, reescrever ou apagar, e
@@ -503,7 +509,9 @@ export function folhaSumario(
 
   // 2.1 — o escopo daquela inspeção. Não existe fonte automática: é o que o
   // engenheiro delimita, e a referência reserva o bloco para isso.
-  doc.blocoAteOFim('escopo.texto', 'Escopo e observações da inspeção', '2.1 ESCOPO E OBSERVAÇÕES DA INSPEÇÃO', 18, 56);
+  // O bloco do escopo deixa o canto inferior para os quadradinhos.
+  doc.blocoAteOFim('escopo.texto', 'Escopo e observações da inspeção', '2.1 ESCOPO E OBSERVAÇÕES DA INSPEÇÃO', 18, 56, '', 16);
+  quadradinhos(doc.pdf);
   doc.fecharSecaoElastica();
 }
 
@@ -2418,6 +2426,9 @@ export function assinaturas(doc: Documento, m: ModeloRelatorio): void {
  * que não tem essa folha é conteúdo errado, não estilo: o leitor procura uma
  * página que não existe.
  */
+/** Título (e chave do mapa de páginas) da capa de seção dos anexos — 23/11/2026. */
+export const TITULO_ANEXOS = 'Anexos — certificados de calibração';
+
 export interface SecaoSumario {
   /** O número DA SEÇÃO na referência (7.1, 7.2…), não a posição na lista. */
   numero: string;
@@ -2427,6 +2438,8 @@ export interface SecaoSumario {
 export function secoesDoRelatorio(
   m: ModeloRelatorio,
   tem: Record<SecaoRelatorio, boolean> = TUDO,
+  /** Há certificados anexados ao fim (23/11/2026): a seção 13 abre com capa. */
+  comAnexos = false,
 ): SecaoSumario[] {
   const s: SecaoSumario[] = [];
   const push = (ok: boolean, numero: string, titulo: string) => {
@@ -2479,6 +2492,7 @@ export function secoesDoRelatorio(
   push(tem.livro || tem.termoAbertura, '12', 'Livro de registro de segurança');
   push(tem.termoAbertura, '12.1', 'Termo de abertura do livro');
   push(tem.livro, '12.2', 'Registro de segurança desta inspeção');
+  push(comAnexos, '13', TITULO_ANEXOS);
   return s;
 }
 

@@ -28,6 +28,7 @@ describe('vírgula decimal nos campos do memorial', () => {
       'features/memorial/MemorialVaso.tsx',
       'features/inspecoes/formularios/FormularioManometro.tsx',
       'features/inspecoes/formularios/FormularioPSV.tsx',
+      'features/memorial/Campo.tsx',
     ]) {
       const src = readFileSync(new URL(`../../${arq}`, import.meta.url), 'utf8');
       expect(src, arq).not.toMatch(/<input[^>]*type=\{?["']number/);
