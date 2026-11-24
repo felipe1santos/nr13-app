@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import FotoImg from '../../components/FotoImg';
 import { salvarFoto, type RefFoto } from '../../services/fotos';
+import { concluirProcessamentoFoto, iniciarProcessamentoFotos } from './fotosEmProcessamento';
 import { textoDoErro } from '../../services/textoDoErro';
 import {
   adicionarFotos,
@@ -59,6 +60,8 @@ export default function EditorFotosDescritas({
     if (arquivos.length === 0) return;
     setErro(null);
     setEnviando(arquivos.length);
+    // Trava o Salvar do formulário até a última foto entrar na lista (24/11/2026).
+    iniciarProcessamentoFotos(arquivos.length);
     // Uma por vez, na ordem escolhida: é a ordem em que elas entram na lista,
     // e processar em paralelo num celular estoura a memória do canvas.
     const falhas: string[] = [];
@@ -70,6 +73,7 @@ export default function EditorFotosDescritas({
         falhas.push(`${arquivo.name}: ${textoDoErro(err)}`);
       } finally {
         setEnviando((n) => Math.max(0, n - 1));
+        concluirProcessamentoFoto();
       }
     }
     if (falhas.length > 0) setErro(`Não foi possível adicionar ${falhas.length === 1 ? 'a imagem' : 'as imagens'} — ${falhas.join('; ')}`);

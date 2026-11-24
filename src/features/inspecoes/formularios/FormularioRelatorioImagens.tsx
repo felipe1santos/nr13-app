@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { rotuloAguardandoFotos, useFotosEmProcessamento } from '../fotosEmProcessamento';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import FeedbackSalvamento, { useSalvamento } from '../../../components/FeedbackSalvamento';
@@ -34,6 +35,7 @@ function dadosPadraoImagens(): DadosRelatorioImagens {
 }
 
 export default function FormularioRelatorioImagens({ tag, containerId }: { tag: string; containerId: string }) {
+  const fotosProcessando = useFotosEmProcessamento();
   const [dados, setDados] = useState<DadosRelatorioImagens>(() => {
     const salvo = carregarDadosFormulario<Partial<DadosRelatorioImagens>>(tag, containerId, 'imagens');
     const base = dadosPadraoImagens();
@@ -115,8 +117,8 @@ export default function FormularioRelatorioImagens({ tag, containerId }: { tag: 
         <button type="button" className="btn-secundario" onClick={() => void salvarEVisualizar()}>
           Visualizar documento
         </button>
-        <button type="button" className="btn-primario" onClick={salvar} disabled={salvamento.salvando}>
-          {salvamento.salvando ? 'Salvando...' : 'Salvar'}
+        <button type="button" className="btn-primario" onClick={salvar} disabled={salvamento.salvando || fotosProcessando > 0}>
+          {fotosProcessando > 0 ? rotuloAguardandoFotos(fotosProcessando) : salvamento.salvando ? 'Salvando...' : 'Salvar'}
         </button>
       </div>
       <FeedbackSalvamento

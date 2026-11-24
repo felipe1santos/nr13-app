@@ -687,6 +687,26 @@ async function enviarItem(item: ItemFila): Promise<boolean> {
       else await esquecerBase(item.chave);
     }
     await removerDaFila(item.mutationId);
+    // GRAVAÇÃO NOVA FEITA ENQUANTO ESTA ESTAVA A CAMINHO (24/11/2026). Ela foi
+    // condensada na fila herdando a MESMA `versaoBase` (regra de `montarItem`),
+    // mas esta acabou de ser aplicada: o servidor está em `r.versao`. Sem
+    // reancorar, a sucessora chegava com a base antiga e virava conflito FALSO
+    // — achado no E2E de produção, salvando os formulários de um container em
+    // sequência. O conteúdo dela já inclui o que acabou de subir (foi gravado em
+    // cima do cache), então a base certa é a versão confirmada. Só reancora a
+    // sucessora que nasceu da MESMA base: outra base é outra história.
+    const sucessora = itemDaChave(item.chave);
+    if (
+      sucessora &&
+      sucessora.mutationId !== item.mutationId &&
+      sucessora.versaoBase === item.versaoBase &&
+      !sucessora.baseDesconhecida &&
+      sucessora.estado !== 'conflito'
+    ) {
+      const reancorada: ItemFila = { ...sucessora, versaoBase: r.versao };
+      await gravarAtomico([], [reancorada]);
+      fila.set(reancorada.mutationId, reancorada);
+    }
     // O valor deste aparelho é agora o do servidor: um conflito ainda aberto
     // nesta chave virou pergunta sem resposta possível.
     await encerrarConflitoVencidoPelaFila(item.chave);

@@ -6,6 +6,7 @@
  * fotos descritas e o aviso de salvamento do sistema. As regras — erros e
  * alertas — moram em `acumulacao.ts`, onde o teste alcança.
  */
+import { rotuloAguardandoFotos, useFotosEmProcessamento } from '../fotosEmProcessamento';
 import { useMemo, useState } from 'react';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
@@ -84,6 +85,7 @@ function Aviso({ avisos, campo }: { avisos: AvisoAcumulacao[]; campo: string }) 
 }
 
 export default function FormularioAcumulacao({ tag, containerId }: { tag: string; containerId: string }) {
+  const fotosProcessando = useFotosEmProcessamento();
   const [dados, setDados] = useState<DadosAcumulacao>(() => {
     const salvo = carregarDadosFormulario<DadosAcumulacao>(tag, containerId, 'acumulacao');
     const prefill = prefillAcumulacao(
@@ -313,8 +315,8 @@ export default function FormularioAcumulacao({ tag, containerId }: { tag: string
       </div>
 
       <div className="formulario-acoes-fixas">
-        <button type="button" className="btn-primario" onClick={salvar} disabled={salvamento.salvando}>
-          {salvamento.salvando ? 'Salvando...' : 'Salvar'}
+        <button type="button" className="btn-primario" onClick={salvar} disabled={salvamento.salvando || fotosProcessando > 0}>
+          {fotosProcessando > 0 ? rotuloAguardandoFotos(fotosProcessando) : salvamento.salvando ? 'Salvando...' : 'Salvar'}
         </button>
       </div>
       <FeedbackSalvamento

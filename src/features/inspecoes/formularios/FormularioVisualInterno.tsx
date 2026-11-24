@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { rotuloAguardandoFotos, useFotosEmProcessamento } from '../fotosEmProcessamento';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import { AvisoRevisaoNc, CabecalhoNaoConformidade, ItemNaoConformidade } from './ExameNaoConformidade';
@@ -93,6 +94,7 @@ function dadosPadrao(): DadosVisual {
 }
 
 export default function FormularioVisualInterno({ tag, containerId }: { tag: string; containerId: string }) {
+  const fotosProcessando = useFotosEmProcessamento();
   const [dados, setDados] = useState<DadosVisual>(() => {
     // Merge com o padrão pra inspeções antigas (sem `resultado`) não quebrarem.
     // Precedência: o que o usuário digitou > auto-preenchimento do cadastro > padrão.
@@ -222,8 +224,8 @@ export default function FormularioVisualInterno({ tag, containerId }: { tag: str
       </div>
 
       <div className="formulario-acoes-fixas">
-        <button type="button" className="btn-primario" onClick={salvar} disabled={salvando}>
-          {salvando ? 'Salvando...' : 'Salvar Checklist Visual'}
+        <button type="button" className="btn-primario" onClick={salvar} disabled={salvando || fotosProcessando > 0}>
+          {fotosProcessando > 0 ? rotuloAguardandoFotos(fotosProcessando) : salvando ? 'Salvando...' : 'Salvar Checklist Visual'}
         </button>
       </div>
       <FeedbackSalvamento

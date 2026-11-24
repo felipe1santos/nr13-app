@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { rotuloAguardandoFotos, useFotosEmProcessamento } from '../fotosEmProcessamento';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import RespostaSegmentada from './RespostaSegmentada';
@@ -242,6 +243,7 @@ function Secao({
 }
 
 export default function FormularioChecklist({ tag, containerId }: { tag: string; containerId: string }) {
+  const fotosProcessando = useFotosEmProcessamento();
   const [dados, setDados] = useState<DadosChecklist>(
     // Merge com o padrão pra inspeções antigas (sem `fotosDocumentacao`) não quebrarem.
     () => ({ ...dadosPadrao(), ...(carregarDadosFormulario<DadosChecklist>(tag, containerId, 'checklist') ?? {}) }),
@@ -470,8 +472,8 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
       </div>
 
       <div className="formulario-acoes-fixas">
-        <button type="button" className="btn-primario" onClick={salvar} disabled={salvando}>
-          {salvando ? 'Salvando...' : 'Salvar Checklist'}
+        <button type="button" className="btn-primario" onClick={salvar} disabled={salvando || fotosProcessando > 0}>
+          {fotosProcessando > 0 ? rotuloAguardandoFotos(fotosProcessando) : salvando ? 'Salvando...' : 'Salvar Checklist'}
         </button>
       </div>
       <FeedbackSalvamento
