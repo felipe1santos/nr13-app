@@ -15,24 +15,36 @@ import { unidadeDoComponente } from '../preencherCalibracao';
  * a unidade de cada um. A unidade é do instrumento — nunca do equipamento, e
  * nunca inventada.
  */
-describe('os seis instrumentos do relatório', () => {
+describe('os instrumentos do relatório', () => {
   it('cada linha do quadro 7.1.1 tem exatamente um tipo de instrumento', () => {
-    expect(TIPOS_INSTRUMENTO).toHaveLength(6);
+    // 24/11/2026 · sete tipos: o termostato entrou SEM linha no quadro (a lista
+    // do formulário de campo é fixa e tem ids posicionais congelados).
+    expect(TIPOS_INSTRUMENTO).toHaveLength(7);
+    expect(INSTRUMENTOS.termostato.checklist).toBeNull();
+    expect(TIPOS_INSTRUMENTO.filter((t) => INSTRUMENTOS[t].checklist)).toHaveLength(INSTRUMENTOS_CHECKLIST.length);
     for (const linha of INSTRUMENTOS_CHECKLIST) {
       const t = tipoDaLinhaChecklist(linha.id);
       expect(t, linha.nome).not.toBeNull();
-      expect(INSTRUMENTOS[t!].checklist.calId).toBe(linha.calId);
+      expect(INSTRUMENTOS[t!].checklist?.calId).toBe(linha.calId);
     }
   });
 
   // 23/11/2026 · o pressostato ganhou certificado interno (set point,
   // desarme/rearme e inspeção visual) — decisão do dono, mesma emissão vetorial.
-  it('modelo interno só onde existe folha nossa: manômetro, PSV e pressostato', () => {
-    expect(TIPOS_INSTRUMENTO.filter((t) => INSTRUMENTOS[t].modeloInterno)).toEqual(['manometro', 'psv', 'pressostato']);
+  // 24/11/2026 · termostato e malha de pressão (transmissor) também.
+  it('modelo interno só onde existe folha nossa', () => {
+    expect(TIPOS_INSTRUMENTO.filter((t) => INSTRUMENTOS[t].modeloInterno)).toEqual([
+      'manometro',
+      'psv',
+      'pressostato',
+      'transmissor',
+      'termostato',
+    ]);
   });
 
-  it('termômetro mede temperatura; os demais, pressão', () => {
+  it('termômetro e termostato medem temperatura; os demais, pressão', () => {
     expect(unidadesDoInstrumento('termometro')).toEqual(['°C', '°F', 'K']);
+    expect(unidadesDoInstrumento('termostato')).toEqual(['°C', '°F', 'K']);
     for (const t of ['manometro', 'psv', 'vacuometro', 'pressostato', 'transmissor'] as const) {
       expect(unidadesDoInstrumento(t)).toContain('bar');
       expect(unidadesDoInstrumento(t)).not.toContain('°C');

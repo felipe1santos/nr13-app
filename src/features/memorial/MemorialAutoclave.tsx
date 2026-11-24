@@ -18,7 +18,7 @@ import './memorial.css';
 
 interface Props {
   tag: string;
-  subtipo: 'retangular' | 'cilindrica' | 'vertical';
+  subtipo: 'retangular' | 'cilindrica' | 'vertical' | 'bancada';
 }
 
 export default function MemorialAutoclave(props: Props) {
@@ -73,7 +73,12 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
     const erros: string[] = [];
     if (!dados.pressao || Number(dados.pressao) <= 0) erros.push('Pressão de Projeto (P)');
     if (!dados.tensao || Number(dados.tensao) <= 0) erros.push('Tensão Admissível (S)');
-    if (subtipo === 'vertical') {
+    if (subtipo === 'bancada') {
+      if (!dados.diametro || Number(dados.diametro) <= 0) erros.push('Diâmetro Interno (D)');
+      if (!dados.t_costado || Number(dados.t_costado) <= 0) erros.push('Espessura medida do costado');
+      if (!dados.t_fundo || Number(dados.t_fundo) <= 0) erros.push('Espessura medida do fundo');
+      if (!dados.t_porta1 || Number(dados.t_porta1) <= 0) erros.push('Espessura da 1ª chapa da porta');
+    } else if (subtipo === 'vertical') {
       if (!dados.diametro || Number(dados.diametro) <= 0) erros.push('Diâmetro Interno (D)');
       if (!dados.t_tampo || Number(dados.t_tampo) <= 0) erros.push('Espessura do tampo');
       if (!dados.t_costado || Number(dados.t_costado) <= 0) erros.push('Espessura do costado');
@@ -113,7 +118,13 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
   }
 
   const abaLabel =
-    subtipo === 'retangular' ? 'Autoclave Retangular' : subtipo === 'vertical' ? 'Autoclave Vertical' : 'Autoclave Cilíndrica';
+    subtipo === 'retangular'
+      ? 'Autoclave Retangular'
+      : subtipo === 'vertical'
+        ? 'Autoclave Vertical'
+        : subtipo === 'bancada'
+          ? 'Autoclave de Bancada'
+          : 'Autoclave Cilíndrica';
 
   return (
     <div>
@@ -163,7 +174,41 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
                 </span>
               </header>
               <div className="mz-dados">
-                {subtipo === 'vertical' ? (
+                {subtipo === 'bancada' ? (
+                  <>
+                    {/* 23/11/2026 · memorial do engenheiro (SERCON AHMC10). P = PMTA-alvo
+                        (pressão de verificação); as hipóteses vêm sugeridas e o PLH confirma. */}
+                    <h4 className="mz-grupo"><Icone nome="gauge" tam={16} />Projeto e material</h4>
+                    <div className="mx-grid c3">
+                      <CampoMx rotulo="P — pressão de verificação (PMTA-alvo)" unidade="MPa" obrigatorio valor={dados.pressao} onChange={(v) => set('pressao', Number(v))} dica="2,2 kgf/cm² = 0,2157 MPa" />
+                      <CampoMx rotulo="D — diâmetro interno" unidade="mm" obrigatorio valor={dados.diametro} onChange={(v) => set('diametro', Number(v))} />
+                      <CampoMx rotulo="S — tensão admissível" unidade="MPa" obrigatorio valor={dados.tensao} onChange={(v) => set('tensao', Number(v))} dica="Planilha: 115,14 MPa (hipótese SA-240 TP 304 — confirmar)" />
+                      <CampoMx rotulo="CA — sobreespessura de corrosão" unidade="mm" aceitaZero valor={dados.ca ?? 0} onChange={(v) => set('ca', Number(v))} />
+                      <CampoMx rotulo="Material" tipo="text" valor={dados.material} onChange={setMaterial} />
+                    </div>
+                    <h4 className="mz-grupo"><Icone nome="box" tam={16} />Costado e fundo torisférico</h4>
+                    <div className="mx-grid c3">
+                      <CampoMx rotulo="t — espessura medida do costado" unidade="mm" obrigatorio valor={dados.t_costado} onChange={(v) => set('t_costado', Number(v))} />
+                      <CampoMx rotulo="E — eficiência do costado" valor={dados.ef_costado ?? 0.7} onChange={(v) => set('ef_costado', Number(v))} />
+                      <CampoMx rotulo="t — espessura medida do fundo" unidade="mm" obrigatorio valor={dados.t_fundo} onChange={(v) => set('t_fundo', Number(v))} />
+                      <CampoMx rotulo="E — eficiência do fundo" valor={dados.ef_fundo ?? 0.7} onChange={(v) => set('ef_fundo', Number(v))} />
+                      <CampoMx rotulo="L — raio da coroa" unidade="mm" valor={dados.l_coroa ?? ''} onChange={(v) => set('l_coroa', Number(v))} dica="Vazio = torisférico padrão (L = D)" />
+                      <CampoMx rotulo="r — raio de concordância" unidade="mm" valor={dados.r_concordancia ?? ''} onChange={(v) => set('r_concordancia', Number(v))} dica="Vazio = torisférico padrão (r = 0,06·D)" />
+                    </div>
+                    <h4 className="mz-grupo"><Icone nome="tool" tam={16} />Porta plana reforçada (UG-34)</h4>
+                    <div className="mx-grid c3">
+                      <CampoMx rotulo="t₁ — 1ª chapa da porta" unidade="mm" obrigatorio valor={dados.t_porta1} onChange={(v) => set('t_porta1', Number(v))} />
+                      <CampoMx rotulo="t₂ — 2ª chapa da porta" unidade="mm" aceitaZero valor={dados.t_porta2 ?? 0} onChange={(v) => set('t_porta2', Number(v))} dica="Só soma com ação conjunta comprovada; 0 = chapa única" />
+                      <CampoMx rotulo="E — eficiência da porta" valor={dados.ef_porta ?? 0.7} onChange={(v) => set('ef_porta', Number(v))} />
+                      <CampoMx rotulo="C — coeficiente UG-34" valor={dados.c_porta ?? 0.33} onChange={(v) => set('c_porta', Number(v))} />
+                      <CampoMx rotulo="Nervuras — espessura b" unidade="mm" aceitaZero valor={dados.nerv_b ?? 0} onChange={(v) => set('nerv_b', Number(v))} />
+                      <CampoMx rotulo="Nervuras — altura h" unidade="mm" aceitaZero valor={dados.nerv_h ?? 0} onChange={(v) => set('nerv_h', Number(v))} />
+                      <CampoMx rotulo="Nervuras — quantidade n" aceitaZero valor={dados.nerv_n ?? 0} onChange={(v) => set('nerv_n', Number(v))} />
+                      <CampoMx rotulo="Nervuras — comprimento livre L" unidade="mm" valor={dados.nerv_l ?? ''} onChange={(v) => set('nerv_l', Number(v))} dica="Vazio = raio interno (hipótese da planilha)" />
+                      <CampoMx rotulo="Maior vão real medido" unidade="mm" valor={dados.vao_real ?? ''} onChange={(v) => set('vao_real', Number(v))} dica="Maior dimensão livre entre nervuras/travessas; vazio = vão conservador 2·R·sen(π/n)" />
+                    </div>
+                  </>
+                ) : subtipo === 'vertical' ? (
                   <>
                     <h4 className="mz-grupo"><Icone nome="gauge" tam={16} />Projeto e material</h4>
                     <div className="mx-grid c3">
@@ -187,10 +232,30 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
                         opcoes={[
                           { value: 'plano', label: 'Plano (UG-34)' },
                           { value: 'conico', label: 'Cônico (UG-32g)' },
+                          // 23/11/2026 · pedido do engenheiro: o torisférico faltava.
+                          { value: 'torisferico', label: 'Torisférico (UG-32e)' },
                         ]}
                       />
                       {dados.tipo_fundo === 'conico' && (
                         <CampoMx rotulo="α — semiângulo do cone" unidade="°" valor={dados.alfa ?? 15} onChange={(v) => set('alfa', Number(v))} />
+                      )}
+                      {dados.tipo_fundo === 'torisferico' && (
+                        <>
+                          <CampoMx
+                            rotulo="L — raio da coroa"
+                            unidade="mm"
+                            valor={dados.l_coroa ?? ''}
+                            onChange={(v) => set('l_coroa', Number(v))}
+                            dica="Vazio = torisférico padrão (L = D)"
+                          />
+                          <CampoMx
+                            rotulo="r — raio de concordância"
+                            unidade="mm"
+                            valor={dados.r_concordancia ?? ''}
+                            onChange={(v) => set('r_concordancia', Number(v))}
+                            dica="Vazio = torisférico padrão (r = 0,06·D)"
+                          />
+                        </>
                       )}
                     </div>
                     <h4 className="mz-grupo"><Icone nome="tool" tam={16} />Travas do tampo</h4>

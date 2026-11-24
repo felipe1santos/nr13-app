@@ -129,14 +129,27 @@ interface DadosInternoBase extends DadosCalibracaoBase {
   substitui?: string;
 }
 
-export interface DadosManometro extends DadosInternoBase {
-  tipo: 'manometro';
+/** Resultado por PONTOS (valor convencional × indicado, crescente e decrescente). */
+interface CamposPontos {
   crescente: LinhaResultado[];
   incertezaC: string;
   coefC: string;
   decrescente: LinhaResultado[];
   incertezaD: string;
   coefD: string;
+}
+
+export interface DadosManometro extends DadosInternoBase, CamposPontos {
+  tipo: 'manometro';
+}
+
+/**
+ * 24/11/2026 · certificado INTERNO da MALHA DE PRESSÃO (transmissor + a sua
+ * indicação). É um instrumento de MEDIÇÃO: o resultado é o mesmo do manômetro,
+ * ponto a ponto, contra o manômetro padrão.
+ */
+export interface DadosTransmissor extends DadosInternoBase, CamposPontos {
+  tipo: 'transmissor';
 }
 
 export interface DadosPSV extends DadosInternoBase {
@@ -183,9 +196,8 @@ export const ENSAIOS_PRESSOSTATO = 2;
  * MANÔMETRO padrão (ou um padrão de pressostato cadastrado em Certificados).
  * A unidade é a do instrumento (`unidade` da base), como na PSV.
  */
-export interface DadosPressostato extends DadosInternoBase {
-  tipo: 'pressostato';
-  /** Set point — a pressão de ajuste do pressostato. */
+interface CamposChaveamento {
+  /** Set point — o valor de ajuste (pressão no pressostato, temperatura no termostato). */
   setPoint: string;
   /** Sempre `ENSAIOS_PRESSOSTATO` ensaios (vazios = não executados). */
   ensaios: EnsaioPressostato[];
@@ -194,7 +206,40 @@ export interface DadosPressostato extends DadosInternoBase {
   /** Tempo de ensaio, em minutos. Opcional. */
   tempoMin?: string;
   inspecaoVisual: Partial<Record<ItemInspecaoPressostato, CondicaoVisual>>;
+  /**
+   * 24/11/2026 · o modelo do engenheiro parceiro (Pressostato.xls, TEMPCALL).
+   * TODOS opcionais: registro anterior não os tem, e o certificado sai com "—".
+   *
+   * `localInstrumento` — o LOCAL / TAG do instrumento (ex.: "PS1"), snapshot do
+   * cadastro do componente (`ComponenteCal.local`).
+   */
+  localInstrumento?: string;
+  /** Diferencial digitado. Vazio = média de |desarme − rearme| dos ensaios. */
+  diferencial?: string;
+  /** Incerteza da medição, % da amplitude da faixa de indicação. */
+  incertezaMedicao?: string;
+  /** Erro fiducial (índice de exatidão), % da amplitude da faixa. */
+  erroFiducial?: string;
+  /** Fator de abrangência k. */
+  fatorK?: string;
+  /** Graus de liberdade efetivos (aceita "∞"). */
+  veff?: string;
 }
+
+export interface DadosPressostato extends DadosInternoBase, CamposChaveamento {
+  tipo: 'pressostato';
+}
+
+/**
+ * 24/11/2026 · certificado INTERNO de TERMOSTATO — o do pressostato, em
+ * temperatura (°C, unidade do instrumento). Padrão: termômetro/termostato padrão.
+ */
+export interface DadosTermostato extends DadosInternoBase, CamposChaveamento {
+  tipo: 'termostato';
+}
+
+export type DadosChaveamento = DadosPressostato | DadosTermostato;
+export type DadosPontos = DadosManometro | DadosTransmissor;
 
 /**
  * Revisão do engenheiro, fase 2 (D) · calibração feita por LABORATÓRIO EXTERNO.
@@ -217,7 +262,7 @@ export interface DadosTerceiro extends DadosCalibracaoBase {
   pdfExternoSha256?: string;
 }
 
-export type DadosCalibracaoInterna = DadosManometro | DadosPSV | DadosPressostato;
+export type DadosCalibracaoInterna = DadosManometro | DadosPSV | DadosPressostato | DadosTermostato | DadosTransmissor;
 export type DadosCalibracao = DadosCalibracaoInterna | DadosTerceiro;
 
 export function ehTerceiro(c: { origem?: unknown } | null | undefined): c is DadosTerceiro {
@@ -225,7 +270,15 @@ export function ehTerceiro(c: { origem?: unknown } | null | undefined): c is Dad
 }
 
 export function ehInterna(c: DadosCalibracao | null | undefined): c is DadosCalibracaoInterna {
-  return !!c && !ehTerceiro(c) && (c.tipo === 'manometro' || c.tipo === 'psv' || c.tipo === 'pressostato');
+  return (
+    !!c &&
+    !ehTerceiro(c) &&
+    (c.tipo === 'manometro' ||
+      c.tipo === 'psv' ||
+      c.tipo === 'pressostato' ||
+      c.tipo === 'termostato' ||
+      c.tipo === 'transmissor')
+  );
 }
 
 export function ehEmitido(c: DadosCalibracao | null | undefined): boolean {

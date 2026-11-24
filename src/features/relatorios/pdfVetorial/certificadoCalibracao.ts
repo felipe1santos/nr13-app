@@ -3,6 +3,8 @@ import { FAMILIA, registrarCarlito } from './carlito';
 import { alturaLinha } from './documentoA4';
 import { imagemEncaixada } from './primitivas';
 import { ITENS_INSPECAO_PRESSOSTATO, type DadosCalibracaoInterna, type LinhaResultado } from '../../calibracoes/tipos';
+import { ehChaveamento, type ModeloInterno } from '../../calibracoes/instrumentos';
+import { diferencialDoCertificado, veffParaDocumento } from '../../calibracoes/metrologiaChaveamento';
 
 /**
  * Fase 7 · o CERTIFICADO INTERNO DE CALIBRAÇÃO em vetor.
@@ -68,8 +70,32 @@ export interface ResultadoLinha {
   erro: string;
 }
 
+/**
+ * 24/11/2026 · os resultados de PRESSOSTATO e TERMOSTATO (o mesmo certificado,
+ * pressão × temperatura), com o bloco do modelo do engenheiro parceiro:
+ * Range/Diferencial e as características metrológicas (todas opcionais — `null`
+ * sai "—").
+ */
+export interface CamposResultadoChaveamento {
+  /** Sem unidade no registro, os rótulos saem sem parênteses (como a PSV). */
+  unidade: string | null;
+  setPoint: string;
+  ensaios: { desarme: string; rearme: string }[];
+  /** `null` = não informado: a coluna não sai. */
+  fluido: string | null;
+  tempoMin: string | null;
+  inspecao: { item: string; condicao: 'APROVADO' | 'REPROVADO' | '----' }[];
+  /** Range = o set point. */
+  range: string;
+  /** O digitado, ou a média de |desarme − rearme|; sem nada, "—". */
+  diferencial: string;
+  /** Em % da amplitude da faixa de indicação; "—" quando não informado. */
+  metrologia: { incerteza: string; erroFiducial: string; k: string; veff: string };
+}
+
 export type ResultadosCertificado =
   | {
+      /** Manômetro e, desde 24/11/2026, a MALHA DE PRESSÃO (transmissor). */
       tipo: 'manometro';
       /** O rótulo entre parênteses dos dois títulos: a unidade, ou `Kgf/cm²` do template. */
       unidade: string;
@@ -90,21 +116,17 @@ export type ResultadosCertificado =
       incerteza: string;
       coef: string;
     }
-  | {
+  | ({
       /** 23/11/2026 · pressostato: set point, dois ensaios e inspeção visual. */
       tipo: 'pressostato';
-      /** Sem unidade no registro, os rótulos saem sem parênteses (como a PSV). */
-      unidade: string | null;
-      setPoint: string;
-      ensaios: { desarme: string; rearme: string }[];
-      /** `null` = não informado: a coluna não sai. */
-      fluido: string | null;
-      tempoMin: string | null;
-      inspecao: { item: string; condicao: 'APROVADO' | 'REPROVADO' | '----' }[];
-    };
+    } & CamposResultadoChaveamento)
+  | ({
+      /** 24/11/2026 · termostato: o mesmo, em temperatura. */
+      tipo: 'termostato';
+    } & CamposResultadoChaveamento);
 
 export interface ModeloCertificado {
-  tipo: 'manometro' | 'psv' | 'pressostato';
+  tipo: ModeloInterno;
   titulo: string;
   numero: string;
   dataEmissao: string;
@@ -117,6 +139,11 @@ export interface ModeloCertificado {
     referencia: string;
     dataCalibracao: string;
     dataProxima: string;
+    /**
+     * 24/11/2026 · LOCAL / TAG do instrumento — só no pressostato e no
+     * termostato (o modelo do engenheiro). `null` = a coluna não existe.
+     */
+    local: string | null;
   };
   procedimento: string;
   ambiente: { temperatura: string; umidade: string; local: string };
@@ -138,7 +165,21 @@ export const TITULOS = {
   manometro: 'CERTIFICADO DE CALIBRAÇÃO MANOMETRO',
   psv: 'CERTIFICADO DE CALIBRAÇÃO PSV',
   pressostato: 'CERTIFICADO DE CALIBRAÇÃO PRESSOSTATO',
+  termostato: 'CERTIFICADO DE CALIBRAÇÃO TERMOSTATO',
+  transmissor: 'CERTIFICADO DE CALIBRAÇÃO MALHA DE PRESSÃO',
 } as const;
+
+/** O título do certificado pelo tipo. */
+export function tituloDoCertificado(tipo: ModeloInterno): string {
+  return TITULOS[tipo] ?? TITULOS.manometro;
+}
+
+/** Marcador dos campos NOVOS do modelo do engenheiro quando não informados. */
+export const NAO_INFORMADO = '—';
+
+/** O título do bloco metrológico, como no modelo do engenheiro parceiro. */
+export const TITULO_METROLOGIA =
+  'CARACTERÍSTICAS METROLÓGICAS APRESENTADAS PELO INSTRUMENTO EM RELAÇÃO À AMPLITUDE DA FAIXA DE INDICAÇÃO (%)';
 
 export const TEXTO_PROCEDIMENTO =
   'A calibração é realizada por comparação direta com o padrão de referência e a leitura do erro indicada no instrumento em calibração.';
@@ -175,6 +216,28 @@ export const DEFINICOES_PRESSOSTATO = [
   {
     termo: 'Pressão de Rearme:',
     texto: 'pressão, lida no padrão, em que o pressostato retornou ao estado inicial.',
+  },
+  {
+    termo: 'Diferencial:',
+    texto: 'diferença entre os valores de desarme e de rearme (média dos ensaios).',
+  },
+] as const;
+
+/** 24/11/2026 · as definições do certificado de TERMOSTATO (o do pressostato, em temperatura). */
+export const DEFINICOES_TERMOSTATO = [
+  { termo: 'Valor Convencional:', texto: 'refere-se à indicação no padrão utilizado.' },
+  { termo: 'Set Point:', texto: 'temperatura de ajuste na qual o termostato deve atuar.' },
+  {
+    termo: 'Temperatura de Desarme:',
+    texto: 'temperatura, lida no padrão, em que o termostato atuou (mudou o estado do contato).',
+  },
+  {
+    termo: 'Temperatura de Rearme:',
+    texto: 'temperatura, lida no padrão, em que o termostato retornou ao estado inicial.',
+  },
+  {
+    termo: 'Diferencial:',
+    texto: 'diferença entre os valores de desarme e de rearme (média dos ensaios).',
   },
 ] as const;
 
@@ -241,10 +304,12 @@ export function modeloCertificado(
   c: DadosCalibracaoInterna,
   empresa: EmpresaCertificado | null | undefined,
 ): ModeloCertificado {
+  /** Campo novo opcional: vazio → "—". */
+  const n = (valor: unknown) => v(valor, NAO_INFORMADO);
   const resultados: ResultadosCertificado =
-    c.tipo === 'pressostato'
+    c.tipo === 'pressostato' || c.tipo === 'termostato'
       ? {
-          tipo: 'pressostato',
+          tipo: c.tipo,
           unidade: c.unidade ? c.unidade : null,
           setPoint: v(c.setPoint),
           ensaios: (Array.isArray(c.ensaios) && c.ensaios.length ? c.ensaios : [{}, {}]).map((e) => ({
@@ -260,6 +325,14 @@ export function modeloCertificado(
               condicao: cond === 'aprovado' ? 'APROVADO' : cond === 'reprovado' ? 'REPROVADO' : VAZIO,
             };
           }),
+          range: v(c.setPoint),
+          diferencial: n(diferencialDoCertificado(c.diferencial, c.ensaios)),
+          metrologia: {
+            incerteza: n(c.incertezaMedicao),
+            erroFiducial: n(c.erroFiducial),
+            k: n(c.fatorK),
+            veff: n(veffParaDocumento(c.veff)),
+          },
         }
       : c.tipo === 'psv'
       ? {
@@ -296,8 +369,8 @@ export function modeloCertificado(
           };
 
   return {
-    tipo: c.tipo === 'psv' ? 'psv' : c.tipo === 'pressostato' ? 'pressostato' : 'manometro',
-    titulo: c.tipo === 'psv' ? TITULOS.psv : c.tipo === 'pressostato' ? TITULOS.pressostato : TITULOS.manometro,
+    tipo: c.tipo in TITULOS ? c.tipo : 'manometro',
+    titulo: tituloDoCertificado(c.tipo),
     numero: v(c.numeroCertificado),
     dataEmissao: v(c.dataEmissao, DATA_VAZIA),
     cliente: { empresa: v(c.empresa), endereco: v(c.endereco) },
@@ -309,6 +382,7 @@ export function modeloCertificado(
       referencia: v(c.referencia),
       dataCalibracao: v(c.dataCalibracao, DATA_VAZIA),
       dataProxima: v(c.dataProxCalibracao, DATA_VAZIA),
+      local: ehChaveamento(c.tipo) ? v((c as { localInstrumento?: string }).localInstrumento) : null,
     },
     procedimento: TEXTO_PROCEDIMENTO,
     ambiente: { temperatura: v(c.tempAr), umidade: v(c.umidade), local: v(c.local) },
@@ -320,7 +394,12 @@ export function modeloCertificado(
     },
     rastreabilidade: TEXTO_RASTREABILIDADE,
     resultados,
-    definicoes: (c.tipo === 'pressostato' ? DEFINICOES_PRESSOSTATO : DEFINICOES).map((d) => ({ ...d })),
+    definicoes: (c.tipo === 'pressostato'
+      ? DEFINICOES_PRESSOSTATO
+      : c.tipo === 'termostato'
+        ? DEFINICOES_TERMOSTATO
+        : DEFINICOES
+    ).map((d) => ({ ...d })),
     conclusao: c.statusConclusao
       ? { status: c.statusConclusao === 'aprovado' ? 'APROVADO' : 'REPROVADO', motivo: c.textoMotivo || '' }
       : { status: '--', motivo: '' },
@@ -348,6 +427,7 @@ export function camposSemanticos(m: ModeloCertificado): Record<string, string> {
     'item.referencia': m.item.referencia,
     'item.dataCalibracao': m.item.dataCalibracao,
     'item.dataProxima': m.item.dataProxima,
+    ...(m.item.local !== null ? { 'item.local': m.item.local } : {}),
     'ambiente.temperatura': m.ambiente.temperatura,
     'ambiente.umidade': m.ambiente.umidade,
     'ambiente.local': m.ambiente.local,
@@ -375,8 +455,14 @@ export function camposSemanticos(m: ModeloCertificado): Record<string, string> {
     out['resultados.coefC'] = res.coefC;
     out['resultados.incertezaD'] = res.incertezaD;
     out['resultados.coefD'] = res.coefD;
-  } else if (res.tipo === 'pressostato') {
+  } else if (res.tipo === 'pressostato' || res.tipo === 'termostato') {
     out['resultados.unidade'] = res.unidade ?? '';
+    out['resultados.range'] = res.range;
+    out['resultados.diferencial'] = res.diferencial;
+    out['metrologia.incerteza'] = res.metrologia.incerteza;
+    out['metrologia.erroFiducial'] = res.metrologia.erroFiducial;
+    out['metrologia.k'] = res.metrologia.k;
+    out['metrologia.veff'] = res.metrologia.veff;
     out['resultados.setPoint'] = res.setPoint;
     res.ensaios.forEach((e, i) => {
       out[`ensaio.${i + 1}.desarme`] = e.desarme;
@@ -1029,27 +1115,61 @@ function desenhar(d: Desenhista, m: ModeloCertificado, img: ImagensCertificado):
   // 2. Item calibrado
   d.garantir(d.alturaSecao() + 12);
   d.y = d.secao('2. DADOS DO ITEM CALIBRADO');
-  const c5 = [0.25, 0.2, 0.15, 0.2, 0.2].map((f) => f * LARGURA);
-  d.tabela({
-    colunas: c5,
-    linhas: [
-      {
-        celulas: [rotulo('INSTRUMENTO'), rotulo('FABRICANTE'), rotulo('MODELO'), rotulo('LOTE / SÉRIE'), rotulo('REFERÊNCIA')],
-        cabecalho: true,
-      },
-      {
-        celulas: [
-          valor(m.item.instrumento),
-          valor(m.item.fabricante),
-          valor(m.item.modelo),
-          valor(m.item.serie),
-          valor(m.item.referencia),
-        ],
-      },
-      { celulas: [{ ...rotulo('DATA DA CALIBRAÇÃO'), colspan: 3 }, { ...rotulo('DATA DA PRÓXIMA CALIBRAÇÃO'), colspan: 2 }] },
-      { celulas: [valor(m.item.dataCalibracao, 3), valor(m.item.dataProxima, 2)] },
-    ],
-  });
+  if (m.item.local === null) {
+    const c5 = [0.25, 0.2, 0.15, 0.2, 0.2].map((f) => f * LARGURA);
+    d.tabela({
+      colunas: c5,
+      linhas: [
+        {
+          celulas: [rotulo('INSTRUMENTO'), rotulo('FABRICANTE'), rotulo('MODELO'), rotulo('LOTE / SÉRIE'), rotulo('REFERÊNCIA')],
+          cabecalho: true,
+        },
+        {
+          celulas: [
+            valor(m.item.instrumento),
+            valor(m.item.fabricante),
+            valor(m.item.modelo),
+            valor(m.item.serie),
+            valor(m.item.referencia),
+          ],
+        },
+        { celulas: [{ ...rotulo('DATA DA CALIBRAÇÃO'), colspan: 3 }, { ...rotulo('DATA DA PRÓXIMA CALIBRAÇÃO'), colspan: 2 }] },
+        { celulas: [valor(m.item.dataCalibracao, 3), valor(m.item.dataProxima, 2)] },
+      ],
+    });
+  } else {
+    // 24/11/2026 · pressostato/termostato: a coluna LOCAL (TAG do instrumento,
+    // ex.: "PS1"), como no modelo do engenheiro parceiro.
+    const c6 = [0.2, 0.12, 0.17, 0.15, 0.18, 0.18].map((f) => f * LARGURA);
+    d.tabela({
+      colunas: c6,
+      linhas: [
+        {
+          celulas: [
+            rotulo('INSTRUMENTO'),
+            rotulo('LOCAL'),
+            rotulo('FABRICANTE'),
+            rotulo('MODELO'),
+            rotulo('LOTE / SÉRIE'),
+            rotulo('REFERÊNCIA'),
+          ],
+          cabecalho: true,
+        },
+        {
+          celulas: [
+            valor(m.item.instrumento),
+            valor(m.item.local),
+            valor(m.item.fabricante),
+            valor(m.item.modelo),
+            valor(m.item.serie),
+            valor(m.item.referencia),
+          ],
+        },
+        { celulas: [{ ...rotulo('DATA DA CALIBRAÇÃO'), colspan: 3 }, { ...rotulo('DATA DA PRÓXIMA CALIBRAÇÃO'), colspan: 3 }] },
+        { celulas: [valor(m.item.dataCalibracao, 3), valor(m.item.dataProxima, 3)] },
+      ],
+    });
+  }
 
   // 3 e 4, lado a lado (`display:flex; gap:10px`).
   {
@@ -1186,7 +1306,7 @@ function desenhar(d: Desenhista, m: ModeloCertificado, img: ImagensCertificado):
       ],
       vaos: [3],
     });
-  } else if (res.tipo === 'pressostato') {
+  } else if (res.tipo === 'pressostato' || res.tipo === 'termostato') {
     desenharResultadosPressostato(d, res);
   } else {
     const u = res.unidade ? ` (${res.unidade})` : '';
@@ -1290,13 +1410,16 @@ function desenhar(d: Desenhista, m: ModeloCertificado, img: ImagensCertificado):
  */
 function desenharResultadosPressostato(
   d: Desenhista,
-  res: Extract<ResultadosCertificado, { tipo: 'pressostato' }>,
+  res: Extract<ResultadosCertificado, { tipo: 'pressostato' | 'termostato' }>,
 ): void {
   const u = res.unidade ? ` (${res.unidade})` : '';
+  // 24/11/2026 · termostato: o mesmo certificado, em temperatura.
+  const grandeza = res.tipo === 'termostato' ? 'TEMPERATURA' : 'PRESSÃO';
 
-  // (a) set point · fluido · tempo
-  const cab: Celula[] = [rotulo(`SET POINT${u}`)];
-  const val: Celula[] = [valor(res.setPoint)];
+  // (a) range (= set point) · diferencial · fluido · tempo — o "Range" e o
+  // "Diferencial" do modelo do engenheiro parceiro.
+  const cab: Celula[] = [rotulo(`RANGE — SET POINT${u}`), rotulo(`DIFERENCIAL${u}`)];
+  const val: Celula[] = [valor(res.range), valor(res.diferencial)];
   if (res.fluido !== null) {
     cab.push(rotulo('FLUIDO DE ENSAIO'));
     val.push(valor(res.fluido));
@@ -1321,7 +1444,7 @@ function desenharResultadosPressostato(
     linhas: [
       {
         cabecalho: true,
-        celulas: [rotulo('ENSAIO'), rotulo(`PRESSÃO DE DESARME${u}`), rotulo(`PRESSÃO DE REARME${u}`)],
+        celulas: [rotulo('ENSAIO'), rotulo(`${grandeza} DE DESARME${u}`), rotulo(`${grandeza} DE REARME${u}`)],
       },
       ...res.ensaios.map((e, i) => ({
         celulas: [
@@ -1333,7 +1456,42 @@ function desenharResultadosPressostato(
     ],
   });
 
-  // (c) inspeção visual — três pares ITEM | CONDIÇÃO por linha, na ordem do relatório de referência
+  // (c) as características metrológicas (% da amplitude da faixa de indicação)
+  d.tabela({
+    colunas: [0.3, 0.3, 0.2, 0.2].map((f) => f * LARGURA),
+    depois: 5 * PX,
+    linhas: [
+      {
+        cabecalho: true,
+        celulas: [
+          {
+            colspan: 4,
+            fundo: COR_CERT.fundoTituloResultado,
+            paragrafos: [{ trechos: [{ texto: TITULO_METROLOGIA, negrito: true }], tamanho: F.rotulo }],
+          },
+        ],
+      },
+      {
+        cabecalho: true,
+        celulas: [
+          rotulo('INCERTEZA DA MEDIÇÃO'),
+          rotulo('ERRO FIDUCIAL (ÍNDICE DE EXATIDÃO)'),
+          rotulo('k'),
+          rotulo('VEFF'),
+        ],
+      },
+      {
+        celulas: [
+          valor(res.metrologia.incerteza),
+          valor(res.metrologia.erroFiducial),
+          valor(res.metrologia.k),
+          valor(res.metrologia.veff),
+        ],
+      },
+    ],
+  });
+
+  // (d) inspeção visual — três pares ITEM | CONDIÇÃO por linha, na ordem do relatório de referência
   const porLinha = 3;
   const cond = (t: string): Celula => ({
     paragrafos: [

@@ -2,7 +2,7 @@ import type { SistemaUnidade } from '../../calc/unidades';
 import type { FotoArmazenada, RefFoto } from '../../services/fotos';
 
 export type TipoEquipamento = 'vaso' | 'autoclave' | 'caldeira';
-export type SubtipoAutoclave = 'retangular' | 'cilindrica' | 'vertical';
+export type SubtipoAutoclave = 'retangular' | 'cilindrica' | 'vertical' | 'bancada';
 export type SubtipoCaldeira = 'flamotubular' | 'aquatubular' | 'vertical' | 'mista' | 'eletrica';
 
 // nr13_info_<TAG>

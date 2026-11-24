@@ -22,7 +22,15 @@ import { Icone } from '../../components/Icone';
 import FotoImg from '../../components/FotoImg';
 import type { ComponenteCal } from './componentesService';
 import { PONTOS_NA_FOLHA } from './resultadosCalibracao';
-import { INSTRUMENTOS, TIPOS_INSTRUMENTO, definicaoDe, unidadesDoInstrumento, type TipoInstrumento } from './instrumentos';
+import {
+  INSTRUMENTOS,
+  TIPOS_INSTRUMENTO,
+  definicaoDe,
+  ehChaveamento,
+  ehMedicaoPorPontos,
+  unidadesDoInstrumento,
+  type TipoInstrumento,
+} from './instrumentos';
 import {
   pontosDeTexto,
   textoDePontos,
@@ -41,6 +49,7 @@ export default function ModalComponente({
   aoFechar: () => void;
 }) {
   const [c, setC] = useState<ComponenteCal>(valor);
+  const [textoPontos, setTextoPontos] = useState(() => textoDePontos(valor.pontos));
   const salvamento = useSalvamento();
   const salvando = salvamento.salvando;
   const caixa = useRef<HTMLDivElement>(null);
@@ -195,37 +204,64 @@ export default function ModalComponente({
               Só manômetro e PSV têm dado técnico além da faixa: os PONTOS
               padrão (default — cada calibração registra os que executou) e a
               pressão de ajuste da válvula. Os outros tipos não mostram nada. */}
-          {(c.tipo === 'manometro' || c.tipo === 'psv' || c.tipo === 'pressostato') && (
+          {(ehMedicaoPorPontos(c.tipo) || c.tipo === 'psv' || ehChaveamento(c.tipo)) && (
             <div className="mcomp-bloco">
               <div className="mcomp-bloco-titulo">
                 <Icone nome="sliders" tam={13} />
                 <span>Dados técnicos — {definicaoDe(c.tipo).rotulo}</span>
               </div>
               <div className="mcomp-grid">
-                {c.tipo === 'manometro' ? (
+                {ehMedicaoPorPontos(c.tipo) ? (
                   <label className="mcomp-campo mcomp-campo-full">
                     <span>Pontos de calibração (padrão)</span>
+                    {/* O texto fica como foi digitado (estado local): reconstruir a
+                        partir dos pontos a cada tecla apagava a vírgula recém-digitada
+                        ("0," virava "0") — 23/11/2026. */}
                     <input
-                      value={textoDePontos(c.pontos)}
-                      onChange={(e) => set('pontos', pontosDeTexto(e.target.value))}
-                      placeholder="Ex: 0, 2, 4, 6, 8, 10"
+                      value={textoPontos}
+                      inputMode="decimal"
+                      onChange={(e) => {
+                        setTextoPontos(e.target.value);
+                        set('pontos', pontosDeTexto(e.target.value));
+                      }}
+                      placeholder="Ex: 0; 2,5; 5; 7,5; 10"
                     />
                     <em className="mcomp-dica">
                       {(c.pontos ?? []).length > PONTOS_NA_FOLHA
                         ? `O certificado imprime ${PONTOS_NA_FOLHA} pontos — os demais não entram no documento.`
-                        : 'Separe por vírgula. Viram a coluna “valor do padrão” de cada calibração, que ainda pode ajustar os pontos executados.'}
+                        : 'Separe por ponto e vírgula ou vírgula com espaço (0; 2,5; 5). Viram a coluna “valor do padrão” de cada calibração, que ainda pode ajustar os pontos executados.'}
                     </em>
                   </label>
                 ) : (
-                  <label className="mcomp-campo">
-                    {/* Pressostato (23/11/2026): o set point mora no mesmo campo. */}
-                    <span>{c.tipo === 'pressostato' ? 'Set point (pressão de ajuste)' : 'Pressão de ajuste'}</span>
-                    <input
-                      value={c.pressaoAjuste ?? ''}
-                      onChange={(e) => set('pressaoAjuste', e.target.value)}
-                      placeholder="Ex: 8,5"
-                    />
-                  </label>
+                  <>
+                    <label className="mcomp-campo">
+                      {/* Pressostato (23/11/2026) e termostato (24/11/2026): o set point mora no mesmo campo. */}
+                      <span>
+                        {c.tipo === 'pressostato'
+                          ? 'Set point (pressão de ajuste)'
+                          : c.tipo === 'termostato'
+                            ? 'Set point (temperatura de ajuste)'
+                            : 'Pressão de ajuste'}
+                      </span>
+                      <input
+                        value={c.pressaoAjuste ?? ''}
+                        inputMode="decimal"
+                        onChange={(e) => set('pressaoAjuste', e.target.value)}
+                        placeholder="Ex: 8,5"
+                      />
+                    </label>
+                    {ehChaveamento(c.tipo) && (
+                      <label className="mcomp-campo">
+                        {/* 24/11/2026 · o LOCAL do item calibrado no certificado (modelo do engenheiro). */}
+                        <span>Local / TAG do instrumento</span>
+                        <input
+                          value={c.local ?? ''}
+                          onChange={(e) => set('local', e.target.value)}
+                          placeholder="Ex: PS1"
+                        />
+                      </label>
+                    )}
+                  </>
                 )}
               </div>
             </div>

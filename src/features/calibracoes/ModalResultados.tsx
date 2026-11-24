@@ -36,7 +36,8 @@ import {
   type CondicaoVisual,
   type EnsaioPressostato,
 } from './tipos';
-import type { ModeloInterno } from './instrumentos';
+import { definicaoDe, ehChaveamento, ehMedicaoPorPontos, type ModeloInterno } from './instrumentos';
+import { diferencialDosEnsaios, entradaDecimal, entradaVeff, formatarDecimalBr } from './metrologiaChaveamento';
 import '../relatorios/modalFiltrosRelatorios.css';
 import './modalResultados.css';
 
@@ -48,13 +49,22 @@ export interface ValoresPsv {
   coef: string;
 }
 
-/** 23/11/2026 · os resultados do PRESSOSTATO. */
+/** 23/11/2026 · os resultados do PRESSOSTATO (e, desde 24/11/2026, do TERMOSTATO). */
 export interface ValoresPressostato {
   setPoint: string;
   ensaios: EnsaioPressostato[];
   fluido: string;
   tempoMin: string;
   inspecaoVisual: Record<string, CondicaoVisual>;
+  /**
+   * 24/11/2026 · o modelo do engenheiro parceiro — todos OPCIONAIS. Diferencial
+   * vazio = média de |desarme − rearme| no certificado.
+   */
+  diferencial: string;
+  incertezaMedicao: string;
+  erroFiducial: string;
+  fatorK: string;
+  veff: string;
 }
 
 export interface ValoresManometro {
@@ -80,7 +90,7 @@ export default function ModalResultados({
   nome: string;
   manometro: ValoresManometro;
   psv: ValoresPsv;
-  /** Só no pressostato. */
+  /** Só no pressostato e no termostato. */
   pressostato?: ValoresPressostato;
   aoConfirmar: (v: { manometro: ValoresManometro; psv: ValoresPsv; pressostato?: ValoresPressostato }) => void;
   aoFechar: () => void;
@@ -151,7 +161,10 @@ export default function ModalResultados({
     }
   }
 
-  const podeConfirmar = tipo === 'psv' || tipo === 'pressostato' ? true : resumo.feitos > 0 || resumo.total === 0;
+  const podeConfirmar = !ehMedicaoPorPontos(tipo) ? true : resumo.feitos > 0 || resumo.total === 0;
+  // Termostato: os ensaios são de TEMPERATURA (24/11/2026).
+  const grandezaEnsaio = definicaoDe(tipo).grandeza === 'temperatura' ? 'Temperatura' : 'Pressão';
+  const diferencialCalculado = prs ? diferencialDosEnsaios(prs.ensaios) : null;
 
   function setEnsaio(i: number, campo: keyof EnsaioPressostato, v: string) {
     setPrs((p) => (p ? { ...p, ensaios: p.ensaios.map((e, k) => (k === i ? { ...e, [campo]: v } : e)) } : p));
@@ -178,7 +191,7 @@ export default function ModalResultados({
           <div>
             <h3>Resultados obtidos</h3>
             <p className="mres-sub">
-              {nome || (tipo === 'manometro' ? 'Manômetro' : tipo === 'pressostato' ? 'Pressostato' : 'Válvula de segurança')} ·{' '}
+              {nome || definicaoDe(tipo).rotulo} ·{' '}
               <strong>{unidade}</strong>
             </p>
           </div>
@@ -187,7 +200,7 @@ export default function ModalResultados({
           </button>
         </div>
 
-        {tipo === 'manometro' ? (
+        {ehMedicaoPorPontos(tipo) ? (
           <div className="mres-corpo">
             <div className="mres-barra" role="status">
               <span className="mres-progresso">
@@ -354,11 +367,11 @@ export default function ModalResultados({
               </button>
             </div>
           </div>
-        ) : tipo === 'pressostato' && prs ? (
+        ) : ehChaveamento(tipo) && prs ? (
           <div className="mres-corpo">
             <p className="mres-ajuda">
-              Os dois ensaios de atuação do pressostato, lidos no padrão. O <strong>set point</strong> vem do
-              cadastro do componente quando já estiver preenchido lá.
+              Os dois ensaios de atuação do {tipo === 'termostato' ? 'termostato' : 'pressostato'}, lidos no padrão. O{' '}
+              <strong>set point</strong> vem do cadastro do componente quando já estiver preenchido lá.
             </p>
             <div className="mres-psv">
               <label>
@@ -404,7 +417,7 @@ export default function ModalResultados({
                       <input
                         value={e.desarme}
                         inputMode="decimal"
-                        aria-label={`Pressão de desarme no ${i + 1}º ensaio`}
+                        aria-label={`${grandezaEnsaio} de desarme no ${i + 1}º ensaio`}
                         onChange={(ev) => setEnsaio(i, 'desarme', ev.target.value)}
                       />
                     </label>
@@ -415,13 +428,81 @@ export default function ModalResultados({
                       <input
                         value={e.rearme}
                         inputMode="decimal"
-                        aria-label={`Pressão de rearme no ${i + 1}º ensaio`}
+                        aria-label={`${grandezaEnsaio} de rearme no ${i + 1}º ensaio`}
                         onChange={(ev) => setEnsaio(i, 'rearme', ev.target.value)}
                       />
                     </label>
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* 24/11/2026 · Range/Diferencial e as características metrológicas
+                do modelo do engenheiro parceiro. Todos opcionais; aceitam
+                vírgula e ponto (texto com teclado decimal, nunca type=number). */}
+            <div className="mres-prs-metro" role="group" aria-label="Características metrológicas">
+              <span className="mres-inc-titulo">Diferencial e características metrológicas (opcionais)</span>
+              <div className="mres-psv">
+                <label>
+                  <span>
+                    Diferencial<em>{unidade}</em>
+                  </span>
+                  <input
+                    data-campo="diferencial"
+                    value={prs.diferencial}
+                    inputMode="decimal"
+                    placeholder={diferencialCalculado !== null ? `${formatarDecimalBr(diferencialCalculado)} (média dos ensaios)` : 'média dos ensaios'}
+                    onChange={(e) => setPrs((p) => (p ? { ...p, diferencial: entradaDecimal(e.target.value) } : p))}
+                  />
+                </label>
+                <label>
+                  <span>
+                    Incerteza da medição<em>%</em>
+                  </span>
+                  <input
+                    data-campo="incerteza-medicao"
+                    value={prs.incertezaMedicao}
+                    inputMode="decimal"
+                    onChange={(e) => setPrs((p) => (p ? { ...p, incertezaMedicao: entradaDecimal(e.target.value) } : p))}
+                  />
+                </label>
+                <label>
+                  <span>
+                    Erro fiducial (índice de exatidão)<em>%</em>
+                  </span>
+                  <input
+                    data-campo="erro-fiducial"
+                    value={prs.erroFiducial}
+                    inputMode="decimal"
+                    onChange={(e) => setPrs((p) => (p ? { ...p, erroFiducial: entradaDecimal(e.target.value) } : p))}
+                  />
+                </label>
+                <label>
+                  <span>Fator de abrangência k</span>
+                  <input
+                    data-campo="fator-k"
+                    value={prs.fatorK}
+                    inputMode="decimal"
+                    onChange={(e) => setPrs((p) => (p ? { ...p, fatorK: entradaDecimal(e.target.value) } : p))}
+                  />
+                </label>
+                <label>
+                  <span>Veff (graus de liberdade)</span>
+                  <input
+                    data-campo="veff"
+                    value={prs.veff}
+                    placeholder="Ex: 50 ou ∞"
+                    onChange={(e) => setPrs((p) => (p ? { ...p, veff: entradaVeff(e.target.value) } : p))}
+                  />
+                </label>
+              </div>
+              <button
+                type="button"
+                className="fj-btn fj-btn-ghost"
+                onClick={() => setPrs((p) => (p ? { ...p, veff: '∞' } : p))}
+              >
+                Veff infinito (∞)
+              </button>
             </div>
 
             <div className="mres-prs-insp" role="group" aria-label="Inspeção visual">

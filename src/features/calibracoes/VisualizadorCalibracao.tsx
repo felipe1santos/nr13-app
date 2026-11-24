@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import { ITENS_INSPECAO_PRESSOSTATO, ehInterna, ehTerceiro, rotuloOrigem, type DadosCalibracao, type DadosManometro, type DadosPSV, type DadosTerceiro, type LinhaResultado } from './tipos';
-import { definicaoDe } from './instrumentos';
+import { definicaoDe, ehMedicaoPorPontos } from './instrumentos';
+import { diferencialDoCertificado } from './metrologiaChaveamento';
 import '../inspecoes/visualizador.css';
 import { UNIDADE_PADRAO } from './preencherCalibracao';
 
@@ -91,7 +92,8 @@ function VisualizadorTerceiro({ dados }: { dados: DadosTerceiro }) {
 
 export default function VisualizadorCalibracao({ dados }: { dados: DadosCalibracao }) {
   if (ehTerceiro(dados)) return <VisualizadorTerceiro dados={dados} />;
-  const isMano = dados.tipo === 'manometro';
+  // Manômetro e malha de pressão (transmissor, 24/11/2026): resultado por pontos.
+  const isMano = ehMedicaoPorPontos(dados.tipo);
   const mano = dados as DadosManometro;
   const psv = dados as DadosPSV;
   // A unidade é do INSTRUMENTO (cadastro do componente), não do equipamento:
@@ -168,11 +170,21 @@ export default function VisualizadorCalibracao({ dados }: { dados: DadosCalibrac
       </Secao>
 
       <Secao titulo="Resultados Obtidos">
-        {dados.tipo === 'pressostato' ? (
-          // Pressostato (23/11/2026): set point, os dois ensaios e a inspeção visual.
+        {dados.tipo === 'pressostato' || dados.tipo === 'termostato' ? (
+          // Pressostato (23/11/2026) e termostato (24/11/2026): set point, os dois
+          // ensaios, o bloco metrológico do modelo do engenheiro e a inspeção visual.
           <>
             <div className="viz-grid-2">
-              <Campo label="Set point" valor={comU(dados.setPoint)} />
+              <Campo label="Local / TAG do instrumento" valor={dados.localInstrumento} />
+              <Campo label="Set point (range)" valor={comU(dados.setPoint)} />
+              <Campo
+                label={dados.diferencial ? 'Diferencial' : 'Diferencial (média dos ensaios)'}
+                valor={comU(diferencialDoCertificado(dados.diferencial, dados.ensaios) ?? '')}
+              />
+              <Campo label="Incerteza da medição (%)" valor={dados.incertezaMedicao} />
+              <Campo label="Erro fiducial (%)" valor={dados.erroFiducial} />
+              <Campo label="Fator k" valor={dados.fatorK} />
+              <Campo label="Veff" valor={dados.veff} />
               <Campo label="Fluido de ensaio" valor={dados.fluido} />
               <Campo label="Tempo de ensaio (min)" valor={dados.tempoMin} />
               {(dados.ensaios ?? []).map((e, i) => (

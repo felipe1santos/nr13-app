@@ -121,6 +121,15 @@ export default function ModalCriarEquipamento({ onClose, onCriado }: Props) {
                 />
                 Vertical (tampo removível)
               </label>
+              <label className="radio-card">
+                <input
+                  type="radio"
+                  name="subtipo"
+                  checked={subtipoAutoclave === 'bancada'}
+                  onChange={() => setSubtipoAutoclave('bancada')}
+                />
+                De bancada
+              </label>
             </fieldset>
           )}
 

@@ -6,7 +6,8 @@
  * por ele, das mesmas fontes — e acrescenta só o que é da caldeira:
  * `nr13_ficha_caldeira_<TAG>`, a grade de medição de caldeira, a verificação
  * pela espessura medida, a categoria A/B, os ensaios realizados com nº e laudo,
- * os dispositivos de segurança (indicador de pressão, PSV, pressostato) com o
+ * os dispositivos de segurança (indicador de pressão, PSV, pressostato e, com
+ * calibração oficial registrada, malha de pressão e termostato) com o
  * status de calibração e os nºs rastreáveis de cada documento interno.
  *
  * Função síncrona e sem desenho: o teste a alcança sem jsPDF.
@@ -339,6 +340,16 @@ export function montarModeloCaldeira(
       (preenchido('alivio1') ? 1 : 0) + (preenchido('alivio2') ? 1 : 0),
     ),
     ...linhasDispositivo(oficiais, ['pressostato'], 'Pressostato', 'ps', dataRef),
+    // 24/11/2026 · malha de pressão e termostato ganharam certificado interno.
+    // Só entram com calibração OFICIAL registrada para a TAG — a ficha da
+    // caldeira não os declara, e uma linha vazia afirmaria um dispositivo que
+    // ninguém disse existir.
+    ...(oficiais.some((c) => c.tipo === 'transmissor')
+      ? linhasDispositivo(oficiais, ['transmissor'], 'Malha de pressão', 'mp', dataRef)
+      : []),
+    ...(oficiais.some((c) => c.tipo === 'termostato')
+      ? linhasDispositivo(oficiais, ['termostato'], 'Termostato', 'ts', dataRef)
+      : []),
   ];
 
   return {

@@ -1,6 +1,6 @@
 import { calcularErro } from './calibracaoService';
 import type { ComponenteCal } from './componentesService';
-import { definicaoDe, type ModeloInterno } from './instrumentos';
+import { definicaoDe, ehChaveamento, ehMedicaoPorPontos, type ModeloInterno } from './instrumentos';
 import {
   clienteDoEquipamento,
   motivoPadrao,
@@ -16,9 +16,9 @@ import {
   type CondicaoVisual,
   type DadosCalibracao,
   type DadosCalibracaoInterna,
-  type DadosManometro,
+  type DadosChaveamento,
   type DadosPSV,
-  type DadosPressostato,
+  type DadosPontos,
   type EnsaioPressostato,
 } from './tipos';
 import type { RefFoto } from '../../services/fotos';
@@ -90,6 +90,17 @@ export interface FormDados {
   fluido?: string;
   tempoMin?: string;
   inspecaoVisual?: Record<string, CondicaoVisual>;
+  /**
+   * 24/11/2026 · PRESSOSTATO e TERMOSTATO — o modelo do engenheiro parceiro.
+   * Todos opcionais (vazio = "—" no certificado). `localInstrumento` vem do
+   * cadastro do componente; os outros são digitados nos resultados.
+   */
+  localInstrumento?: string;
+  diferencial?: string;
+  incertezaMedicao?: string;
+  erroFiducial?: string;
+  fatorK?: string;
+  veff?: string;
   /** id em `nr13_lista_phs` do RESPONSÁVEL PELA CALIBRAÇÃO (fase 2, C.2). */
   responsavelId: string;
   /** Esta calibração é a REVISÃO (correção) daquela emitida (fase 2, C.3). */
@@ -108,15 +119,50 @@ export function numeroCertificadoNovo(agora = Date.now()): string {
   return `CERT-${agora}`;
 }
 
-/** Os campos do pressostato, vazios — dois ensaios e os nove itens sem avaliação. */
-function camposPressostatoVazios(): Pick<FormDados, 'setPoint' | 'ensaios' | 'fluido' | 'tempoMin' | 'inspecaoVisual'> {
+/** Os campos do pressostato/termostato, vazios — dois ensaios e os nove itens sem avaliação. */
+function camposChaveamentoVazios(): Pick<
+  FormDados,
+  | 'setPoint'
+  | 'ensaios'
+  | 'fluido'
+  | 'tempoMin'
+  | 'inspecaoVisual'
+  | 'localInstrumento'
+  | 'diferencial'
+  | 'incertezaMedicao'
+  | 'erroFiducial'
+  | 'fatorK'
+  | 'veff'
+> {
   return {
     setPoint: '',
     ensaios: ensaiosNormalizados(undefined),
     fluido: '',
     tempoMin: '',
     inspecaoVisual: Object.fromEntries(ITENS_INSPECAO_PRESSOSTATO.map((i) => [i.id, '' as CondicaoVisual])),
+    localInstrumento: '',
+    diferencial: '',
+    incertezaMedicao: '',
+    erroFiducial: '',
+    fatorK: '',
+    veff: '',
   };
+}
+
+/** Nome padrão do registro quando o componente não tem nome. */
+function nomePadrao(tipo: ModeloInterno): string {
+  switch (tipo) {
+    case 'manometro':
+      return 'Manômetro';
+    case 'pressostato':
+      return 'Pressostato';
+    case 'termostato':
+      return 'Termostato';
+    case 'transmissor':
+      return 'Malha de pressão';
+    default:
+      return 'Válvula de Segurança';
+  }
 }
 
 /** Exatamente `ENSAIOS_PRESSOSTATO` ensaios — falta vira vazio, excesso não se perde. */
@@ -161,7 +207,9 @@ export function formPadrao(tipo: ModeloInterno = 'manometro', tag = ''): FormDad
     ...(snap?.padraoPdfRef ? { padraoPdfRef: snap.padraoPdfRef } : {}),
     statusConclusao: '',
     textoMotivo: '',
-    unidade: 'kgf/cm²',
+    // Pressão recua para kgf/cm² (legado); temperatura NÃO inventa °C — a
+    // unidade vem do cadastro do componente (`unidadeDoComponente`).
+    unidade: definicaoDe(tipo).grandeza === 'pressao' ? 'kgf/cm²' : '',
     crescente: Array.from({ length: 5 }, () => ({ vc: '', vi: '' })),
     incertezaC: '',
     coefC: '',
@@ -178,7 +226,7 @@ export function formPadrao(tipo: ModeloInterno = 'manometro', tag = ''): FormDad
       const r = listarResponsaveis();
       return r.length === 1 ? r[0].id : '';
     })(),
-    ...(tipo === 'pressostato' ? camposPressostatoVazios() : {}),
+    ...(ehChaveamento(tipo) ? camposChaveamentoVazios() : {}),
   };
 }
 
@@ -209,8 +257,11 @@ export function formDoComponente(comp: ComponenteCal, tag: string, dataLote?: st
     base.decrescente = pontos.map((vc) => ({ vc, vi: '' }));
   }
   if (comp.tipo === 'psv') base.pressaoAjuste = comp.pressaoAjuste ?? '';
-  // O set point do pressostato mora no MESMO campo do cadastro ("pressão de ajuste").
-  if (comp.tipo === 'pressostato') base.setPoint = comp.pressaoAjuste ?? '';
+  // O set point do pressostato/termostato mora no MESMO campo do cadastro ("pressão de ajuste").
+  if (ehChaveamento(comp.tipo)) {
+    base.setPoint = comp.pressaoAjuste ?? '';
+    base.localInstrumento = comp.local ?? '';
+  }
   return base;
 }
 
@@ -225,6 +276,7 @@ export function aplicarComponente(form: FormDados, comp: ComponenteCal): FormDad
     serie: comp.serie ?? '',
     referencia: comp.referencia ?? '',
     unidade: unidadeDoComponente(comp),
+    ...(ehChaveamento(form.tipo) ? { localInstrumento: comp.local ?? '' } : {}),
   };
 }
 
@@ -260,7 +312,7 @@ function doRegistro(cal: DadosCalibracaoInterna, tag: string): FormDados {
     unidade: cal.unidade ?? base.unidade,
     responsavelId: cal.responsavel?.id ?? '',
   };
-  if (cal.tipo === 'pressostato') {
+  if (cal.tipo === 'pressostato' || cal.tipo === 'termostato') {
     return {
       ...comum,
       setPoint: cal.setPoint ?? '',
@@ -271,9 +323,15 @@ function doRegistro(cal: DadosCalibracaoInterna, tag: string): FormDados {
         ...comum.inspecaoVisual,
         ...Object.fromEntries(Object.entries(cal.inspecaoVisual ?? {}).filter(([, v]) => v !== undefined)),
       } as Record<string, CondicaoVisual>,
+      localInstrumento: cal.localInstrumento ?? '',
+      diferencial: cal.diferencial ?? '',
+      incertezaMedicao: cal.incertezaMedicao ?? '',
+      erroFiducial: cal.erroFiducial ?? '',
+      fatorK: cal.fatorK ?? '',
+      veff: cal.veff ?? '',
     };
   }
-  if (cal.tipo === 'manometro') {
+  if (cal.tipo === 'manometro' || cal.tipo === 'transmissor') {
     return {
       ...comum,
       crescente: cal.crescente.map((r) => ({ vc: r.vc, vi: r.vi })),
@@ -330,9 +388,7 @@ export function converterForm(form: FormDados, tag: string, id: string): DadosCa
   const base = {
     id,
     tag,
-    nome:
-      form.nome ||
-      (form.tipo === 'manometro' ? 'Manômetro' : form.tipo === 'pressostato' ? 'Pressostato' : 'Válvula de Segurança'),
+    nome: form.nome || nomePadrao(form.tipo),
     criadoEm: hoje(),
     numeroCertificado: form.numeroCertificado.trim(),
     dataEmissao: form.dataEmissao,
@@ -365,33 +421,45 @@ export function converterForm(form: FormDados, tag: string, id: string): DadosCa
     ...(form.substitui ? { substitui: form.substitui } : {}),
   };
 
-  if (form.tipo === 'pressostato') {
-    const inspecao: DadosPressostato['inspecaoVisual'] = {};
+  if (ehChaveamento(form.tipo)) {
+    const inspecao: DadosChaveamento['inspecaoVisual'] = {};
     for (const item of ITENS_INSPECAO_PRESSOSTATO) {
       const v = form.inspecaoVisual?.[item.id];
       inspecao[item.id] = v === 'aprovado' || v === 'reprovado' ? v : '';
     }
+    // Os campos do modelo do engenheiro só são gravados quando preenchidos:
+    // o registro continua igual ao de antes para quem não os usa.
+    const opcional = (k: 'localInstrumento' | 'diferencial' | 'incertezaMedicao' | 'erroFiducial' | 'fatorK' | 'veff') => {
+      const v = (form[k] ?? '').trim();
+      return v ? { [k]: v } : {};
+    };
     return {
       ...base,
-      tipo: 'pressostato',
+      tipo: form.tipo,
       setPoint: form.setPoint ?? '',
       ensaios: ensaiosNormalizados(form.ensaios),
       fluido: form.fluido ?? '',
       tempoMin: form.tempoMin ?? '',
       inspecaoVisual: inspecao,
-    } as DadosPressostato;
+      ...opcional('localInstrumento'),
+      ...opcional('diferencial'),
+      ...opcional('incertezaMedicao'),
+      ...opcional('erroFiducial'),
+      ...opcional('fatorK'),
+      ...opcional('veff'),
+    } as DadosChaveamento;
   }
-  if (form.tipo === 'manometro') {
+  if (ehMedicaoPorPontos(form.tipo)) {
     return {
       ...base,
-      tipo: 'manometro',
+      tipo: form.tipo,
       crescente: form.crescente.map((r) => ({ vc: r.vc, vi: r.vi, erro: calcularErro(r.vc, r.vi) })),
       incertezaC: form.incertezaC,
       coefC: form.coefC,
       decrescente: form.decrescente.map((r) => ({ vc: r.vc, vi: r.vi, erro: calcularErro(r.vc, r.vi) })),
       incertezaD: form.incertezaD,
       coefD: form.coefD,
-    } as DadosManometro;
+    } as DadosPontos;
   }
   return {
     ...base,

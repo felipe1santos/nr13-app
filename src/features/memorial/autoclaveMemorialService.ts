@@ -6,15 +6,22 @@ import {
   cilindrica,
   retangular,
   vertical,
+  fundoVertical,
+  bancada,
+  calcularBancada,
+  type DadosAutoclaveBancada,
   type DadosAutoclaveCilindrica,
   type DadosAutoclaveRetangular,
   type DadosAutoclaveVertical,
 } from '../../calc/autoclave';
 import type { ResultadoCalculo } from '../../calc/tipos';
 
-export type SubtipoAutoclaveMemorial = 'retangular' | 'cilindrica' | 'vertical';
+export type SubtipoAutoclaveMemorial = 'retangular' | 'cilindrica' | 'vertical' | 'bancada';
 
-export type DadosAutoclave = DadosAutoclaveRetangular & DadosAutoclaveCilindrica & Partial<DadosAutoclaveVertical>;
+export type DadosAutoclave = DadosAutoclaveRetangular &
+  DadosAutoclaveCilindrica &
+  Partial<DadosAutoclaveVertical> &
+  Partial<DadosAutoclaveBancada>;
 
 const PADRAO_RETANGULAR: DadosAutoclaveRetangular = {
   pressao: 0.29,
@@ -59,6 +66,30 @@ const PADRAO_VERTICAL: DadosAutoclaveVertical = {
   material: 'SA-240-304',
 };
 
+// Autoclave de bancada (23/11/2026): defaults = a planilha do engenheiro (SERCON AHMC10, 56 L).
+// P = PMTA-alvo 2,2 kgf/cm² em MPa. As hipóteses (S do inox, E = 0,70, C = 0,33) são da planilha
+// e devem ser confirmadas pelo PLH.
+const PADRAO_BANCADA: DadosAutoclaveBancada = {
+  pressao: 0.2157,
+  diametro: 300,
+  tensao: 115.14,
+  ef_costado: 0.7,
+  ef_fundo: 0.7,
+  ef_porta: 0.7,
+  ca: 0,
+  t_costado: 0,
+  t_fundo: 0,
+  t_porta1: 0,
+  t_porta2: 0,
+  c_porta: 0.33,
+  nerv_b: 0,
+  nerv_h: 0,
+  nerv_n: 0,
+  vao_real: '',
+  sigma_escoamento: 0,
+  material: 'SA-240 TP 304',
+};
+
 function chaveDados(tag: string, subtipo: string): string {
   return `nr13_autoclave_dados_${subtipo}_${tag}`;
 }
@@ -66,7 +97,13 @@ function chaveDados(tag: string, subtipo: string): string {
 export function carregarDadosAutoclave(tag: string, subtipo: SubtipoAutoclaveMemorial): DadosAutoclave {
   const salvo = ler<DadosAutoclave>(chaveDados(tag, subtipo));
   const padrao =
-    subtipo === 'retangular' ? PADRAO_RETANGULAR : subtipo === 'vertical' ? PADRAO_VERTICAL : PADRAO_CILINDRICA;
+    subtipo === 'retangular'
+      ? PADRAO_RETANGULAR
+      : subtipo === 'vertical'
+        ? PADRAO_VERTICAL
+        : subtipo === 'bancada'
+          ? PADRAO_BANCADA
+          : PADRAO_CILINDRICA;
   return { ...padrao, ...salvo } as DadosAutoclave;
 }
 
@@ -77,6 +114,7 @@ export async function salvarDadosAutoclave(tag: string, subtipo: SubtipoAutoclav
 export function calcularAutoclave(subtipo: SubtipoAutoclaveMemorial, dados: DadosAutoclave): ResultadoCalculo {
   if (subtipo === 'retangular') return retangular(dados);
   if (subtipo === 'vertical') return vertical(dados as DadosAutoclaveVertical);
+  if (subtipo === 'bancada') return bancada(dados as unknown as DadosAutoclaveBancada);
   return cilindrica(dados);
 }
 
@@ -117,27 +155,22 @@ function componentesVertical(dados: DadosAutoclaveVertical, resultado: Resultado
   const E = Number(dados.eficiencia ?? 1) || 1;
   const CA = Number(dados.ca ?? 0) || 0;
   const C = Number(dados.c_fator ?? 0.33) || 0.33;
-  const conico = dados.tipo_fundo === 'conico';
-  const cosA = Math.cos(((Number(dados.alfa ?? 15) || 15) * Math.PI) / 180);
-
   const treqTampo = D * Math.sqrt((C * P) / (S * E));
   const pmtaTampo = ((S * E) / C) * Math.pow((Number(dados.t_tampo) - CA) / D, 2);
   const treqCost = (P * R) / (S * E - 0.6 * P);
   const tuCost = Number(dados.t_costado) - CA;
   const pmtaCost = (S * E * tuCost) / (R + 0.6 * tuCost);
-  const tuFundo = Number(dados.t_fundo) - CA;
-  const treqFundo = conico ? (P * D) / (2 * cosA * (S * E - 0.6 * P)) : treqTampo;
-  const pmtaFundo = conico
-    ? (tuFundo * S * E) / (D / (2 * cosA) + 0.6 * tuFundo)
-    : ((S * E) / C) * Math.pow(tuFundo / D, 2);
-
-  const fFundo = conico ? FORMULAS_VERTICAL.fundoConico : FORMULAS_VERTICAL.fundoPlano;
+  // Fundo pelo MESMO cálculo do memorial (plano, cônico ou torisférico — 23/11/2026).
+  const fundo = fundoVertical(dados);
+  const treqFundo = fundo.treq;
+  const pmtaFundo = fundo.pmta;
+  const fFundo = fundo.formulas;
   const base = { E, S, D, raio: R, ca: CA, material: dados.material || null };
   void resultado;
   return [
     { nome: 'Tampo Plano Aparafusado (UG-34)', pmtaMpa: pmtaTampo, tReqMm: treqTampo, tNom: num(dados.t_tampo), ...base, formulaT: FORMULAS_VERTICAL.tampo[0], formulaP: FORMULAS_VERTICAL.tampo[1] },
     { nome: 'Costado Cilíndrico (UG-27)', pmtaMpa: pmtaCost, tReqMm: treqCost, tNom: num(dados.t_costado), ...base, formulaT: FORMULAS_VERTICAL.costado[0], formulaP: FORMULAS_VERTICAL.costado[1] },
-    { nome: conico ? 'Fundo Cônico (UG-32g)' : 'Fundo Plano (UG-34)', pmtaMpa: pmtaFundo, tReqMm: treqFundo, tNom: num(dados.t_fundo), ...base, formulaT: fFundo[0], formulaP: fFundo[1] },
+    { nome: fundo.nome, pmtaMpa: pmtaFundo, tReqMm: treqFundo, tNom: num(dados.t_fundo), ...base, formulaT: fFundo[0], formulaP: fFundo[1] },
   ];
 }
 
@@ -148,6 +181,17 @@ function componentesAutoclave(
 ): ComponenteResumo[] {
   if (subtipo === 'vertical') {
     return componentesVertical(dados as DadosAutoclaveVertical, resultado);
+  }
+  if (subtipo === 'bancada') {
+    // Mesmo cálculo do memorial (calcularBancada) — 1 linha por componente.
+    const d = dados as unknown as DadosAutoclaveBancada;
+    const c = calcularBancada(d);
+    const base = { S: c.S, D: c.D, raio: c.R, ca: c.CA, material: d.material || null };
+    return [
+      { nome: 'Costado Cilíndrico (UG-27)', pmtaMpa: c.costado.pmta, tReqMm: c.costado.tReq, tNom: num(d.t_costado), E: c.costado.E, ...base, formulaT: 't = P·R/(S·E − 0,6·P)', formulaP: 'PMTA = S·E·t/(R + 0,6·t)' },
+      { nome: 'Fundo Torisférico (UG-32e)', pmtaMpa: c.fundo.pmta, tReqMm: c.fundo.tReq, tNom: num(d.t_fundo), E: c.fundo.E, ...base, formulaT: 't = P·L·M/(2·S·E − 0,2·P)', formulaP: 'PMTA = 2·S·E·t/(L·M + 0,2·t)' },
+      { nome: 'Porta Plana Reforçada (UG-34)', pmtaMpa: c.porta.pmta, tReqMm: c.porta.tReq, tNom: c.porta.t1 + c.porta.t2, E: c.porta.E, ...base, formulaT: 't = d·√(C·P/(S·E))', formulaP: 'PMTA = (S·E/C)·(t/d)²' },
+    ];
   }
   if (subtipo === 'cilindrica') {
     const D = num(dados.diametro);
@@ -196,7 +240,8 @@ export async function salvarResultadoAutoclave(
   const pmta = parseFloat(resultado.t_min) >= 0 ? parseFloat(resultado.pmta) : NaN;
   await salvar(`nr13_calc_${tag}`, {
     pmta: resultado.pmta,
-    pth: Number.isFinite(pmta) ? (pmta * 1.3).toFixed(2) : '',
+    // 4 casas em MPa (23/11/2026): autoclave de baixa pressão perdia precisão com 2 (0,35 × 0,3505).
+    pth: Number.isFinite(pmta) ? (pmta * 1.3).toFixed(4) : '',
     ecasco: resultado.t_min,
     componentes: componentesAutoclave(subtipo, dados, resultado),
     memorialHTML: formatarMemorialHTML(resultado.log),

@@ -67,6 +67,15 @@ const PADROES: PadraoFixo[] = [
     destino: 'Certificado de Calibração de Pressostato',
     icone: 'gauge',
   },
+  // 24/11/2026 · o termostato ganhou certificado interno: afere-se contra um
+  // padrão de TEMPERATURA (`padroesCompativeis('termostato')`).
+  {
+    tipo: 'termometro',
+    titulo: 'Termômetro padrão',
+    sub: 'Aferição de termostatos',
+    destino: 'Certificado de Calibração de Termostato',
+    icone: 'gauge',
+  },
 ];
 
 const novoRegistro = (tipo: TipoInstrumento): Rastreabilidade => ({

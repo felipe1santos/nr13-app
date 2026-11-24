@@ -48,6 +48,15 @@ export function padroesCompativeis(tipoCalibracao: ModeloInterno): Rastreabilida
       (r) => r.tipoInstrumento === 'manometro' || r.tipoInstrumento === 'pressostato',
     );
   }
+  // 24/11/2026 · termostato → padrão de TEMPERATURA (termômetro padrão ou
+  // termostato padrão). Nunca um padrão de pressão.
+  if (tipoCalibracao === 'termostato') {
+    return listarRastreabilidadesAtivas().filter(
+      (r) => r.tipoInstrumento === 'termometro' || r.tipoInstrumento === 'termostato',
+    );
+  }
+  // Malha de pressão (transmissor) → o manômetro padrão, como o manômetro
+  // (`tipoPadraoDoCertificado`).
   const tipo = tipoPadraoDoCertificado(tipoCalibracao);
   return listarRastreabilidadesAtivas().filter((r) => r.tipoInstrumento === tipo);
 }

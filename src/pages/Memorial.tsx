@@ -87,7 +87,7 @@ export function MemorialView({ tag, info }: { tag: string; info: InfoEquipamento
 
       {info.tipo === 'vaso' && <MemorialVaso tag={tag} barra={trilha} />}
       {info.tipo === 'autoclave' && (
-        <MemorialAutoclave tag={tag} subtipo={(info.subtipo as 'retangular' | 'cilindrica' | 'vertical') || 'cilindrica'} />
+        <MemorialAutoclave tag={tag} subtipo={(info.subtipo as 'retangular' | 'cilindrica' | 'vertical' | 'bancada') || 'cilindrica'} />
       )}
       {info.tipo === 'caldeira' && <MemorialCaldeira tag={tag} barra={trilha} />}
     </div>

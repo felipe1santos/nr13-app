@@ -284,7 +284,7 @@ function subtipoDe(tipo: TipoEquipamento, campos: Record<string, string>): InfoE
   if (tipo === 'caldeira') return 'flamotubular';
   if (tipo === 'autoclave') {
     const s = normalizarCabecalho(campos.subtipo || '');
-    if (s === 'retangular' || s === 'cilindrica' || s === 'vertical') return s;
+    if (s === 'retangular' || s === 'cilindrica' || s === 'vertical' || s === 'bancada') return s;
   }
   return '';
 }

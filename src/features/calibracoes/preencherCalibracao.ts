@@ -1,5 +1,5 @@
 import { ler } from '../../services/storage';
-import { definicaoDe } from './instrumentos';
+import { definicaoDe, type ModeloInterno } from './instrumentos';
 import { padraoDoEnsaio, tipoPadraoDoCertificado } from '../relatorios/rastreabilidadeService';
 import type { ComponenteCal } from './componentesService';
 import { PONTOS_NA_FOLHA } from './resultadosCalibracao';
@@ -67,7 +67,7 @@ function dataBr(v: string | undefined | null): string {
  * relatório — reusada para que o texto do bloco 5 e o PDF anexado nunca falem
  * de instrumentos diferentes.
  */
-export function padraoSugerido(tipo: 'manometro' | 'psv' | 'pressostato', tag: string): PadraoSugerido {
+export function padraoSugerido(tipo: ModeloInterno, tag: string): PadraoSugerido {
   const r = padraoDoEnsaio(tipoPadraoDoCertificado(tipo), tag);
   if (!r) return { padraoInst: '', padraoSerie: '', padraoCert: '', padraoVal: '', origem: null };
   return {
@@ -218,13 +218,27 @@ export function unidadeDoComponente(comp?: ComponenteCal | null): string {
  * acertar cinco caixas. Ponto-e-vírgula e quebra de linha valem como vírgula
  * porque é o que sai de uma planilha colada.
  */
+/**
+ * A lista de pontos digitada → pontos (23/11/2026: VÍRGULA DECIMAL).
+ *
+ * Separadores: ";", quebra de linha, espaço, ou vírgula SEGUIDA de espaço
+ * ("0, 2, 4"). Vírgula colada entre dígitos é DECIMAL: "2,5" é um ponto só —
+ * antes virava dois pontos ("2" e "5"). Lista antiga sem espaços ("0,2,4,6",
+ * duas ou mais vírgulas no mesmo pedaço) continua sendo lista.
+ */
 export function pontosDeTexto(texto: string): string[] {
   return (texto ?? '')
-    .split(/[,;\n]/)
-    .map((p) => p.trim())
+    .split(/[;\n]|,\s+|\s+/)
+    .flatMap((p) => {
+      const s = p.trim().replace(/,$/, '');
+      if (!s) return [];
+      return (s.match(/,/g) ?? []).length > 1 ? s.split(',').map((x) => x.trim()) : [s];
+    })
     .filter((p) => p !== '');
 }
 
+/** Pontos → texto do campo. Com algum ponto decimal (vírgula), separa por "; " para não confundir. */
 export function textoDePontos(pontos: string[] | undefined): string {
-  return (pontos ?? []).join(', ');
+  const lista = pontos ?? [];
+  return lista.join(lista.some((p) => p.includes(',')) ? '; ' : ', ');
 }

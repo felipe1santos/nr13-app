@@ -76,6 +76,9 @@ export function aplicaAoEquipamento(r: Rastreabilidade, tag?: string | null): bo
  * ele se afere; o padrão EXATO (`padraoId`) é o que vale para calibração nova.
  */
 export function tipoPadraoDoCertificado(tipoCalibracao: string): TipoInstrumento {
+  // 24/11/2026 · termostato se afere contra o TERMÔMETRO padrão (temperatura);
+  // a malha de pressão (transmissor) contra o manômetro padrão.
+  if (tipoCalibracao === 'termostato') return 'termometro';
   return tipoCalibracao === 'psv' ? 'valvula' : 'manometro';
 }
 

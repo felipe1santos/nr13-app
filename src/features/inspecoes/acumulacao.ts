@@ -136,7 +136,8 @@ export function tipoDoEquipamento(info: InfoEquipamento | null): string | null {
   if (!info) return null;
   const tipo = ROTULO_TIPO[info.tipo] ?? texto(info.tipo);
   const sub = texto(info.subtipo);
-  const subRot = sub ? sub.charAt(0).toLocaleUpperCase('pt-BR') + sub.slice(1) : null;
+  // 23/11/2026 · "Autoclave de Bancada" (e não "Autoclave Bancada").
+  const subRot = sub === 'bancada' ? 'de Bancada' : sub ? sub.charAt(0).toLocaleUpperCase('pt-BR') + sub.slice(1) : null;
   return [tipo, subRot].filter(Boolean).join(' ') || null;
 }
 

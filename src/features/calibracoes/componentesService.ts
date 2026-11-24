@@ -39,6 +39,11 @@ export interface ComponenteCal {
   pontos?: string[];
   /** Pressão de ajuste da válvula (PSV) — vem da placa dela, não da rodada. */
   pressaoAjuste?: string;
+  /**
+   * 24/11/2026 · LOCAL / TAG do instrumento na instalação (ex.: "PS1") — o campo
+   * "LOCAL" do item calibrado no certificado de pressostato/termostato.
+   */
+  local?: string;
   /** LEGADO: base64 das fotos gravadas antes de 11/08/2026. Novas nascem ''. */
   foto?: string;
   /**

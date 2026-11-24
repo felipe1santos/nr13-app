@@ -135,13 +135,77 @@ export interface DadosAutoclaveVertical {
   t_tampo: NumLike;
   t_costado: NumLike;
   t_fundo: NumLike;
-  tipo_fundo?: 'plano' | 'conico'; // default 'plano'
+  tipo_fundo?: 'plano' | 'conico' | 'torisferico'; // default 'plano'
   alfa?: NumLike; // semiângulo do cone (graus) — só p/ fundo cônico
+  l_coroa?: NumLike; // L — raio da coroa do torisférico (mm); default = D
+  r_concordancia?: NumLike; // r — raio de concordância do torisférico (mm); default = 0,06·D
   n_travas: NumLike;
   d_trava: NumLike; // diâmetro da trava/parafuso (mm)
   tensao_trava: NumLike; // S admissível da trava (MPa)
   sigma_escoamento?: NumLike;
   material?: string; // só p/ documentação (RESUMO), não entra no cálculo
+}
+
+/**
+ * FUNDO/TAMPO TORISFÉRICO — ASME VIII Div.1 UG-32(e) (forma geral, 23/11/2026).
+ * M = ¼·(3 + √(L/r)); t = P·L·M / (2·S·E − 0,2·P); PMTA = 2·S·E·t / (L·M + 0,2·t).
+ * Sem as medidas, o torisférico padrão: L = D e r = 0,06·D (M ≈ 1,77). Usado pelo fundo da
+ * autoclave vertical e pelo fundo da autoclave de bancada (memorial SERCON AHMC10).
+ */
+export function torisferico(P: number, S: number, E: number, D: number, tUtil: number, L?: number, r?: number) {
+  const Lc = L && L > 0 ? L : D;
+  const rc = r && r > 0 ? r : 0.06 * D;
+  const M = 0.25 * (3 + Math.sqrt(Lc / rc));
+  const treq = (P * Lc * M) / (2 * S * E - 0.2 * P);
+  const pmta = (2 * S * E * tUtil) / (Lc * M + 0.2 * tUtil);
+  return { L: Lc, r: rc, M, treq, pmta };
+}
+
+/** O fundo da autoclave vertical — plano (UG-34), cônico (UG-32(g)) ou torisférico (UG-32(e)). */
+export function fundoVertical(dados: DadosAutoclaveVertical) {
+  const P = num(dados.pressao);
+  const D = num(dados.diametro);
+  const S = num(dados.tensao);
+  const E = numOuPadrao(dados.eficiencia, 1);
+  const CA = numOuPadrao(dados.ca, 0);
+  const C = numOuPadrao(dados.c_fator, 0.33);
+  const tipo = dados.tipo_fundo ?? 'plano';
+  const tu = num(dados.t_fundo) - CA;
+  if (tipo === 'conico') {
+    const alfaGraus = numOuPadrao(dados.alfa, 15);
+    const cosA = Math.cos((alfaGraus * Math.PI) / 180);
+    return {
+      tipo,
+      nome: 'Fundo Cônico (UG-32g)',
+      treq: (P * D) / (2 * cosA * (S * E - 0.6 * P)),
+      pmta: (tu * S * E) / (D / (2 * cosA) + 0.6 * tu),
+      formulas: ['t = P·D/(2·cos α·(S·E − 0,6·P))', 'PMTA = t·S·E/((D/2cos α) + 0,6·t)'] as [string, string],
+      alfaGraus,
+      tu,
+    };
+  }
+  if (tipo === 'torisferico') {
+    const t = torisferico(P, S, E, D, tu, num(dados.l_coroa) || undefined, num(dados.r_concordancia) || undefined);
+    return {
+      tipo,
+      nome: 'Fundo Torisférico (UG-32e)',
+      treq: t.treq,
+      pmta: t.pmta,
+      formulas: ['t = P·L·M/(2·S·E − 0,2·P)', 'PMTA = 2·S·E·t/(L·M + 0,2·t)'] as [string, string],
+      L: t.L,
+      r: t.r,
+      M: t.M,
+      tu,
+    };
+  }
+  return {
+    tipo,
+    nome: 'Fundo Plano (UG-34)',
+    treq: D * Math.sqrt((C * P) / (S * E)), // planilha de referência: fundo plano como a tampa UG-34
+    pmta: ((S * E) / C) * Math.pow(tu / D, 2),
+    formulas: ['t = D·√(C·P/(S·E))', 'PMTA = (S·E/C)·(t/D)²'] as [string, string],
+    tu,
+  };
 }
 
 // Autoclave vertical com tampo plano removível (UG-34) travado por parafusos/travas radiais,
@@ -157,7 +221,6 @@ export function vertical(dados: DadosAutoclaveVertical): ResultadoCalculo {
   const E = numOuPadrao(dados.eficiencia, 1);
   const CA = numOuPadrao(dados.ca, 0);
   const C = numOuPadrao(dados.c_fator, 0.33);
-  const tipoFundo = dados.tipo_fundo ?? 'plano';
 
   // 1) TAMPO PLANO APARAFUSADO — UG-34
   const tuTampo = num(dados.t_tampo) - CA;
@@ -171,30 +234,29 @@ export function vertical(dados: DadosAutoclaveVertical): ResultadoCalculo {
   const pmtaCost = (S * E * tuCost) / (R + 0.6 * tuCost);
   const costado_ok = tuCost >= treqCost;
 
-  // 3) FUNDO — plano (UG-34, mesmo critério da tampa) ou cônico (UG-32(g))
-  const tuFundo = num(dados.t_fundo) - CA;
-  let treqFundo: number;
-  let pmtaFundo: number;
-  let linhasFundo: string[];
-  if (tipoFundo === 'conico') {
-    const alfaGraus = numOuPadrao(dados.alfa, 15);
-    const alfaRad = (alfaGraus * Math.PI) / 180;
-    const cosA = Math.cos(alfaRad);
-    treqFundo = (P * D) / (2 * cosA * (S * E - 0.6 * P));
-    pmtaFundo = (tuFundo * S * E) / (D / (2 * cosA) + 0.6 * tuFundo);
-    linhasFundo = [
-      `// 3. FUNDO CÔNICO — ASME VIII Div.1 UG-32(g) (α = ${alfaGraus.toFixed(2)}°)`,
-      `$$t_{req} = \\frac{P \\cdot D}{2 \\cdot \\cos\\alpha \\cdot (S \\cdot E - 0.6 \\cdot P)} = ${treqFundo.toFixed(4)} \\text{ mm}$$`,
-      `$$PMTA_{fundo} = \\frac{t_{util} \\cdot S \\cdot E}{\\frac{D}{2\\cos\\alpha} + 0.6 \\cdot t_{util}} = ${pmtaFundo.toFixed(4)} \\text{ MPa}$$`,
-    ];
-  } else {
-    treqFundo = treqTampo; // planilha de referência: fundo plano dimensionado como a tampa UG-34
-    pmtaFundo = ((S * E) / C) * Math.pow(tuFundo / D, 2);
-    linhasFundo = [
-      '// 3. FUNDO PLANO — UG-34 (mesmo critério da tampa)',
-      `$$t_{req} = ${treqFundo.toFixed(4)} \\text{ mm} \\quad PMTA_{fundo} = ${pmtaFundo.toFixed(4)} \\text{ MPa}$$`,
-    ];
-  }
+  // 3) FUNDO — plano (UG-34, mesmo critério da tampa), cônico (UG-32(g)) ou torisférico (UG-32(e))
+  const f = fundoVertical(dados);
+  const tuFundo = f.tu;
+  const treqFundo = f.treq;
+  const pmtaFundo = f.pmta;
+  const linhasFundo: string[] =
+    f.tipo === 'conico'
+      ? [
+          `// 3. FUNDO CÔNICO — ASME VIII Div.1 UG-32(g) (α = ${f.alfaGraus!.toFixed(2)}°)`,
+          `$$t_{req} = \\frac{P \\cdot D}{2 \\cdot \\cos\\alpha \\cdot (S \\cdot E - 0.6 \\cdot P)} = ${treqFundo.toFixed(4)} \\text{ mm}$$`,
+          `$$PMTA_{fundo} = \\frac{t_{util} \\cdot S \\cdot E}{\\frac{D}{2\\cos\\alpha} + 0.6 \\cdot t_{util}} = ${pmtaFundo.toFixed(4)} \\text{ MPa}$$`,
+        ]
+      : f.tipo === 'torisferico'
+        ? [
+            `// 3. FUNDO TORISFÉRICO — ASME VIII Div.1 UG-32(e) (L = ${f.L!.toFixed(2)} mm, r = ${f.r!.toFixed(2)} mm)`,
+            `$$M = \\frac{1}{4}\\left(3 + \\sqrt{\\frac{L}{r}}\\right) = ${f.M!.toFixed(4)}$$`,
+            `$$t_{req} = \\frac{P \\cdot L \\cdot M}{2 \\cdot S \\cdot E - 0.2 \\cdot P} = ${treqFundo.toFixed(4)} \\text{ mm}$$`,
+            `$$PMTA_{fundo} = \\frac{2 \\cdot S \\cdot E \\cdot t_{util}}{L \\cdot M + 0.2 \\cdot t_{util}} = ${pmtaFundo.toFixed(4)} \\text{ MPa}$$`,
+          ]
+        : [
+            '// 3. FUNDO PLANO — UG-34 (mesmo critério da tampa)',
+            `$$t_{req} = ${treqFundo.toFixed(4)} \\text{ mm} \\quad PMTA_{fundo} = ${pmtaFundo.toFixed(4)} \\text{ MPa}$$`,
+          ];
   const fundo_ok = tuFundo >= treqFundo;
 
   // 4) TRAVAS — força de separação P·A dividida pelas travas (mesma checagem da planilha)
@@ -360,4 +422,207 @@ export function cilindrica(dados: DadosAutoclaveCilindrica): ResultadoCalculo {
   ];
 
   return { t_min: t_min.toFixed(2), pmta: pmta.toFixed(2), resultado: resultadoFinal, log: logTerminal };
+}
+
+// ── AUTOCLAVE DE BANCADA (23/11/2026) ─────────────────────────────────────────
+// Porte do memorial do engenheiro parceiro: Memorial_Calculo_SERCON_AHMC10_Corrigido.xlsx
+// (autoclave SERCON AHM, 56 L). Costado UG-27 (circunferencial E longitudinal, mínimo
+// UG-16(b) de 1,5 mm), fundo torisférico UG-32(e) e porta plana reforçada: chapas pela
+// UG-34, nervuras radiais como viga biapoiada e o painel entre nervuras pela UG-34 no vão.
+// Decisão (plano 23/11): o painel usa o VÃO REAL medido quando informado; sem ele, o vão
+// conservador 2·R·sen(π/n) — é o que a aba "Resumo" da planilha faz.
+// Unidades: P e S em MPa, comprimentos em mm. P = pressão de VERIFICAÇÃO (a PMTA-alvo).
+
+export interface DadosAutoclaveBancada {
+  pressao: NumLike; // P de verificação (MPa) — a PMTA informada/alvo
+  diametro: NumLike; // D interno (mm)
+  tensao: NumLike; // S (MPa)
+  ef_costado?: NumLike; // E do costado — default 0,70 (planilha: sem END volumétrico)
+  ef_fundo?: NumLike; // E do fundo — default 0,70
+  ef_porta?: NumLike; // E da porta — default 0,70
+  ca?: NumLike; // sobreespessura de corrosão (mm)
+  t_costado: NumLike; // espessura medida mínima do costado (mm)
+  t_fundo: NumLike; // espessura medida mínima do fundo (mm)
+  l_coroa?: NumLike; // L — raio da coroa do fundo (mm); default = D
+  r_concordancia?: NumLike; // r — raio de concordância (mm); default = 0,06·D
+  t_porta1: NumLike; // porta — 1ª chapa (mm)
+  t_porta2?: NumLike; // porta — 2ª chapa (mm); 0 = chapa única
+  c_porta?: NumLike; // C da UG-34 — default 0,33
+  nerv_b?: NumLike; // nervura — espessura b (mm)
+  nerv_h?: NumLike; // nervura — altura h (mm)
+  nerv_n?: NumLike; // quantidade de nervuras radiais
+  nerv_l?: NumLike; // comprimento livre da nervura (mm); default = R
+  vao_real?: NumLike; // maior vão livre REAL medido entre nervuras/travessas (mm)
+  sigma_escoamento?: NumLike;
+  material?: string; // só documentação
+}
+
+/** Espessura líquida mínima geral — ASME VIII-1 UG-16(b). */
+export const T_MIN_UG16 = 1.5;
+
+export interface CalculoBancada {
+  P: number;
+  D: number;
+  R: number;
+  S: number;
+  CA: number;
+  costado: { E: number; tu: number; tCirc: number; tLong: number; tReq: number; pmtaCirc: number; pmtaLong: number; pmta: number; ok: boolean };
+  fundo: { E: number; tu: number; L: number; r: number; M: number; tCalc: number; tReq: number; pmta: number; ok: boolean };
+  porta: {
+    E: number;
+    C: number;
+    t1: number;
+    t2: number;
+    tSomaU: number;
+    forca: number; // N
+    nervuras: { b: number; h: number; n: number; L: number; Z: number; forcaPorNervura: number; momento: number; sigma: number; uso: number; pmta: number; ok: boolean } | null;
+    vaoConservador: number;
+    vaoReal: number | null;
+    vaoUsado: number;
+    vaoMax: number;
+    tReq: number;
+    pmtaPainel: number;
+    pmta: number;
+    ok: boolean;
+  };
+  pmta: number;
+  pTeste: number;
+  aprovado: boolean;
+}
+
+export function calcularBancada(dados: DadosAutoclaveBancada): CalculoBancada {
+  const P = num(dados.pressao);
+  const D = num(dados.diametro);
+  const R = D / 2;
+  const S = num(dados.tensao);
+  const CA = numOuPadrao(dados.ca, 0);
+
+  // 1) COSTADO — UG-27 (circunferencial e longitudinal) + UG-16(b)
+  const Ec = numOuPadrao(dados.ef_costado, 0.7);
+  const tMedC = num(dados.t_costado);
+  const tuC = Math.max(0, tMedC - CA);
+  const tCirc = (P * R) / (S * Ec - 0.6 * P);
+  const tLong = (P * R) / (2 * S * Ec + 0.4 * P);
+  const tReqC = Math.max(tCirc, tLong, T_MIN_UG16) + CA;
+  const pmtaCirc = (S * Ec * tuC) / (R + 0.6 * tuC);
+  const pmtaLong = (2 * S * Ec * tuC) / (R - 0.4 * tuC);
+  const pmtaC = Math.min(pmtaCirc, pmtaLong);
+  const okC = tMedC >= tReqC && pmtaC >= P;
+
+  // 2) FUNDO TORISFÉRICO — UG-32(e) + UG-16(b)
+  const Ef = numOuPadrao(dados.ef_fundo, 0.7);
+  const tMedF = num(dados.t_fundo);
+  const tuF = Math.max(0, tMedF - CA);
+  const tor = torisferico(P, S, Ef, D, tuF, num(dados.l_coroa) || undefined, num(dados.r_concordancia) || undefined);
+  const tReqF = Math.max(tor.treq, T_MIN_UG16) + CA;
+  const okF = tMedF >= tReqF && tor.pmta >= P;
+
+  // 3) PORTA PLANA REFORÇADA — UG-34 + nervuras
+  const Ep = numOuPadrao(dados.ef_porta, 0.7);
+  const C = numOuPadrao(dados.c_porta, 0.33);
+  const t1 = num(dados.t_porta1);
+  const t2 = numOuPadrao(dados.t_porta2, 0);
+  const tSomaU = Math.max(0, t1 + t2 - CA);
+  const forca = (P * Math.PI * D * D) / 4; // N (MPa × mm²)
+  const k = Math.sqrt((C * P) / (S * Ep));
+
+  const n = numOuPadrao(dados.nerv_n, 0);
+  const b = numOuPadrao(dados.nerv_b, 0);
+  const h = numOuPadrao(dados.nerv_h, 0);
+  let nervuras: CalculoBancada['porta']['nervuras'] = null;
+  if (n > 0 && b > 0 && h > 0) {
+    const bl = Math.max(0, b - CA);
+    const hl = Math.max(0, h - CA);
+    const Z = (bl * hl * hl) / 6;
+    const L = numOuPadrao(dados.nerv_l, R) || R;
+    const fr = forca / n;
+    const w = fr / L;
+    const momento = (w * L * L) / 8;
+    const sigma = momento / Z;
+    const uso = sigma / S;
+    nervuras = { b, h, n, L, Z, forcaPorNervura: fr, momento, sigma, uso, pmta: (P * S) / sigma, ok: uso <= 1 };
+  }
+  const vaoConservador = n > 0 ? 2 * R * Math.sin(Math.PI / n) : D;
+  const vaoRealNum = num(dados.vao_real);
+  const vaoReal = vaoRealNum > 0 ? vaoRealNum : null;
+  const vaoUsado = vaoReal ?? vaoConservador;
+  const vaoMax = k > 0 ? tSomaU / k : Infinity;
+  const tReqP = vaoUsado * k + CA;
+  const pmtaPainel = ((S * Ep) / C) * Math.pow(tSomaU / vaoUsado, 2);
+  const pmtaP = nervuras ? Math.min(nervuras.pmta, pmtaPainel) : pmtaPainel;
+  const okP = (nervuras ? nervuras.ok : true) && pmtaP >= P && vaoUsado <= vaoMax;
+
+  const pmta = Math.min(pmtaC, tor.pmta, pmtaP);
+  return {
+    P,
+    D,
+    R,
+    S,
+    CA,
+    costado: { E: Ec, tu: tuC, tCirc, tLong, tReq: tReqC, pmtaCirc, pmtaLong, pmta: pmtaC, ok: okC },
+    fundo: { E: Ef, tu: tuF, L: tor.L, r: tor.r, M: tor.M, tCalc: tor.treq, tReq: tReqF, pmta: tor.pmta, ok: okF },
+    porta: { E: Ep, C, t1, t2, tSomaU, forca, nervuras, vaoConservador, vaoReal, vaoUsado, vaoMax, tReq: tReqP, pmtaPainel, pmta: pmtaP, ok: okP },
+    pmta,
+    pTeste: pmta * 1.3,
+    aprovado: okC && okF && okP && pmta >= P,
+  };
+}
+
+const KGF = 0.0980665;
+const kgf = (mpa: number) => (mpa / KGF).toFixed(2);
+
+export function bancada(dados: DadosAutoclaveBancada): ResultadoCalculo {
+  const c = calcularBancada(dados);
+  const { P, D, R, S, CA, costado: co, fundo: fu, porta: po } = c;
+  const ok = (cond: boolean, okTxt: string, erroTxt: string) =>
+    cond ? `<div style="${CSS_OK}"><b>OK:</b> ${okTxt}</div>` : `<div style="${CSS_ERRO}"><b>REPROVADO:</b> ${erroTxt}</div>`;
+  const nv = po.nervuras;
+  const resultadoFinal = c.aprovado ? 'APROVADO' : 'REPROVADO';
+
+  const log = [
+    '// ====================================================',
+    '// MEMORIAL DE CÁLCULO - AUTOCLAVE DE BANCADA (NR-13)',
+    '// Costado (UG-27) + fundo torisférico (UG-32) + porta plana reforçada (UG-34 + nervuras)',
+    '// Conforme ASME VIII Div.1 – UG-16(b), UG-27, UG-32 e UG-34',
+    '// ====================================================',
+    '// PARÂMETROS DE ENTRADA:',
+    `// P (verificação) = ${P.toFixed(4)} MPa (${kgf(P)} kgf/cm²) | D = ${D.toFixed(2)} mm | R = ${R.toFixed(2)} mm | S = ${S.toFixed(2)} MPa | CA = ${CA.toFixed(2)} mm`,
+    `// t_costado = ${num(dados.t_costado).toFixed(2)} mm | t_fundo = ${num(dados.t_fundo).toFixed(2)} mm | porta: ${po.t1.toFixed(2)} + ${po.t2.toFixed(2)} mm`,
+    ' ',
+    `// 1. COSTADO CILÍNDRICO — UG-27 (E = ${co.E.toFixed(2)})`,
+    `$$t_{circ} = \\frac{P \\cdot R}{S \\cdot E - 0.6 \\cdot P} = ${co.tCirc.toFixed(4)} \\text{ mm} \\quad t_{long} = \\frac{P \\cdot R}{2 \\cdot S \\cdot E + 0.4 \\cdot P} = ${co.tLong.toFixed(4)} \\text{ mm}$$`,
+    `$$t_{req} = \\max(t_{circ}, t_{long}, ${T_MIN_UG16}) + CA = ${co.tReq.toFixed(4)} \\text{ mm}$$`,
+    `$$PMTA_{circ} = \\frac{S \\cdot E \\cdot t}{R + 0.6 \\cdot t} = ${co.pmtaCirc.toFixed(4)} \\quad PMTA_{long} = \\frac{2 \\cdot S \\cdot E \\cdot t}{R - 0.4 \\cdot t} = ${co.pmtaLong.toFixed(4)} \\text{ MPa}$$`,
+    `$$PMTA_{costado} = ${co.pmta.toFixed(4)} \\text{ MPa} \\; (${kgf(co.pmta)} \\text{ kgf/cm}^2)$$`,
+    ok(co.ok, `espessura do costado (${num(dados.t_costado).toFixed(2)} mm) ≥ requerida (${co.tReq.toFixed(3)} mm).`, `espessura do costado (${num(dados.t_costado).toFixed(2)} mm) < requerida (${co.tReq.toFixed(3)} mm) ou PMTA abaixo da pressão de verificação.`),
+    ' ',
+    `// 2. FUNDO TORISFÉRICO — UG-32(e) (E = ${fu.E.toFixed(2)}, L = ${fu.L.toFixed(2)} mm, r = ${fu.r.toFixed(2)} mm)`,
+    `$$M = \\frac{1}{4}\\left(3 + \\sqrt{\\frac{L}{r}}\\right) = ${fu.M.toFixed(4)}$$`,
+    `$$t = \\frac{P \\cdot L \\cdot M}{2 \\cdot S \\cdot E - 0.2 \\cdot P} = ${fu.tCalc.toFixed(4)} \\text{ mm} \\quad t_{req} = \\max(t, ${T_MIN_UG16}) + CA = ${fu.tReq.toFixed(4)} \\text{ mm}$$`,
+    `$$PMTA_{fundo} = \\frac{2 \\cdot S \\cdot E \\cdot t}{L \\cdot M + 0.2 \\cdot t} = ${fu.pmta.toFixed(4)} \\text{ MPa} \\; (${kgf(fu.pmta)} \\text{ kgf/cm}^2)$$`,
+    ok(fu.ok, `espessura do fundo (${num(dados.t_fundo).toFixed(2)} mm) ≥ requerida (${fu.tReq.toFixed(3)} mm).`, `espessura do fundo (${num(dados.t_fundo).toFixed(2)} mm) < requerida (${fu.tReq.toFixed(3)} mm) ou PMTA abaixo da pressão de verificação.`),
+    ' ',
+    `// 3. PORTA PLANA REFORÇADA — UG-34 (E = ${po.E.toFixed(2)}, C = ${po.C})`,
+    `$$F = P \\cdot \\frac{\\pi D^2}{4} = ${(po.forca / 1000).toFixed(3)} \\text{ kN}$$`,
+    ...(nv
+      ? [
+          `// 3.1 Nervuras radiais (${nv.n} un, ${nv.b} × ${nv.h} mm) — viga biapoiada, L = ${nv.L.toFixed(1)} mm`,
+          `$$Z = \\frac{b \\cdot h^2}{6} = ${nv.Z.toFixed(1)} \\text{ mm}^3 \\quad M_{max} = \\frac{w \\cdot L^2}{8} = ${nv.momento.toFixed(1)} \\text{ N·mm}$$`,
+          `$$\\sigma = \\frac{M_{max}}{Z} = ${nv.sigma.toFixed(3)} \\text{ MPa} \\quad \\sigma/S = ${(nv.uso * 100).toFixed(1)}\\% \\quad PMTA_{nervuras} = ${nv.pmta.toFixed(4)} \\text{ MPa}$$`,
+        ]
+      : ['// 3.1 Sem nervuras informadas — a porta é verificada só pelas chapas.']),
+    `// 3.2 Painel entre nervuras — vão ${po.vaoReal !== null ? `REAL medido (${po.vaoReal.toFixed(1)} mm)` : `conservador 2·R·sen(π/n) (${po.vaoConservador.toFixed(1)} mm)`}`,
+    `$$t_{req} = d \\cdot \\sqrt{\\frac{C \\cdot P}{S \\cdot E}} + CA = ${po.tReq.toFixed(4)} \\text{ mm} \\quad d_{max} = ${po.vaoMax.toFixed(2)} \\text{ mm}$$`,
+    `$$PMTA_{painel} = \\frac{S \\cdot E}{C}\\left(\\frac{t_1 + t_2}{d}\\right)^2 = ${po.pmtaPainel.toFixed(4)} \\text{ MPa} \\; (${kgf(po.pmtaPainel)} \\text{ kgf/cm}^2)$$`,
+    ok(po.ok, `porta: PMTA ${po.pmta.toFixed(4)} MPa ≥ P e vão ${po.vaoUsado.toFixed(1)} mm ≤ ${po.vaoMax.toFixed(1)} mm.`, `porta: PMTA ${po.pmta.toFixed(4)} MPa, vão ${po.vaoUsado.toFixed(1)} mm (máx. ${po.vaoMax.toFixed(1)} mm) — não demonstrada para P.`),
+    `<div style="${CSS_AVISO}"><b>ATENDE CONDICIONALMENTE:</b> a soma das duas chapas só vale com ação conjunta comprovada; confirmar vãos, apoios, material, soldas, aro, cubo e fechamento (memorial de referência SERCON AHMC10).</div>`,
+    ' ',
+    '// 4. PMTA DO CONJUNTO E TESTE HIDROSTÁTICO',
+    `$$PMTA = \\min(PMTA_{costado}, PMTA_{fundo}, PMTA_{porta}) = ${c.pmta.toFixed(4)} \\text{ MPa} \\; (${kgf(c.pmta)} \\text{ kgf/cm}^2)$$`,
+    `$$P_{teste} = 1.3 \\cdot PMTA = ${c.pTeste.toFixed(4)} \\text{ MPa} \\; (${kgf(c.pTeste)} \\text{ kgf/cm}^2)$$`,
+    ' ',
+    '// ====================================================',
+    `// RESULTADO FINAL: ${resultadoFinal}`,
+  ];
+  return { t_min: co.tReq.toFixed(4), pmta: c.pmta.toFixed(4), resultado: resultadoFinal, log };
 }

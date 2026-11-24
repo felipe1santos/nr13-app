@@ -9,7 +9,7 @@
  * | campo | o que decide |
  * |---|---|
  * | `grandeza` | quais UNIDADES o instrumento aceita (pressão ≠ temperatura) |
- * | `modeloInterno` | se existe folha NOSSA de certificado para ele — manômetro, PSV e (23/11/2026) pressostato |
+ * | `modeloInterno` | se existe folha NOSSA de certificado para ele — manômetro, PSV, pressostato, termostato e malha de pressão |
  * | `checklist` | a linha do quadro 7.1.1 (ids do formulário de checklist) |
  *
  * O que é COMUM a todos mora em `DadosCalibracaoBase` (`tipos.ts`): nº de
@@ -21,8 +21,9 @@
  * Instrumento sem `modeloInterno` NÃO ganha certificado nosso inventado: a
  * calibração dele é registrada como de TERCEIRO (laboratório externo), com o
  * PDF original anexado. Criar folha interna para termômetro, vacuômetro ou
- * transmissor é trabalho futuro — ver PENDENCIAS.md. (O pressostato ganhou a
- * sua em 23/11/2026.)
+ * vacuômetro é trabalho futuro — ver PENDENCIAS.md. (O pressostato ganhou a
+ * sua em 23/11/2026; o termostato e a malha de pressão/transmissor, em
+ * 24/11/2026.)
  */
 export type TipoInstrumento =
   | 'manometro'
@@ -30,7 +31,8 @@ export type TipoInstrumento =
   | 'termometro'
   | 'vacuometro'
   | 'pressostato'
-  | 'transmissor';
+  | 'transmissor'
+  | 'termostato';
 
 export type Grandeza = 'pressao' | 'temperatura';
 
@@ -39,7 +41,27 @@ export type Grandeza = 'pressao' | 'temperatura';
  * (set point + dois ensaios de desarme/rearme + inspeção visual), emitido pelo
  * gerador vetorial como os outros dois.
  */
-export type ModeloInterno = 'manometro' | 'psv' | 'pressostato';
+export type ModeloInterno = 'manometro' | 'psv' | 'pressostato' | 'termostato' | 'transmissor';
+
+/**
+ * 24/11/2026 · as duas FAMÍLIAS de certificado interno que se repetem:
+ *
+ * - CHAVEAMENTO (pressostato, termostato): set point, ensaios de desarme/rearme,
+ *   inspeção visual, Range/Diferencial e o bloco metrológico. O termostato é "o
+ *   pressostato de temperatura" (pedido do engenheiro parceiro).
+ * - MEDIÇÃO POR PONTOS (manômetro, malha de pressão/transmissor): valor
+ *   convencional × valor indicado, crescente e decrescente, erro, incerteza e k.
+ */
+export type ModeloChaveamento = 'pressostato' | 'termostato';
+export type ModeloPontos = 'manometro' | 'transmissor';
+
+export function ehChaveamento(tipo: unknown): tipo is ModeloChaveamento {
+  return tipo === 'pressostato' || tipo === 'termostato';
+}
+
+export function ehMedicaoPorPontos(tipo: unknown): tipo is ModeloPontos {
+  return tipo === 'manometro' || tipo === 'transmissor';
+}
 
 export interface DefinicaoInstrumento {
   rotulo: string;
@@ -48,8 +70,13 @@ export interface DefinicaoInstrumento {
   grandeza: Grandeza;
   /** A folha NOSSA que emite o certificado; `null` = só calibração de terceiro. */
   modeloInterno: ModeloInterno | null;
-  /** Linha do quadro 7.1.1 (ids de `INSTRUMENTOS_CHECKLIST`). */
-  checklist: { id: string; calId: string };
+  /**
+   * Linha do quadro 7.1.1 (ids de `INSTRUMENTOS_CHECKLIST`). `null` = o
+   * instrumento não tem linha no quadro (termostato, 24/11/2026): o quadro é a
+   * lista FIXA do formulário de campo, e seus ids posicionais antigos são
+   * congelados (`idsInstrumentos.ts`).
+   */
+  checklist: { id: string; calId: string } | null;
   /** Ícone do sprite (`Icone.tsx`). */
   icone: 'manometro' | 'valvula-psv' | 'gauge';
 }
@@ -95,12 +122,25 @@ export const INSTRUMENTOS: Record<TipoInstrumento, DefinicaoInstrumento> = {
     checklist: { id: 'inst-press', calId: 'inst-press-cal' },
     icone: 'gauge',
   },
+  // 24/11/2026 · a malha de pressão (o transmissor e a sua indicação) ganhou
+  // certificado interno no modelo do manômetro — é um instrumento de MEDIÇÃO.
+  // O tipo continua 'transmissor': é o id do quadro 7.1.1 e dos registros.
   transmissor: {
-    rotulo: 'Transmissor de pressão',
-    curto: 'Transmissor',
+    rotulo: 'Malha de pressão (transmissor)',
+    curto: 'Malha de pressão',
     grandeza: 'pressao',
-    modeloInterno: null,
+    modeloInterno: 'transmissor',
     checklist: { id: 'inst-trans', calId: 'inst-trans-cal' },
+    icone: 'gauge',
+  },
+  // 24/11/2026 · termostato: o pressostato de TEMPERATURA (set point,
+  // desarme/rearme, inspeção visual). Sem linha no quadro 7.1.1.
+  termostato: {
+    rotulo: 'Termostato',
+    curto: 'Termostato',
+    grandeza: 'temperatura',
+    modeloInterno: 'termostato',
+    checklist: null,
     icone: 'gauge',
   },
 };
@@ -142,6 +182,6 @@ export function unidadeCompativel(tipo: unknown, unidade: string | undefined | n
 
 /** O tipo de instrumento dono de uma linha do quadro 7.1.1. */
 export function tipoDaLinhaChecklist(idLinha: string): TipoInstrumento | null {
-  for (const t of TIPOS_INSTRUMENTO) if (INSTRUMENTOS[t].checklist.id === idLinha) return t;
+  for (const t of TIPOS_INSTRUMENTO) if (INSTRUMENTOS[t].checklist?.id === idLinha) return t;
   return null;
 }

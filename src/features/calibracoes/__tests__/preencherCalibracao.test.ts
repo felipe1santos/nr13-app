@@ -385,3 +385,19 @@ describe('as regras ficam no código', () => {
     expect(pagina).not.toContain('cal-tabela-resultados');
   });
 });
+
+describe('pontos com vírgula decimal (23/11/2026)', () => {
+  it('"2,5" é UM ponto; separadores: ";", espaço e vírgula com espaço', () => {
+    expect(pontosDeTexto('0; 2,5; 5; 7,5; 10')).toEqual(['0', '2,5', '5', '7,5', '10']);
+    expect(pontosDeTexto('0, 2,5, 5')).toEqual(['0', '2,5', '5']);
+    expect(pontosDeTexto('0 2,5 5')).toEqual(['0', '2,5', '5']);
+  });
+  it('lista antiga sem espaços continua lista; vírgula no fim (digitando) não vira ponto', () => {
+    expect(pontosDeTexto('0,2,4,6')).toEqual(['0', '2', '4', '6']);
+    expect(pontosDeTexto('0, 2,')).toEqual(['0', '2']);
+  });
+  it('o texto de volta usa "; " quando há decimal, para não confundir', () => {
+    expect(textoDePontos(['0', '2,5', '5'])).toBe('0; 2,5; 5');
+    expect(pontosDeTexto(textoDePontos(['0', '2,5', '5']))).toEqual(['0', '2,5', '5']);
+  });
+});

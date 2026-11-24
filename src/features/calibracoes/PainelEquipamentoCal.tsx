@@ -20,6 +20,7 @@ function classeDoInstrumento(tipo: string): string {
     case 'psv':
       return 'i-psv';
     case 'termometro':
+    case 'termostato':
       return 'i-ter';
     case 'vacuometro':
       return 'i-vac';

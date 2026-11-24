@@ -302,6 +302,15 @@
   min-width: 0;
 }
 .mres-prs-par { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* 24/11/2026 · diferencial + características metrológicas (opcionais). */
+.mres-prs-metro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 16px;
+}
+.mres-prs-metro .mres-psv { width: 100%; }
 .mres-prs-insp {
   display: flex;
   flex-direction: column;

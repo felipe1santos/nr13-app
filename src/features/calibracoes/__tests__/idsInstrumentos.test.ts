@@ -59,7 +59,7 @@ describe('a ORDEM HISTÓRICA é o dicionário do legado', () => {
     const form = readFileSync('src/features/inspecoes/formularios/FormularioChecklist.tsx', 'utf8');
     const bloco = form.slice(form.indexOf('const INSTRUMENTOS = ['));
     const ids = [...bloco.slice(0, bloco.indexOf('];')).matchAll(/id: '(inst-[a-z]+)'/g)].map((m) => m[1]);
-    const tipos = ids.map((id) => TIPOS_INSTRUMENTO.find((t) => INSTRUMENTOS[t].checklist.id === id));
+    const tipos = ids.map((id) => TIPOS_INSTRUMENTO.find((t) => INSTRUMENTOS[t].checklist?.id === id));
     expect(tipos).toEqual([...ORDEM_HISTORICA_QUADRO]);
   });
 

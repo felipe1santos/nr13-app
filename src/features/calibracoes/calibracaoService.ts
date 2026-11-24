@@ -91,6 +91,10 @@ export function arquivoCalibracao(cal: Pick<DadosCalibracao, 'tipo' | 'origem'>)
   if (cal.tipo === 'manometro') return 'CERTIFICADO-CAL-MANOMETRO.html';
   if (cal.tipo === 'psv') return 'CERTIIFCADO-CAL-PSV.html';
   if (cal.tipo === 'pressostato') return 'CERTIFICADO-CAL-PRESSOSTATO.html';
+  // 24/11/2026 · termostato e malha de pressão: como o pressostato, folha só
+  // vetorial — entram no relatório pelos BYTES emitidos.
+  if (cal.tipo === 'termostato') return 'CERTIFICADO-CAL-TERMOSTATO.html';
+  if (cal.tipo === 'transmissor') return 'CERTIFICADO-CAL-MALHA-PRESSAO.html';
   return null;
 }
 
@@ -142,12 +146,16 @@ export function contagemParaRelatorio(certs: DadosCalibracao[]): string {
   const man = folhas.filter((c) => c.tipo === 'manometro').length;
   const psv = folhas.filter((c) => c.tipo === 'psv').length;
   const prs = folhas.filter((c) => c.tipo === 'pressostato').length;
+  const tst = folhas.filter((c) => c.tipo === 'termostato').length;
+  const mal = folhas.filter((c) => c.tipo === 'transmissor').length;
   const rascunhos = certs.filter((c) => ehInterna(c) && c.status === 'rascunho').length;
   const terceiros = certs.filter((c) => ehTerceiro(c)).length;
   const partes: string[] = [];
   if (man) partes.push(`${man} manômetro${man > 1 ? 's' : ''}`);
   if (psv) partes.push(`${psv} válvula${psv > 1 ? 's' : ''}`);
   if (prs) partes.push(`${prs} pressostato${prs > 1 ? 's' : ''}`);
+  if (tst) partes.push(`${tst} termostato${tst > 1 ? 's' : ''}`);
+  if (mal) partes.push(`${mal} malha${mal > 1 ? 's' : ''} de pressão`);
   if (terceiros) partes.push(`${terceiros} de laboratório externo, citada${terceiros > 1 ? 's' : ''} no quadro`);
   if (rascunhos) partes.push(`${rascunhos} rascunho${rascunhos > 1 ? 's' : ''} — emita para anexar`);
   return partes.join(', ');

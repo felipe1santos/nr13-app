@@ -673,6 +673,25 @@ export default function Prontuarios() {
           const rots = [t1, t2].filter(Boolean).map((c) => ROTULO_TAMPO_VASO[c!.tipo] || c!.tipo);
           if (rots.length) pb('tipoTampos', rots.join(' / '));
           if (t1?.dados.mat) pb('tampa', t1.dados.mat);
+        } else if (eq.info.subtipo === 'vertical' || eq.info.subtipo === 'bancada') {
+          // 23/11/2026 · vertical e bancada têm costado, fundo e tampo/porta próprios — a
+          // vertical caía no ramo da retangular e lia os dados de outro subtipo.
+          const sub = eq.info.subtipo;
+          const dac = carregarDadosAutoclave(eq.tag, sub);
+          if (dac.diametro) pd('diametro', str(dac.diametro));
+          if (dac.t_costado) pd('espCorpo', str(dac.t_costado));
+          if (dac.t_fundo) pd('espFundo', str(dac.t_fundo));
+          const tampa = sub === 'bancada' ? Number(dac.t_porta1 || 0) + Number(dac.t_porta2 || 0) : Number(dac.t_tampo || 0);
+          if (tampa > 0) pd('espTampa', str(tampa));
+          if (dac.ca !== undefined && dac.ca !== null && dac.ca !== '') pb('sobreespessura', str(dac.ca) + ' mm');
+          if (dac.material) pb('fundoCorpo', dac.material);
+          const fundo =
+            sub === 'bancada' || dac.tipo_fundo === 'torisferico'
+              ? 'Torisférico'
+              : dac.tipo_fundo === 'conico'
+                ? 'Cônico'
+                : 'Plano';
+          pb('tipoTampos', sub === 'bancada' ? `${fundo} / Porta plana reforçada` : `${fundo} / Tampo plano removível`);
         } else {
           const dac = carregarDadosAutoclave(eq.tag, 'retangular');
           if (dac.espessura) { pd('espCorpo', str(dac.espessura)); pd('espFundo', str(dac.espessura)); pd('espTampa', str(dac.espessura)); }

@@ -90,11 +90,8 @@ function calibracaoPreenchida(): DadosPressostato {
 describe('o pressostato tem modelo interno', () => {
   it('modeloInterno = pressostato; os demais sem folha continuam sem', () => {
     expect(INSTRUMENTOS.pressostato.modeloInterno).toBe('pressostato');
-    expect(TIPOS_INSTRUMENTO.filter((t) => !INSTRUMENTOS[t].modeloInterno)).toEqual([
-      'termometro',
-      'vacuometro',
-      'transmissor',
-    ]);
+    // 24/11/2026 · transmissor (malha de pressão) e termostato também ganharam o seu.
+    expect(TIPOS_INSTRUMENTO.filter((t) => !INSTRUMENTOS[t].modeloInterno)).toEqual(['termometro', 'vacuometro']);
   });
 });
 

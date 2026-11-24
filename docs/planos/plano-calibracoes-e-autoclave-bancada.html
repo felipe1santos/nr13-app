@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plano — Calibrações (pressostato, malha de pressão, termostato) e Autoclave de bancada</title>
+<style>
+  :root { --tx:#0E1630; --tx2:#4A5568; --tx3:#718096; --line:#E2E8F0; --bg:#EBEBEB; --card:#fff;
+          --azul:#0C4F9B; --azul-bg:#E7EFF8; --pet:#0B5F73; --pet-bg:#E8F2F5;
+          --ok:#009A3D; --ok-bg:#DEFFE8; --at:#8A5A00; --at-bg:#FBF2DE; --er:#B42318; --er-bg:#FBEAE8;
+          --info:#1A3591; --info-bg:#E3EAFF; --roxo:#6D28D9; --roxo-bg:#F1EDFF; --pes:#C2410C; --pes-bg:#FFEDD5; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--tx); font:15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { background:#0F1631; color:#fff; padding:28px 24px; }
+  header h1 { margin:0 auto; max-width:1040px; font-size:24px; font-weight:650; }
+  header p { margin:6px auto 0; max-width:1040px; color:#C9D1DB; font-size:14px; }
+  main { max-width:1040px; margin:0 auto; padding:20px 16px 60px; }
+  section { background:var(--card); border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:22px 24px; margin:0 0 18px; }
+  h2 { margin:0 0 12px; font-size:19px; display:flex; align-items:center; gap:10px; }
+  h2 .n { display:inline-grid; place-items:center; width:28px; height:28px; border-radius:50%; background:var(--azul); color:#fff; font-size:14px; }
+  h3 { margin:18px 0 8px; font-size:16px; }
+  p, li { color:var(--tx); }
+  .muted { color:var(--tx3); font-size:13px; }
+  table { width:100%; border-collapse:collapse; margin:8px 0 4px; font-size:14px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:12.5px; color:var(--tx2); text-transform:uppercase; letter-spacing:.03em; background:#F7F8FA; }
+  tr:nth-child(even) td { background:#FAFBFC; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:12.5px; font-weight:600; white-space:nowrap; }
+  .t-ok { color:var(--ok); background:var(--ok-bg); } .t-at { color:var(--at); background:var(--at-bg); }
+  .t-er { color:var(--er); background:var(--er-bg); } .t-info { color:var(--info); background:var(--info-bg); }
+  .t-azul { color:var(--azul); background:var(--azul-bg); } .t-roxo { color:var(--roxo); background:var(--roxo-bg); }
+  .t-pes { color:var(--pes); background:var(--pes-bg); } .t-pet { color:var(--pet); background:var(--pet-bg); }
+  blockquote { margin:8px 0; padding:10px 14px; border-left:4px solid var(--azul); background:var(--azul-bg); border-radius:0 4px 4px 0; }
+  .aviso { padding:12px 14px; border-left:4px solid var(--at); background:var(--at-bg); border-radius:0 4px 4px 0; margin:10px 0; }
+  .erro { padding:12px 14px; border-left:4px solid var(--er); background:var(--er-bg); border-radius:0 4px 4px 0; margin:10px 0; }
+  .ok { padding:12px 14px; border-left:4px solid var(--ok); background:var(--ok-bg); border-radius:0 4px 4px 0; margin:10px 0; }
+  code { font-family:ui-monospace, Consolas, monospace; font-size:13px; background:#F1F3F6; padding:1px 5px; border-radius:3px; }
+  .grid2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:14px; }
+  .card { border:1px solid var(--line); border-radius:4px; padding:14px 16px; }
+  .card h4 { margin:0 0 6px; font-size:15px; }
+  ol.fases > li { margin-bottom:10px; }
+  .num { font-variant-numeric: tabular-nums; }
+  @media (max-width:640px) { section { padding:16px; } th, td { padding:6px; font-size:13px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Plano — Calibrações de pressostato, malha de pressão e termostato + Autoclave de bancada</h1>
+  <p>Análise dos 2 áudios do engenheiro (23/11/2026), dos arquivos <b>Pressostato.xls</b>, <b>Malha de pressão.xls</b> e <b>Memorial_Calculo_SERCON_AHMC10_Corrigido.xlsx</b>. Nada foi implementado ainda — este é o plano para aprovação.</p>
+</header>
+<main>
+
+<section>
+  <h2><span class="n">1</span>O que o engenheiro disse</h2>
+  <blockquote><b>Áudio 1 (62 s):</b> já falamos de calibração de transdutor de pressão, pressostato, válvula, manômetro e vacuômetro, mas <b>não temos a opção de emitir o certificado</b> desses. <b>Malha de pressão</b> nada mais é que o <b>transdutor de pressão</b> — o que faz a leitura de pressão da máquina. <b>Pressostato</b> é o que você ajusta para uma pressão, com um <b>range</b> em que ele abre e fecha: ex.: ajusto para 2 kg com range de 0,5 — em 2 kg ele fecha, abaixo disso ele abre, e fica atuando dentro desse range. Faltavam esses dois para fazer a calibração dentro do software; <b>a gente só precisava do modelo de certificado</b>.</blockquote>
+  <blockquote><b>Áudio 2 (28 s):</b> tem também o de temperatura — o <b>termostato</b>, que é a mesma coisa, só que o range é de temperatura. Dá para colocar também, <b>porque a gente faz menção a eles no relatório</b>. É só montar o certificado, <b>exatamente igual ao do pressostato, só que de temperatura</b>.</blockquote>
+  <p class="muted">Transcrição automática revisada; trechos curtos com ruído foram interpretados pelo contexto.</p>
+</section>
+
+<section>
+  <h2><span class="n">2</span>Os arquivos e para que serve cada um</h2>
+  <table>
+    <tr><th>Arquivo / aba</th><th>O que é</th><th>Onde entra no sistema</th></tr>
+    <tr><td><b>Pressostato.xls</b> → aba <b>CERTIFICADO</b></td>
+        <td>O <b>modelo do certificado</b> (2 páginas): 1 Dados do cliente · 2 Item calibrado (instrumento, local/TAG, fabricante, modelo, série, datas) · 3 Procedimento · 4 Condições ambientais · 5 Padrões utilizados · 6 Resultados (<b>Range</b> e <b>Diferencial</b>, em bar) + <b>características metrológicas</b> (incerteza, erro fiducial, k, Veff) · 7 Definições · 8 Conclusão + assinaturas.</td>
+        <td>Folha do <b>certificado interno</b> do pressostato (já existe desde 23/11 — será <b>ajustada a este modelo</b>).</td></tr>
+    <tr><td>Pressostato.xls → aba <b>REGISTRO</b></td>
+        <td>A <b>folha de campo</b>: marca, modelo, série, local, range, diferencial, faixa, data e próxima calibração.</td>
+        <td>É o formulário "Preencher resultados" da calibração (o técnico preenche no celular).</td></tr>
+    <tr><td>Pressostato.xls → aba <b>Planilha1</b></td>
+        <td>Rascunho de trabalho: leituras do <b>termo-higrômetro</b> (condições ambientais), do <b>forno de bloco seco</b> e de <b>3 pressostatos de autoclave hospitalar</b> (rede de água, guarnição de portas, gerador de vapor).</td>
+        <td>Não vira tela. Confirma que o uso principal é <b>autoclave</b> e que o termostato será calibrado com <b>forno de bloco seco</b> como padrão.</td></tr>
+    <tr><td><b>Malha de pressão.xls</b></td>
+        <td>O <b>mesmo modelo</b>, com instrumento "Malha de pressão" (Wika S-10, local PT3 = <i>pressure transmitter</i>). Os resultados ainda estão no layout do pressostato (<b>Range 3,00 / Diferencial 3,05</b>) — no transmissor isso parece ser <b>valor do padrão × valor lido</b>.</td>
+        <td>Novo certificado interno da <b>malha de pressão</b> (o sistema já tem o tipo "Transmissor de pressão", só sem certificado).</td></tr>
+    <tr><td><b>Memorial_Calculo_SERCON_AHMC10</b> (.xlsx, 6 abas)</td>
+        <td>Memorial de cálculo da <b>autoclave de bancada</b> SERCON AHM (56 L): Entradas · Costado (UG-27) · Fundo torisférico (UG-32) · Porta plana reforçada (UG-34 + nervuras) · Resumo · Notas e fontes. Os dois arquivos "Corrigido" de Downloads são <b>idênticos</b>.</td>
+        <td>Novo subtipo <b>Autoclave de bancada</b> com memorial próprio (seção 4 deste plano).</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2><span class="n">3</span>Calibrações: onde entram e a quem se aplicam</h2>
+  <div class="ok"><b>Entram em CALIBRAÇÕES, não em Inspeções.</b> Calibração é do <b>instrumento</b> (tem componente, validade própria, certificado imutável e reaproveitado em vários relatórios), exatamente como manômetro, PSV e pressostato hoje. O fluxo é o mesmo: <i>Nova calibração → equipamento → componente → preencher resultados → Emitir certificado</i>. Depois disso o sistema já cuida do resto: anexa o certificado no relatório, preenche o quadro 7.1.1, a lista de dispositivos da caldeira (1.3) e os vencimentos.</div>
+  <table>
+    <tr><th>Instrumento</th><th>Para que serve</th><th>Caldeira</th><th>Autoclave</th><th>Vaso</th><th>Situação hoje</th></tr>
+    <tr><td><span class="tag t-azul">Pressostato</span></td><td>Liga/desliga em um set point de pressão, dentro de um diferencial (range).</td>
+        <td><span class="tag t-ok">Sim</span> controle do queimador</td><td><span class="tag t-ok">Sim</span> rede de água, porta, gerador de vapor</td><td><span class="tag t-info">Às vezes</span> compressores</td>
+        <td>Certificado interno <b>já existe</b> (set point + 2 ensaios desarme/rearme + inspeção visual). Ajustar ao modelo do engenheiro.</td></tr>
+    <tr><td><span class="tag t-pet">Malha de pressão</span><br><span class="muted">transmissor / transdutor</span></td><td>Lê a pressão da máquina e manda o sinal ao painel/IHM.</td>
+        <td><span class="tag t-info">Quando houver</span></td><td><span class="tag t-ok">Sim</span> principal</td><td><span class="tag t-info">Raro</span></td>
+        <td>Tipo "Transmissor de pressão" existe, <b>sem certificado</b>. Criar.</td></tr>
+    <tr><td><span class="tag t-pes">Termostato</span></td><td>Liga/desliga em um set point de temperatura, dentro de um diferencial.</td>
+        <td><span class="tag t-info">Quando houver</span></td><td><span class="tag t-ok">Sim</span> temperatura de esterilização</td><td><span class="tag t-info">Raro</span></td>
+        <td><b>Não existe</b>. Criar tipo novo + certificado (igual ao pressostato, em °C).</td></tr>
+  </table>
+  <p class="muted">Como o tipo de equipamento não restringe o instrumento (a escolha é do técnico ao cadastrar o componente), os três ficam disponíveis para os três tipos — a tabela acima é o uso esperado, não uma trava.</p>
+</section>
+
+<section>
+  <h2><span class="n">4</span>Calibrações: como implementar</h2>
+  <ol class="fases">
+    <li><b>C1 · Pressostato no modelo do engenheiro.</b> A folha emitida passa a seguir as seções 1–8 do <i>Pressostato.xls</i>: em "6. Resultados", a tabela <b>Range (set point)</b> × <b>Diferencial</b> na unidade do instrumento, e o bloco <b>Características metrológicas</b> (incerteza da medição, erro fiducial, k, Veff). Campos novos no formulário: <b>Local/TAG do instrumento</b> (PS1), incerteza, erro fiducial, k, Veff. Os ensaios de desarme/rearme e a inspeção visual que já existem podem continuar (registro do ensaio) ou sair — <b>decisão do engenheiro</b> (pergunta 1).<br>
+      <span class="muted">Certificados de pressostato já emitidos não mudam (documento emitido é imutável).</span></li>
+    <li><b>C2 · Malha de pressão.</b> O tipo "Transmissor de pressão" ganha o nome <b>"Malha de pressão (transmissor)"</b> e certificado interno no mesmo modelo. Resultados: <b>tabela de pontos</b> (valor do padrão × valor lido na malha × erro), como o manômetro, + características metrológicas. Se o engenheiro preferir o layout Range/Diferencial da planilha, é só configuração (pergunta 2).</li>
+    <li><b>C3 · Termostato.</b> Tipo novo, grandeza <b>temperatura</b> (°C), certificado <b>igual ao do pressostato</b> (set point + diferencial + características metrológicas). Padrão: o cadastro de Certificados já aceita padrão de temperatura (forno de bloco seco / termômetro padrão) — confirmar o padrão usado (pergunta 3).</li>
+    <li><b>C4 · No relatório.</b> O quadro 7.1.1 (vaso/autoclave) ganha linhas de <b>malha de pressão</b> e <b>termostato</b>; a caldeira (1.3 · dispositivos de segurança) passa a listá-los quando calibrados; os certificados entram automaticamente na seção de anexos (caldeira seção 4, vaso/autoclave seção 13), como já acontece com o pressostato.</li>
+  </ol>
+  <p><b>Peças do código:</b> <code>calibracoes/instrumentos.ts</code> (tipos e modelo interno), <code>calibracoes/tipos.ts</code> (dados de cada resultado), <code>ModalResultados.tsx</code> (formulário), <code>pdfVetorial/certificadoCalibracao.ts</code> (folha emitida), <code>calibracoes/quadroInstrumentos.ts</code> e <code>modeloCaldeira.ts</code> (relatório). O desenho dos três certificados é o mesmo; só o bloco de resultados muda por tipo.</p>
+</section>
+
+<section>
+  <h2><span class="n">5</span>Autoclave de bancada — o que o memorial calcula</h2>
+  <p>Equipamento de referência: <b>SERCON AHM</b>, 56 L, Ø interno 300 mm, inox (S = 115,14 MPa, hipótese SA-240 TP 304), E = 0,70, CA = 0, PMO 1,5 kgf/cm², <b>pressão-alvo (PMTA informada) 2,2 kgf/cm²</b>, 134 °C.</p>
+  <table>
+    <tr><th>Componente</th><th>Norma / fórmula</th><th>Resultado na planilha</th></tr>
+    <tr><td><b>Costado</b> (casco cilíndrico)</td><td>UG-27: t = P·R/(S·E − 0,6P) e P·R/(2S·E + 0,4P); mínimo UG-16(b) 1,5 mm</td>
+        <td class="num">t req. 1,50 mm · medido 2,18 mm · PMTA 1,161 MPa (<b>11,84 kgf/cm²</b>) · <span class="tag t-ok">ATENDE</span></td></tr>
+    <tr><td><b>Fundo torisférico</b></td><td>UG-32: t = P·L·M/(2S·E − 0,2P), M = ¼(3 + √(L/r)), L = D, r = 0,06D (hipótese)</td>
+        <td class="num">M 1,771 · t req. 1,50 mm · medido 2,15 mm · PMTA 0,652 MPa (<b>6,65 kgf/cm²</b>) · <span class="tag t-ok">ATENDE</span></td></tr>
+    <tr><td><b>Porta plana reforçada</b> — chapas</td><td>UG-34: t = d·√(C·P/(S·E)), C = 0,33; duas chapas 1,49 + 1,50 mm (só somam se a ação conjunta for comprovada)</td>
+        <td class="num">t mín. 2,67 mm × 2,99 mm disponível · <span class="tag t-at">ATENDE CONDICIONALMENTE</span></td></tr>
+    <tr><td>Porta — <b>nervuras</b> (8 × 5×40 mm)</td><td>Viga biapoiada: F = P·π·d²/4, M = w·L²/8, σ = M/Z</td>
+        <td class="num">σ 26,8 MPa · uso 23 % · PMTA 0,927 MPa (<b>9,45 kgf/cm²</b>)</td></tr>
+    <tr><td>Porta — <b>painel entre nervuras</b></td><td>UG-34 no vão: vão conservador 2R·sen(π/n) = 114,8 mm ou <b>vão real medido</b> (90 mm); vão máx. admissível 100,6 mm</td>
+        <td class="num">com vão real 90 mm: PMTA <b>2,75 kgf/cm²</b> · <span class="tag t-ok">dentro do vão</span></td></tr>
+    <tr><td><b>Conclusão</b></td><td>PMTA calculada = menor entre costado, fundo e porta; TH = 1,3 × PMTA informada; P×V na operação</td>
+        <td class="num">PMTA calc. <b>2,75 kgf/cm²</b> ≥ 2,2 · TH <b>2,86 kgf/cm²</b> · P×V 8,24 kPa·m³ · <span class="tag t-at">ATENDE CONDICIONALMENTE</span></td></tr>
+  </table>
+  <div class="aviso"><b>P×V = 8,24 kPa·m³ — acima de 8, então ENQUADRA na NR-13 por muito pouco.</b> Com a PMO menor ou volume menor, deixaria de enquadrar; o sistema já trata isso (aviso de não categorizado).</div>
+</section>
+
+<section>
+  <h2><span class="n">6</span>Autoclave de bancada — como implementar</h2>
+  <ol class="fases">
+    <li><b>B1 · Novo subtipo.</b> No "Criar equipamento → Autoclave" entra a 4ª opção <b>De bancada</b> (ao lado de Cilíndrica, Retangular e Vertical com tampo removível). Também na importação por planilha, na ficha e nos rótulos do prontuário. Equipamentos existentes não mudam.</li>
+    <li><b>B2 · Cálculo.</b> Função nova <code>bancada()</code> em <code>calc/autoclave.ts</code>, com <b>as mesmas fórmulas da planilha</b>, e teste automático que confere <b>cada número</b> da planilha (11,84 · 6,65 · 9,45 · 2,75 · 2,86 kgf/cm² etc.). Se um número divergir, o teste não deixa publicar.</li>
+    <li><b>B3 · Tela do memorial.</b> Mesmo desenho do memorial da autoclave vertical, com os grupos:
+      <div class="grid2" style="margin-top:8px">
+        <div class="card"><h4>Geral</h4>Pressão-alvo (PMTA informada), PMO, temperatura, Ø interno, material e S, CA, volume.</div>
+        <div class="card"><h4>Costado</h4>E e espessura medida mínima.</div>
+        <div class="card"><h4>Fundo torisférico</h4>E, espessura medida; L e r (padrão L = D e r = 0,06D, editáveis).</div>
+        <div class="card"><h4>Porta reforçada</h4>E, C, 1ª e 2ª chapa, nervuras (b × h, quantidade, comprimento livre) e <b>maior vão real medido</b>.</div>
+      </div>
+      As hipóteses da planilha (S do inox, E = 0,70, C = 0,33, torisférico padrão) aparecem como <b>valores sugeridos com aviso</b> — o engenheiro confirma. Novo selo de resultado <span class="tag t-at">ATENDE CONDICIONALMENTE</span> além de <span class="tag t-ok">ATENDE</span>/<span class="tag t-er">NÃO ATENDE</span>.</li>
+    <li><b>B4 · Documentos.</b> Memorial completo (passo a passo com fórmulas), Resumo do memorial (1 linha por componente), folhas 6/6.1 do relatório, prontuário e placa com PMTA/PTH — pelos mesmos caminhos das outras autoclaves. As notas e limitações da planilha (aba "Notas e fontes") saem no fim do memorial.</li>
+    <li><b>B5 · Categoria.</b> O volume do memorial (56 L) e a pressão alimentam a categoria e o enquadramento (P×V), como hoje.</li>
+  </ol>
+  <p><b>Dados:</b> chave já usada pelas outras autoclaves, por subtipo — <code>nr13_autoclave_dados_bancada_&lt;TAG&gt;</code>; resultado em <code>nr13_calc_&lt;TAG&gt;</code> (o formato que o relatório e o prontuário já leem). Nenhuma tabela nova no banco.</p>
+</section>
+
+<section>
+  <h2><span class="n">7</span>Divergências encontradas na planilha do memorial (confirmar antes de implementar)</h2>
+  <div class="erro"><b>A. Porta: duas conclusões diferentes.</b> A aba <i>Resumo</i> usa o <b>vão real medido (90 mm)</b> e conclui <b>PMTA da porta 2,75 kgf/cm² — ATENDE CONDICIONALMENTE</b>. A aba <i>Porta UG-34</i> usa o <b>vão conservador (114,8 mm)</b> e conclui <b>PMTA 0,166 MPa (1,69 kgf/cm²) — NÃO DEMONSTRADA</b>, abaixo dos 2,2 alvo. Proposta: <b>vale o vão real quando informado; sem ele, o conservador</b> (como faz o Resumo).</div>
+  <div class="aviso"><b>B. Pressão no texto.</b> Notas da porta falam em "<b>1,6 kgf/cm²</b>", mas a pressão-alvo usada nas contas é <b>2,2 kgf/cm²</b>.</div>
+  <div class="aviso"><b>C. Seção da nervura.</b> Textos dizem "<b>2 × 40 mm</b>"; a entrada usada é <b>b = 5 mm</b> (5 × 40).</div>
+  <div class="aviso"><b>D. Chapas da porta sem reforço:</b> a aba Porta diz "<b>NÃO DEMONSTRADA – REFORÇO INDISPENSÁVEL</b>" (PMTA 0,024 MPa), e a conclusão final é "atende condicionalmente" contando nervuras + painel. Confirmar que é essa a leitura que deve sair no documento.</div>
+  <div class="aviso"><b>E. Vão real repetido:</b> o Resumo usa um 90 digitado direto (C40), e a aba Entradas tem outro 90 (B33). No sistema será um campo só.</div>
+  <div class="aviso"><b>F. Pressão de verificação = PMTA informada.</b> Nas outras autoclaves o sistema calcula a PMTA a partir das espessuras; aqui a planilha <b>verifica</b> uma PMTA alvo (2,2) e mostra a PMTA calculada (2,75) como conferência. Confirmar que a PMTA do documento é a <b>informada</b> (2,2) e a calculada aparece como verificação.</div>
+</section>
+
+<section>
+  <h2><span class="n">8</span>Perguntas para o engenheiro</h2>
+  <ol>
+    <li><b>Pressostato:</b> o certificado fica só com Range + Diferencial (como a planilha) ou mantemos também os 2 ensaios de desarme/rearme e a inspeção visual que o sistema já registra?</li>
+    <li><b>Malha de pressão:</b> no resultado, o "Range 3,00 / Diferencial 3,05" é <i>valor do padrão × valor lido</i>? Prefere uma tabela de vários pontos (0, 25, 50, 75, 100 % da faixa) como no manômetro?</li>
+    <li><b>Termostato:</b> qual padrão de temperatura usa (forno de bloco seco PRESYS T-35N, termômetro padrão)? Unidade sempre °C?</li>
+    <li><b>Incerteza, erro fiducial, k e Veff:</b> vocês digitam (vêm do cálculo de vocês) ou o sistema deve calcular?</li>
+    <li><b>Autoclave de bancada:</b> as divergências A a F da seção 7.</li>
+    <li>"<b>Atende condicionalmente</b>": no laudo/parecer do relatório, isso conta como <b>aprovado com ressalva</b>? Que texto de ressalva deve sair?</li>
+  </ol>
+</section>
+
+<section>
+  <h2><span class="n">9</span>Como fazer com segurança</h2>
+  <ul>
+    <li><b>Tudo aditivo:</b> subtipo novo e instrumentos novos. Cilíndrica, retangular e vertical não mudam — o teste que compara os PDFs byte a byte continua valendo para elas.</li>
+    <li><b>Documento emitido não muda:</b> certificados de pressostato já emitidos e relatórios finalizados continuam servindo o arquivo guardado.</li>
+    <li><b>Conta conferida com a planilha:</b> teste automático com os valores do engenheiro (seção 5) para o memorial de bancada.</li>
+    <li><b>Ponta a ponta no ambiente de testes</b> antes de produção: autoclave de bancada completa (ficha, memorial, inspeção, calibrações de pressostato, malha e termostato emitidas), relatório gerado e salvo na Área de Trabalho para você conferir com o engenheiro.</li>
+    <li>Publicação só depois da sua aprovação, como sempre.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="n">10</span>Ordem sugerida</h2>
+  <table>
+    <tr><th>Etapa</th><th>Entrega</th><th>Depende de</th></tr>
+    <tr><td>1</td><td><b>Autoclave de bancada</b> (B1–B5) com teste batendo a planilha</td><td>Respostas da seção 7 (A e F principalmente)</td></tr>
+    <tr><td>2</td><td><b>Termostato</b> (C3) — copia o pressostato em °C</td><td>Pergunta 3</td></tr>
+    <tr><td>3</td><td><b>Malha de pressão</b> (C2)</td><td>Pergunta 2</td></tr>
+    <tr><td>4</td><td><b>Pressostato no modelo novo</b> (C1) + relatório (C4)</td><td>Perguntas 1 e 4</td></tr>
+    <tr><td>5</td><td>E2E completo no ambiente de testes → sua aprovação → produção</td><td>—</td></tr>
+  </table>
+  <p class="muted">Se preferir não esperar as respostas, dá para começar pela etapa 1 usando as propostas da seção 7 (vão real quando houver; PMTA informada no documento) e ajustar depois.</p>
+</section>
+
+</main>
+</body>
+</html>

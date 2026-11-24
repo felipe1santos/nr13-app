@@ -21,7 +21,7 @@ import ModalResultados from './ModalResultados';
 import JanelaCalibracao from './JanelaCalibracao';
 import type { ComponenteCal, LoteCal } from './componentesService';
 import { aplicarComponente, faltasDoForm, type FormDados } from './formCalibracao';
-import { definicaoDe } from './instrumentos';
+import { definicaoDe, ehChaveamento, ehMedicaoPorPontos } from './instrumentos';
 import { dataDoLote } from './lote';
 import {
   padroesCompativeis,
@@ -201,6 +201,8 @@ export default function FormularioCalibracao({
             ['Série / lote', form.serie],
             ['Faixa / referência', form.referencia],
             ['Unidade', form.unidade],
+            // 24/11/2026 · pressostato/termostato: o LOCAL / TAG do instrumento.
+            ...(ehChaveamento(form.tipo) ? [['Local / TAG do instrumento', form.localInstrumento ?? '']] : []),
             ['Cliente', form.empresa],
           ].map(([r, v]) => (
             <div key={r}>
@@ -352,7 +354,13 @@ export default function FormularioCalibracao({
                 <Icone nome="alerttri" tam={13} />
                 <span>
                   Nenhum padrão de{' '}
-                  {form.tipo === 'psv' ? 'válvula' : form.tipo === 'pressostato' ? 'manômetro ou pressostato' : 'manômetro'}{' '}
+                  {form.tipo === 'psv'
+                    ? 'válvula'
+                    : form.tipo === 'pressostato'
+                      ? 'manômetro ou pressostato'
+                      : form.tipo === 'termostato'
+                        ? 'termômetro ou termostato'
+                        : 'manômetro'}{' '}
                   cadastrado em{' '}
                   <strong>Certificados</strong>. Cadastre-o lá uma vez e ele passa a vir preenchido em
                   toda calibração.{' '}
@@ -397,14 +405,15 @@ export default function FormularioCalibracao({
         </div>
         <div className="jcal-resultados">
           <span>
-            {form.tipo === 'manometro' ? (
+            {ehMedicaoPorPontos(form.tipo) ? (
               <>
                 <strong>{resumo.feitos}</strong> de {resumo.total || 0} pontos medidos
                 {pior !== null && ` · maior erro ${pior} ${form.unidade}`}
               </>
-            ) : form.tipo === 'pressostato' ? (
+            ) : ehChaveamento(form.tipo) ? (
               <>
-                <strong>{prsFeitos}</strong> de {prsPressoes.length} pressões registradas
+                <strong>{prsFeitos}</strong> de {prsPressoes.length}{' '}
+                {form.tipo === 'termostato' ? 'temperaturas' : 'pressões'} registradas
                 {form.setPoint?.trim() ? ` · set point ${form.setPoint} ${form.unidade}` : ''}
               </>
             ) : (
@@ -414,7 +423,7 @@ export default function FormularioCalibracao({
             )}
           </span>
           <button type="button" className="fj-btn fj-btn-primary" onClick={() => setResultadosAbertos(true)}>
-            <Icone nome="sliders" tam={14} /> {resumo.feitos || (form.tipo === 'pressostato' ? prsFeitos : psvFeitos) ? 'Revisar resultados' : 'Preencher resultados'}
+            <Icone nome="sliders" tam={14} /> {resumo.feitos || (ehChaveamento(form.tipo) ? prsFeitos : psvFeitos) ? 'Revisar resultados' : 'Preencher resultados'}
           </button>
         </div>
       </section>
@@ -484,13 +493,18 @@ export default function FormularioCalibracao({
             coef: form.coef,
           }}
           pressostato={
-            form.tipo === 'pressostato'
+            ehChaveamento(form.tipo)
               ? {
                   setPoint: form.setPoint ?? '',
                   ensaios: form.ensaios ?? [],
                   fluido: form.fluido ?? '',
                   tempoMin: form.tempoMin ?? '',
                   inspecaoVisual: form.inspecaoVisual ?? {},
+                  diferencial: form.diferencial ?? '',
+                  incertezaMedicao: form.incertezaMedicao ?? '',
+                  erroFiducial: form.erroFiducial ?? '',
+                  fatorK: form.fatorK ?? '',
+                  veff: form.veff ?? '',
                 }
               : undefined
           }
@@ -516,6 +530,11 @@ export default function FormularioCalibracao({
                     fluido: v.pressostato.fluido,
                     tempoMin: v.pressostato.tempoMin,
                     inspecaoVisual: v.pressostato.inspecaoVisual,
+                    diferencial: v.pressostato.diferencial,
+                    incertezaMedicao: v.pressostato.incertezaMedicao,
+                    erroFiducial: v.pressostato.erroFiducial,
+                    fatorK: v.pressostato.fatorK,
+                    veff: v.pressostato.veff,
                   }
                 : {}),
             }));
