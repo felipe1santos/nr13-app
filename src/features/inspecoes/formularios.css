@@ -635,6 +635,15 @@
 }
 .efd-adicionar:disabled { opacity: 0.6; cursor: progress; }
 .efd-erro { margin: 0; font-size: 12.5px; color: var(--crit, #b91c1c); overflow-wrap: anywhere; }
+.efd-imagem { position: relative; }
+.efd-trocando {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.82); border-radius: 6px; font-size: 12.5px; font-weight: 600;
+}
+.efd-acoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.efd-btn-trocar { font-size: 12.5px; color: var(--amber, #0C4F9B); }
+.efd-origem { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; }
+.efd-origem > span { flex-basis: 100%; }
 @media (max-width: 560px) {
   .efd-item { grid-template-columns: minmax(0, 1fr); }
   .efd-imagem img { height: 180px; }

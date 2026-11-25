@@ -10,6 +10,7 @@ import {
   normalizarFotos,
   removerDaLista,
   rotuloFoto,
+  trocarImagem,
   type FotoDescrita,
 } from './fotosDescritas';
 
@@ -28,7 +29,17 @@ import {
  * Remover pede uma segunda confirmação NA PRÓPRIA FOTO (nada de `confirm()`
  * nativo, que congela a aba — ver memória `memorial-alert-congela-aba`) e só
  * tira a referência da lista; o arquivo no bucket fica.
+ *
+ * TROCAR IMAGEM (25/11/2026) substitui só o arquivo de uma foto — id, ordem e
+ * descrição ficam (`trocarImagem`). No celular oferece Galeria ou Câmera
+ * (`capture="environment"` abre a câmera traseira direto); no computador abre
+ * o seletor de arquivo. O arquivo antigo também fica no bucket.
  */
+
+/** Dedo na tela: é onde "abrir a câmera" faz sentido como opção própria. */
+function telaDeToque(): boolean {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+}
 export default function EditorFotosDescritas({
   fotos,
   alterar,
@@ -53,6 +64,56 @@ export default function EditorFotosDescritas({
   const [enviando, setEnviando] = useState(0);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmarRemocao, setConfirmarRemocao] = useState<string | null>(null);
+  const inputGaleria = useRef<HTMLInputElement>(null);
+  const inputCamera = useRef<HTMLInputElement>(null);
+  /** Foto cujo arquivo está sendo escolhido (o input é um só para a lista). */
+  const alvoTroca = useRef<string | null>(null);
+  const [escolhendoOrigem, setEscolhendoOrigem] = useState<string | null>(null);
+  const [trocando, setTrocando] = useState<ReadonlySet<string>>(() => new Set());
+
+  function pedirTroca(id: string) {
+    setErro(null);
+    setConfirmarRemocao(null);
+    if (telaDeToque()) {
+      setEscolhendoOrigem(id);
+      return;
+    }
+    alvoTroca.current = id;
+    inputGaleria.current?.click();
+  }
+
+  function abrirOrigem(id: string, origem: 'galeria' | 'camera') {
+    alvoTroca.current = id;
+    setEscolhendoOrigem(null);
+    (origem === 'camera' ? inputCamera : inputGaleria).current?.click();
+  }
+
+  async function aoEscolherTroca(e: React.ChangeEvent<HTMLInputElement>) {
+    const arquivo = e.target.files?.[0];
+    e.target.value = '';
+    const id = alvoTroca.current;
+    alvoTroca.current = null;
+    if (!arquivo || !id) return;
+    setErro(null);
+    setTrocando((s) => new Set(s).add(id));
+    // Mesma trava do adicionar: o Salvar espera a imagem nova entrar na lista.
+    iniciarProcessamentoFotos(1);
+    try {
+      const ref: RefFoto = await salvarFoto(arquivo, escopo);
+      // Pelo id e por atualizador: a legenda digitada durante o envio fica, e
+      // se a foto foi removida nesse meio-tempo a troca não a ressuscita.
+      alterar((atual) => trocarImagem(atual, id, ref));
+    } catch (err) {
+      setErro(`Não foi possível trocar a imagem — ${arquivo.name}: ${textoDoErro(err)}`);
+    } finally {
+      setTrocando((s) => {
+        const n = new Set(s);
+        n.delete(id);
+        return n;
+      });
+      concluirProcessamentoFoto();
+    }
+  }
 
   async function aoEscolher(e: React.ChangeEvent<HTMLInputElement>) {
     const arquivos = Array.from(e.target.files ?? []);
@@ -101,6 +162,23 @@ export default function EditorFotosDescritas({
         onChange={aoEscolher}
         data-teste="efd-input"
       />
+      <input
+        ref={inputGaleria}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={aoEscolherTroca}
+        data-teste="efd-input-troca"
+      />
+      <input
+        ref={inputCamera}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: 'none' }}
+        onChange={aoEscolherTroca}
+        data-teste="efd-input-camera"
+      />
 
       {lista.length === 0 ? (
         <div className="efd-vazio" data-teste="efd-vazio">
@@ -122,6 +200,7 @@ export default function EditorFotosDescritas({
                 >
                   <div className="efd-imagem">
                     <FotoImg foto={f} alt={rotulo} variante="thumb" />
+                    {trocando.has(f.id) && <span className="efd-trocando">Trocando imagem…</span>}
                   </div>
                   <div className="efd-corpo">
                     <div className="efd-topo">
@@ -180,15 +259,41 @@ export default function EditorFotosDescritas({
                           Manter
                         </button>
                       </div>
+                    ) : escolhendoOrigem === f.id ? (
+                      <div className="efd-origem" data-teste="efd-origem">
+                        <span>Trocar a imagem da {rotulo} por:</span>
+                        <button type="button" className="efd-btn" onClick={() => abrirOrigem(f.id, 'galeria')}>
+                          Galeria
+                        </button>
+                        <button type="button" className="efd-btn" onClick={() => abrirOrigem(f.id, 'camera')}>
+                          Câmera
+                        </button>
+                        <button type="button" className="efd-btn" onClick={() => setEscolhendoOrigem(null)}>
+                          Cancelar
+                        </button>
+                      </div>
                     ) : (
-                      <button
-                        type="button"
-                        className="efd-btn efd-btn-remover"
-                        onClick={() => setConfirmarRemocao(f.id)}
-                        aria-label={`Remover ${rotulo}`}
-                      >
-                        Remover
-                      </button>
+                      <div className="efd-acoes">
+                        <button
+                          type="button"
+                          className="efd-btn efd-btn-trocar"
+                          onClick={() => pedirTroca(f.id)}
+                          disabled={trocando.has(f.id)}
+                          aria-label={`Trocar a imagem da ${rotulo} sem mudar a descrição`}
+                          title="Troca só a imagem — a descrição fica"
+                          data-teste="efd-trocar"
+                        >
+                          {trocando.has(f.id) ? 'Trocando…' : 'Trocar imagem'}
+                        </button>
+                        <button
+                          type="button"
+                          className="efd-btn efd-btn-remover"
+                          onClick={() => setConfirmarRemocao(f.id)}
+                          aria-label={`Remover ${rotulo}`}
+                        >
+                          Remover
+                        </button>
+                      </div>
                     )}
                   </div>
                 </li>

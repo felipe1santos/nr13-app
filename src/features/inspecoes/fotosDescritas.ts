@@ -150,6 +150,27 @@ export function removerDaLista(lista: FotoDescrita[], id: string): FotoDescrita[
   return renumerar(normalizarFotos(lista).filter((f) => f.id !== id));
 }
 
+/**
+ * TROCA O ARQUIVO de uma foto e mantém o resto (25/11/2026).
+ *
+ * `id`, `ordem` e `descricao` ficam: a legenda é da FOTO (do id), e o técnico
+ * que troca uma imagem tremida não quer reescrever o texto. O `base64` legado
+ * sai junto — senão um leitor que ainda prefira o base64 continuaria
+ * mostrando a imagem antiga.
+ *
+ * O arquivo antigo NÃO é apagado (mesma política de `removerDaLista`: um
+ * relatório emitido ou um rascunho duplicado pode citar o mesmo caminho).
+ *
+ * Id ausente (a foto foi removida enquanto a nova subia) devolve a lista como
+ * está: trocar não pode ressuscitar nem acrescentar foto.
+ */
+export function trocarImagem(lista: FotoDescrita[], id: string, ref: RefFoto): FotoDescrita[] {
+  return normalizarFotos(lista).map((f) => {
+    if (f.id !== id) return f;
+    return { id: f.id, ordem: f.ordem, ref, descricao: f.descricao };
+  });
+}
+
 /** "Foto 01", "Foto 02"… — da posição na ordem, nunca gravado. */
 export function rotuloFoto(posicao: number): string {
   return `Foto ${String(posicao + 1).padStart(2, '0')}`;

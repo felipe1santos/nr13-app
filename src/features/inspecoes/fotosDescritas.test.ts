@@ -17,6 +17,7 @@ import {
   pendenciasParaEmissao,
   removerDaLista,
   rotuloFoto,
+  trocarImagem,
   type FotoDescrita,
 } from './fotosDescritas';
 
@@ -237,4 +238,48 @@ describe('outros ensaios usam o MESMO editor (sem cópia do bloco antigo)', () =
       expect(s).not.toContain('setDescricaoFoto(');
     });
   }
+});
+
+describe('trocar a imagem sem mexer na legenda (25/11/2026)', () => {
+  it('troca só o arquivo: id, ordem e descrição ficam', () => {
+    const l = tresFotos();
+    const alvo = l[1];
+    const nova = trocarImagem(l, alvo.id, ref(9));
+    expect(nova).toHaveLength(3);
+    expect(nova[1].id).toBe(alvo.id);
+    expect(nova[1].ordem).toBe(1);
+    expect(nova[1].descricao).toBe('Válvula de segurança instalada no equipamento.');
+    expect(nova[1].ref?.path).toBe('org-a/ZZ_imagens/uuid-9.jpg');
+    expect(nova[0]).toEqual(l[0]);
+    expect(nova[2]).toEqual(l[2]);
+  });
+
+  it('foto legada em base64 perde o base64 ao ganhar a referência nova', () => {
+    const l = normalizarFotos([{ base64: 'data:image/jpeg;base64,AAAA', descricao: 'Antiga' }]);
+    const nova = trocarImagem(l, l[0].id, ref(5));
+    expect(nova[0].base64).toBeUndefined();
+    expect(nova[0].descricao).toBe('Antiga');
+    expect(nova[0].id).toBe(l[0].id);
+  });
+
+  it('id derivado do caminho antigo continua o MESMO depois de gravar e reler', () => {
+    const l = normalizarFotos([{ ref: ref(1), descricao: 'Sem id gravado' }]);
+    const nova = gravarELer(trocarImagem(l, l[0].id, ref(2)));
+    expect(nova[0].id).toBe(l[0].id);
+    expect(nova[0].ref?.path).toBe('org-a/ZZ_imagens/uuid-2.jpg');
+  });
+
+  it('foto removida enquanto a nova subia: a troca não ressuscita nem acrescenta', () => {
+    const l = tresFotos();
+    const semAlvo = removerDaLista(l, l[0].id);
+    const nova = trocarImagem(semAlvo, l[0].id, ref(9));
+    expect(nova).toEqual(semAlvo);
+  });
+
+  it('o editor troca pelo id e trava o Salvar durante o envio; câmera por capture', () => {
+    const editor = readFileSync(new URL('./EditorFotosDescritas.tsx', import.meta.url), 'utf8');
+    expect(editor).toContain('trocarImagem(atual, id, ref)');
+    expect(editor).toContain('capture="environment"');
+    expect(editor).not.toMatch(/removerFoto\(/);
+  });
 });
