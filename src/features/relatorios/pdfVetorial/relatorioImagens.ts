@@ -5,7 +5,7 @@ import { CAIXA, COR, CORPO, FONTE, LIMITE_CORPO, alturaLinha } from './documento
 import { foto } from './primitivas';
 import { medirFotos } from './modelo';
 import { baixarFoto, blobParaDataUrl } from '../../../services/fotos';
-import { rotuloFoto, type FotoDescrita } from '../../inspecoes/fotosDescritas';
+import { rotuloFoto, tituloDaFoto, type FotoDescrita } from '../../inspecoes/fotosDescritas';
 
 /**
  * RELATÓRIO DE IMAGENS — o documento feito de fotos descritas (Fase 5, 24/09/2026).
@@ -37,6 +37,8 @@ import { rotuloFoto, type FotoDescrita } from '../../inspecoes/fotosDescritas';
 export interface FotoParaDocumento {
   dataUrl: string;
   descricao: string;
+  /** Título da foto (o do técnico ou "Foto 0N"), já resolvido. Ausente = "Foto 0N". */
+  titulo?: string;
   /** largura/altura reais. Sem isto a primitiva mede pelos bytes. */
   proporcao?: number;
 }
@@ -114,7 +116,13 @@ export function desenharFotosDescritas(
     pdf.setFont(FAMILIA, 'bold');
     pdf.setFontSize(FONTE.faixa);
     pdf.setTextColor(COR.texto);
-    pdf.text(rotuloFoto(i), x, y + 3.6);
+    // Título do técnico pode ser mais largo que a coluna: reduz a fonte até
+    // caber (piso 6 pt) em vez de cortar o texto em silêncio.
+    const titulo = fotos[i].titulo ?? rotuloFoto(i);
+    let tam = FONTE.faixa;
+    pdf.setFontSize(tam);
+    while (tam > 6 && pdf.getTextWidth(titulo) > col) pdf.setFontSize((tam -= 0.5));
+    pdf.text(titulo, x, y + 3.6);
     const yImg = y + g.alturaRotulo;
     foto(pdf, fotos[i].dataUrl, { x, y: yImg, largura: col, altura: g.alturaImagem }, fotos[i].proporcao);
     pdf.setFont(FAMILIA, 'normal');
@@ -226,7 +234,7 @@ export async function prepararFotosDescritas(fotos: FotoDescrita[]): Promise<Fot
       }
     }),
   );
-  const faltando = imagens.flatMap((img, i) => (img ? [] : [rotuloFoto(i)]));
+  const faltando = imagens.flatMap((img, i) => (img ? [] : [tituloDaFoto(fotos[i], i)]));
   if (faltando.length > 0) throw new FotoIndisponivelErro(faltando);
 
   // Proporção dos bytes (contain sem esticar). `medirFotos` descarta a que o
@@ -236,7 +244,12 @@ export async function prepararFotosDescritas(fotos: FotoDescrita[]): Promise<Fot
     const ok = new Set(medidas.map((m) => m.dataUrl));
     throw new FotoIndisponivelErro(fotos.flatMap((_, i) => (ok.has(imagens[i] as string) ? [] : [rotuloFoto(i)])));
   }
-  return medidas.map((m) => ({ dataUrl: m.dataUrl, descricao: m.descricao, proporcao: m.proporcao }));
+  return medidas.map((m, i) => ({
+    dataUrl: m.dataUrl,
+    descricao: m.descricao,
+    titulo: tituloDaFoto(fotos[i], i),
+    proporcao: m.proporcao,
+  }));
 }
 
 /** O título da seção dentro do relatório completo — número fixo (§ sumário). */

@@ -1,15 +1,19 @@
 import { useRef, useState } from 'react';
 import FotoImg from '../../components/FotoImg';
+import { Icone } from '../../components/Icone';
 import { salvarFoto, type RefFoto } from '../../services/fotos';
 import { concluirProcessamentoFoto, iniciarProcessamentoFotos } from './fotosEmProcessamento';
 import { textoDoErro } from '../../services/textoDoErro';
 import {
   adicionarFotos,
   definirDescricao,
+  definirTitulo,
   moverFoto,
   normalizarFotos,
   removerDaLista,
   rotuloFoto,
+  TITULO_FOTO_MAX,
+  tituloDaFoto,
   trocarImagem,
   type FotoDescrita,
 } from './fotosDescritas';
@@ -48,6 +52,7 @@ export default function EditorFotosDescritas({
   rotuloAdicionar = 'Adicionar imagem',
   destacarSemDescricao = false,
   placeholder = 'Descreva o que a foto mostra',
+  tituloEditavel = false,
 }: {
   fotos: unknown;
   alterar: (atualizar: (atual: FotoDescrita[]) => FotoDescrita[]) => void;
@@ -58,6 +63,12 @@ export default function EditorFotosDescritas({
   /** Marca em vermelho a foto sem descrição (documento que exige descrição). */
   destacarSemDescricao?: boolean;
   placeholder?: string;
+  /**
+   * Título da foto editável. Só onde o DOCUMENTO imprime o título (Relatório
+   * de Imagens); nos outros ensaios ele não sai no papel, e editar algo que não
+   * aparece seria enganar o técnico.
+   */
+  tituloEditavel?: boolean;
 }) {
   const lista = normalizarFotos(fotos);
   const input = useRef<HTMLInputElement>(null);
@@ -190,7 +201,7 @@ export default function EditorFotosDescritas({
           <ol className="efd-lista">
             {lista.map((f, i) => {
               const semDescricao = destacarSemDescricao && f.descricao.trim() === '';
-              const rotulo = rotuloFoto(i);
+              const rotulo = tituloDaFoto(f, i);
               return (
                 <li
                   key={f.id}
@@ -204,7 +215,25 @@ export default function EditorFotosDescritas({
                   </div>
                   <div className="efd-corpo">
                     <div className="efd-topo">
-                      <strong className="efd-rotulo">{rotulo}</strong>
+                      {tituloEditavel ? (
+                        <label className="efd-titulo">
+                          <span className="efd-sr">Título da foto {i + 1}</span>
+                          <input
+                            type="text"
+                            value={f.titulo ?? ''}
+                            placeholder={rotuloFoto(i)}
+                            maxLength={TITULO_FOTO_MAX}
+                            onChange={(e) => {
+                              const texto = e.target.value;
+                              alterar((atual) => definirTitulo(atual, f.id, texto));
+                            }}
+                            data-teste="efd-titulo"
+                          />
+                          <Icone nome="pencil" tam={14} className="efd-titulo-icone" />
+                        </label>
+                      ) : (
+                        <strong className="efd-rotulo">{rotulo}</strong>
+                      )}
                       <div className="efd-mover">
                         <button
                           type="button"
@@ -214,7 +243,7 @@ export default function EditorFotosDescritas({
                           aria-label={`Mover ${rotulo} para cima`}
                           title="Mover para cima"
                         >
-                          ↑
+                          <Icone nome="chevup" tam={16} />
                         </button>
                         <button
                           type="button"
@@ -224,7 +253,7 @@ export default function EditorFotosDescritas({
                           aria-label={`Mover ${rotulo} para baixo`}
                           title="Mover para baixo"
                         >
-                          ↓
+                          <Icone nome="chevdown" tam={16} />
                         </button>
                       </div>
                     </div>
@@ -232,7 +261,7 @@ export default function EditorFotosDescritas({
                       <span className="efd-descricao-rotulo">Descrição</span>
                       <textarea
                         value={f.descricao}
-                        rows={3}
+                        rows={2}
                         placeholder={placeholder}
                         onChange={(e) => {
                           const texto = e.target.value;
@@ -262,10 +291,12 @@ export default function EditorFotosDescritas({
                     ) : escolhendoOrigem === f.id ? (
                       <div className="efd-origem" data-teste="efd-origem">
                         <span>Trocar a imagem da {rotulo} por:</span>
-                        <button type="button" className="efd-btn" onClick={() => abrirOrigem(f.id, 'galeria')}>
+                        <button type="button" className="efd-btn efd-btn-acao efd-btn-trocar" onClick={() => abrirOrigem(f.id, 'galeria')}>
+                          <Icone nome="upload" tam={15} />
                           Galeria
                         </button>
-                        <button type="button" className="efd-btn" onClick={() => abrirOrigem(f.id, 'camera')}>
+                        <button type="button" className="efd-btn efd-btn-acao efd-btn-trocar" onClick={() => abrirOrigem(f.id, 'camera')}>
+                          <Icone nome="camera" tam={15} />
                           Câmera
                         </button>
                         <button type="button" className="efd-btn" onClick={() => setEscolhendoOrigem(null)}>
@@ -276,21 +307,23 @@ export default function EditorFotosDescritas({
                       <div className="efd-acoes">
                         <button
                           type="button"
-                          className="efd-btn efd-btn-trocar"
+                          className="efd-btn efd-btn-acao efd-btn-trocar"
                           onClick={() => pedirTroca(f.id)}
                           disabled={trocando.has(f.id)}
                           aria-label={`Trocar a imagem da ${rotulo} sem mudar a descrição`}
                           title="Troca só a imagem — a descrição fica"
                           data-teste="efd-trocar"
                         >
+                          <Icone nome="refresh" tam={15} />
                           {trocando.has(f.id) ? 'Trocando…' : 'Trocar imagem'}
                         </button>
                         <button
                           type="button"
-                          className="efd-btn efd-btn-remover"
+                          className="efd-btn efd-btn-acao efd-btn-remover"
                           onClick={() => setConfirmarRemocao(f.id)}
                           aria-label={`Remover ${rotulo}`}
                         >
+                          <Icone nome="trash" tam={15} />
                           Remover
                         </button>
                       </div>

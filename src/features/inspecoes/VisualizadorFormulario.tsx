@@ -3,7 +3,7 @@ import { GRUPOS_NR13_CALDEIRA, normalizarVerificacaoNr13 } from '../caldeira/ver
 import { PERGUNTAS_ALIMENTACAO, normalizarAlimentacao } from '../caldeira/alimentacaoAgua';
 import { dadosPadraoAcumulacao, instrumentoDoEnsaio, pressaoNasCincoUnidades, type DadosAcumulacao } from './acumulacao';
 import FotoImg from '../../components/FotoImg';
-import { normalizarFotos, rotuloFoto } from './fotosDescritas';
+import { normalizarFotos, tituloDaFoto } from './fotosDescritas';
 import { ehSistemaUnidade, rotuloPressao } from '../../calc/unidades';
 import { UNIDADE_TH_LEGADA } from './formularios/unidadeTh';
 import { ITENS_VISUAL_EXTERNO } from './formularios/FormularioVisualExterno';
@@ -109,7 +109,7 @@ function GaleriaFotos({ fotos, titulo = 'Registro Fotográfico' }: { fotos: unkn
       <div className="fotos-formulario-grid">
         {lista.map((f, i) => (
           <div key={f.id} className="foto-formulario-item">
-            <FotoImg foto={f} alt={f.descricao || rotuloFoto(i)} variante="thumb" />
+            <FotoImg foto={f} alt={f.descricao || tituloDaFoto(f, i)} variante="thumb" />
             <div
               style={{
                 padding: '6px 8px',
@@ -120,7 +120,7 @@ function GaleriaFotos({ fotos, titulo = 'Registro Fotográfico' }: { fotos: unkn
                 whiteSpace: 'pre-wrap',
               }}
             >
-              <strong>{rotuloFoto(i)}</strong>
+              <strong>{tituloDaFoto(f, i)}</strong>
               {f.descricao ? ` — ${f.descricao}` : ''}
             </div>
           </div>

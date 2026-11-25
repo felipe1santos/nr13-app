@@ -51,7 +51,17 @@ export interface FotoDescrita {
   /** LEGADO (antes de 10/08/2026): a imagem inteira em dataURL. */
   base64?: string;
   descricao: string;
+  /**
+   * Título dado pelo técnico (25/11/2026). Ausente = o número derivado da
+   * ordem ("Foto 01"), que é o padrão e continua renumerando ao mover.
+   * Gravado como digitado (espaços inclusive, para o campo não "comer" o
+   * espaço entre palavras); quem exibe usa `tituloDaFoto`, que apara.
+   */
+  titulo?: string;
 }
+
+/** Teto do título: cabe numa linha da coluna do PDF (2 por folha). */
+export const TITULO_FOTO_MAX = 60;
 
 /** O que chega do storage: qualquer versão já gravada de uma foto de campo. */
 export interface FotoBrutaCampo {
@@ -60,6 +70,7 @@ export interface FotoBrutaCampo {
   ref?: RefFoto;
   base64?: string;
   descricao?: unknown;
+  titulo?: unknown;
 }
 
 export function novoIdFoto(): string {
@@ -111,6 +122,7 @@ export function normalizarFotos(lista: unknown): FotoDescrita[] {
     };
     if (f.ref) foto.ref = f.ref;
     if (typeof f.base64 === 'string' && f.base64 !== '') foto.base64 = f.base64;
+    if (typeof f.titulo === 'string' && f.titulo.trim() !== '') foto.titulo = f.titulo.slice(0, TITULO_FOTO_MAX);
     return foto;
   });
 }
@@ -127,6 +139,16 @@ export function adicionarFotos(lista: FotoDescrita[], refs: RefFoto[]): FotoDesc
 
 export function definirDescricao(lista: FotoDescrita[], id: string, descricao: string): FotoDescrita[] {
   return normalizarFotos(lista).map((f) => (f.id === id ? { ...f, descricao } : f));
+}
+
+/** Título por id. Vazio (ou só espaços) volta ao número derivado da ordem. */
+export function definirTitulo(lista: FotoDescrita[], id: string, titulo: string): FotoDescrita[] {
+  return normalizarFotos(lista).map((f) => {
+    if (f.id !== id) return f;
+    const { titulo: _antigo, ...resto } = f;
+    void _antigo;
+    return titulo.trim() === '' ? resto : { ...resto, titulo: titulo.slice(0, TITULO_FOTO_MAX) };
+  });
 }
 
 /**
@@ -153,7 +175,7 @@ export function removerDaLista(lista: FotoDescrita[], id: string): FotoDescrita[
 /**
  * TROCA O ARQUIVO de uma foto e mantém o resto (25/11/2026).
  *
- * `id`, `ordem` e `descricao` ficam: a legenda é da FOTO (do id), e o técnico
+ * `id`, `ordem`, `descricao` e `titulo` ficam: a legenda é da FOTO (do id), e o técnico
  * que troca uma imagem tremida não quer reescrever o texto. O `base64` legado
  * sai junto — senão um leitor que ainda prefira o base64 continuaria
  * mostrando a imagem antiga.
@@ -167,13 +189,21 @@ export function removerDaLista(lista: FotoDescrita[], id: string): FotoDescrita[
 export function trocarImagem(lista: FotoDescrita[], id: string, ref: RefFoto): FotoDescrita[] {
   return normalizarFotos(lista).map((f) => {
     if (f.id !== id) return f;
-    return { id: f.id, ordem: f.ordem, ref, descricao: f.descricao };
+    const nova: FotoDescrita = { id: f.id, ordem: f.ordem, ref, descricao: f.descricao };
+    if (f.titulo !== undefined) nova.titulo = f.titulo;
+    return nova;
   });
 }
 
 /** "Foto 01", "Foto 02"… — da posição na ordem, nunca gravado. */
 export function rotuloFoto(posicao: number): string {
   return `Foto ${String(posicao + 1).padStart(2, '0')}`;
+}
+
+/** O título que a tela e o documento mostram: o do técnico ou "Foto 0N". */
+export function tituloDaFoto(f: Pick<FotoDescrita, 'titulo'>, posicao: number): string {
+  const t = f.titulo?.trim();
+  return t ? t : rotuloFoto(posicao);
 }
 
 export interface PendenciaFoto {
@@ -195,5 +225,5 @@ export function pendenciasParaEmissao(lista: unknown): PendenciaFoto[] {
   return fotos
     .map((f, i) => ({ f, i }))
     .filter(({ f }) => f.descricao.trim() === '')
-    .map(({ f, i }) => ({ id: f.id, mensagem: `${rotuloFoto(i)} está sem descrição.` }));
+    .map(({ f, i }) => ({ id: f.id, mensagem: `${tituloDaFoto(f, i)} está sem descrição.` }));
 }

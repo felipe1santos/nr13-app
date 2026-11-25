@@ -98,12 +98,13 @@ export default function FormularioRelatorioImagens({ tag, containerId }: { tag: 
           Imagens ({dados.fotos.length} {dados.fotos.length === 1 ? 'imagem' : 'imagens'})
         </h3>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 12px' }}>
-          Cada imagem tem a sua descrição. A numeração segue a ordem da lista — use ↑ ↓ para reordenar.
+          Cada imagem tem o seu título e a sua descrição. Sem título, ela é numerada pela ordem da lista — use as setas para reordenar.
         </p>
         <EditorFotosDescritas
           fotos={dados.fotos}
           escopo={`${tag}/imagens`}
           destacarSemDescricao
+          tituloEditavel
           alterar={(atualizar) => setDados((d) => ({ ...d, fotos: atualizar(normalizarFotos(d.fotos)) }))}
         />
         {pendencias.length > 0 && dados.fotos.length > 0 && (

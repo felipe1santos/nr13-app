@@ -16,7 +16,10 @@ import {
   normalizarFotos,
   pendenciasParaEmissao,
   removerDaLista,
+  definirTitulo,
   rotuloFoto,
+  TITULO_FOTO_MAX,
+  tituloDaFoto,
   trocarImagem,
   type FotoDescrita,
 } from './fotosDescritas';
@@ -281,5 +284,51 @@ describe('trocar a imagem sem mexer na legenda (25/11/2026)', () => {
     expect(editor).toContain('trocarImagem(atual, id, ref)');
     expect(editor).toContain('capture="environment"');
     expect(editor).not.toMatch(/removerFoto\(/);
+  });
+});
+
+describe('título da foto editável (25/11/2026)', () => {
+  it('sem título gravado, o título é o número derivado da ordem', () => {
+    const l = tresFotos();
+    expect(tituloDaFoto(l[1], 1)).toBe('Foto 02');
+  });
+
+  it('título editado fica preso ao id: sobrevive a mover, trocar imagem e gravar/reler', () => {
+    let l = tresFotos();
+    const alvo = l[2].id;
+    l = definirTitulo(l, alvo, '  Placa de identificação ');
+    l = moverFoto(l, alvo, -1);
+    l = trocarImagem(l, alvo, ref(8));
+    l = gravarELer(l);
+    const f = l.find((x) => x.id === alvo)!;
+    expect(f.titulo).toBe('  Placa de identificação ');
+    expect(tituloDaFoto(f, 1)).toBe('Placa de identificação');
+    expect(f.descricao).toBe('Manômetro instalado na linha de vapor.');
+  });
+
+  it('título apagado (ou só espaços) volta ao número — não grava string vazia', () => {
+    let l = tresFotos();
+    l = definirTitulo(l, l[0].id, 'X');
+    l = definirTitulo(l, l[0].id, '   ');
+    expect('titulo' in l[0]).toBe(false);
+    expect(tituloDaFoto(l[0], 0)).toBe('Foto 01');
+  });
+
+  it('título tem teto de tamanho (cabe na coluna do PDF)', () => {
+    const l = definirTitulo(tresFotos(), tresFotos()[0].id, 'x'.repeat(200));
+    expect(normalizarFotos(l)[0].titulo?.length ?? 0).toBeLessThanOrEqual(TITULO_FOTO_MAX);
+  });
+
+  it('a pendência de emissão nomeia a foto pelo título editado', () => {
+    let l = tresFotos();
+    l = definirTitulo(l, l[1].id, 'Válvula');
+    l = definirDescricao(l, l[1].id, '');
+    expect(pendenciasParaEmissao(l).map((p) => p.mensagem)).toEqual(['Válvula está sem descrição.']);
+  });
+
+  it('o PDF do Relatório de Imagens imprime o título da foto, não o número fixo', () => {
+    const src = readFileSync(new URL('../relatorios/pdfVetorial/relatorioImagens.ts', import.meta.url), 'utf8');
+    expect(src).toContain('fotos[i].titulo');
+    expect(src).not.toContain('pdf.text(rotuloFoto(i)');
   });
 });
